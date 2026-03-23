@@ -1,5 +1,6 @@
 #include "power_task.h"
 
+#include <inttypes.h>
 #include <math.h>
 
 #include "esp_log.h"
@@ -68,7 +69,7 @@ static void power_task(void *pvParameters)
     uint16_t overheat_temp = board->overheat_temp;
     uint32_t iteration = 0;
 
-    ESP_LOGI(TAG, "Power task started: fan_target=%u overheat=%u vr_target=%u",
+    ESP_LOGI(TAG, "Power task started: fan_target=%" PRIu16 " overheat=%" PRIu16 " vr_target=%" PRIu16,
              board->fan_target_temp, overheat_temp, board->vr_target_temp);
 
     while (1) {
@@ -105,7 +106,7 @@ static void power_task(void *pvParameters)
 
         if (overheat || s_status.vr_fault) {
             if (overheat) {
-                ESP_LOGE(TAG, "OVERHEAT: chip=%.1fC vr=%.1fC (limits: chip=%u vr=%.0f)",
+                ESP_LOGE(TAG, "OVERHEAT: chip=%.1fC vr=%.1fC (limits: chip=%" PRIu16 " vr=%.0f)",
                          s_status.chip_temp, s_status.vr_temp,
                          overheat_temp, VR_OVERHEAT_TEMP);
             }
@@ -132,7 +133,7 @@ static void power_task(void *pvParameters)
 
         /* ── Debug log ───────────────────────────────────────────── */
         ESP_LOGD(TAG, "chip=%.1fC vr=%.1fC board=%.1fC | vin=%.2fV vout=%.2fV pwr=%.1fW | "
-                 "fan0=%u rpm fan1=%u rpm | oh=%d fault=%d",
+                 "fan0=%" PRIu16 " rpm fan1=%" PRIu16 " rpm | oh=%d fault=%d",
                  s_status.chip_temp, s_status.vr_temp, s_status.board_temp,
                  s_status.vin, s_status.vout, s_status.power_w,
                  s_status.fan0_rpm, s_status.fan1_rpm,
@@ -165,9 +166,4 @@ void power_set_fan_override(int percent)
         s_fan_override = (percent > 100) ? 100 : percent;
         ESP_LOGI(TAG, "Fan override set to %d%%", s_fan_override);
     }
-}
-
-const power_status_t *power_task_get_status(void)
-{
-    return &s_status;
 }

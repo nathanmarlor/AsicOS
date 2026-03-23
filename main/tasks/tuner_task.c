@@ -12,7 +12,9 @@
 #include "freertos/event_groups.h"
 #include "esp_log.h"
 
+#include <inttypes.h>
 #include <math.h>
+#include <string.h>
 
 static const char *TAG = "tuner_task";
 
@@ -140,19 +142,19 @@ static void compute_profiles(void)
 
     ESP_LOGI(TAG, "Profiles computed:");
     if (profiles.eco_valid) {
-        ESP_LOGI(TAG, "  Eco:      %uMHz @ %umV (%.2f GH/s, %.1fW, %.3f GH/s/W)",
+        ESP_LOGI(TAG, "  Eco:      %" PRIu16 "MHz @ %" PRIu16 "mV (%.2f GH/s, %.1fW, %.3f GH/s/W)",
                  profiles.eco.freq, profiles.eco.voltage,
                  profiles.eco.hashrate_ghs, profiles.eco.power_w,
                  profiles.eco.efficiency_ghs_per_w);
     }
     if (profiles.balanced_valid) {
-        ESP_LOGI(TAG, "  Balanced: %uMHz @ %umV (%.2f GH/s, %.1fW, %.3f GH/s/W)",
+        ESP_LOGI(TAG, "  Balanced: %" PRIu16 "MHz @ %" PRIu16 "mV (%.2f GH/s, %.1fW, %.3f GH/s/W)",
                  profiles.balanced.freq, profiles.balanced.voltage,
                  profiles.balanced.hashrate_ghs, profiles.balanced.power_w,
                  profiles.balanced.efficiency_ghs_per_w);
     }
     if (profiles.power_valid) {
-        ESP_LOGI(TAG, "  Power:    %uMHz @ %umV (%.2f GH/s, %.1fW, %.3f GH/s/W)",
+        ESP_LOGI(TAG, "  Power:    %" PRIu16 "MHz @ %" PRIu16 "mV (%.2f GH/s, %.1fW, %.3f GH/s/W)",
                  profiles.power.freq, profiles.power.voltage,
                  profiles.power.hashrate_ghs, profiles.power.power_w,
                  profiles.power.efficiency_ghs_per_w);
@@ -181,7 +183,7 @@ static void tuner_task_fn(void *arg)
         tuner_set_step(0, total_est);
         tuner_set_state(TUNER_STATE_RUNNING);
 
-        ESP_LOGI(TAG, "Starting adaptive 2-phase sweep: freq %u-%u, volt %u-%u (~%d steps)",
+        ESP_LOGI(TAG, "Starting adaptive 2-phase sweep: freq %" PRIu16 "-%" PRIu16 ", volt %" PRIu16 "-%" PRIu16 " (~%d steps)",
                  s_freq_min, s_freq_max, s_volt_min, s_volt_max, total_est);
 
         /* Use balanced mode for coarse scoring (fine phase uses it too) */
@@ -193,7 +195,7 @@ static void tuner_task_fn(void *arg)
         bool aborted = false;
 
         /* -- Phase 1: Coarse sweep ---------------------------------------- */
-        ESP_LOGI(TAG, "Phase 1: Coarse sweep (step %u/%u/%u)",
+        ESP_LOGI(TAG, "Phase 1: Coarse sweep (step %d/%d/%d)",
                  COARSE_FREQ_STEP, COARSE_VOLT_STEP, COARSE_SETTLE_MS);
 
         uint16_t coarse_best_freq = s_freq_min;
@@ -203,7 +205,7 @@ static void tuner_task_fn(void *arg)
         for (uint16_t v = s_volt_min; v <= s_volt_max && !aborted; v += COARSE_VOLT_STEP) {
             esp_err_t err = vr_set_voltage(v);
             if (err != ESP_OK) {
-                ESP_LOGW(TAG, "vr_set_voltage(%u) failed: %d", v, err);
+                ESP_LOGW(TAG, "vr_set_voltage(%" PRIu16 ") failed: %d", v, err);
             }
 
             bool skip_higher_freq = false;
@@ -213,13 +215,13 @@ static void tuner_task_fn(void *arg)
                 if (step >= TUNER_MAX_RESULTS) { break; }
 
                 if (skip_higher_freq) {
-                    ESP_LOGI(TAG, "Coarse: skipping %uMHz @ %umV (previous unstable/overheat)", f, v);
+                    ESP_LOGI(TAG, "Coarse: skipping %" PRIu16 "MHz @ %" PRIu16 "mV (previous unstable/overheat)", f, v);
                     continue;
                 }
 
                 err = bm1370_set_frequency(f);
                 if (err != ESP_OK) {
-                    ESP_LOGW(TAG, "bm1370_set_frequency(%u) failed: %d", f, err);
+                    ESP_LOGW(TAG, "bm1370_set_frequency(%" PRIu16 ") failed: %d", f, err);
                 }
 
                 vTaskDelay(pdMS_TO_TICKS(COARSE_SETTLE_MS));
@@ -254,7 +256,7 @@ static void tuner_task_fn(void *arg)
                 tuner_set_step(step, total_est);
                 tuner_set_best(best_idx, best_eff_idx);
 
-                ESP_LOGI(TAG, "Coarse %d: %uMHz @ %umV => %.2f GH/s, %.1fW, %.1fC, score=%.2f",
+                ESP_LOGI(TAG, "Coarse %d: %" PRIu16 "MHz @ %" PRIu16 "mV => %.2f GH/s, %.1fW, %.1fC, score=%.2f",
                          step, f, v, slot->hashrate_ghs, slot->power_w, slot->temp, score);
             }
         }
@@ -269,7 +271,7 @@ static void tuner_task_fn(void *arg)
         }
 
         /* -- Phase 2: Fine sweep around best coarse result ---------------- */
-        ESP_LOGI(TAG, "Phase 2: Fine sweep around %uMHz @ %umV (coarse score=%.2f)",
+        ESP_LOGI(TAG, "Phase 2: Fine sweep around %" PRIu16 "MHz @ %" PRIu16 "mV (coarse score=%.2f)",
                  coarse_best_freq, coarse_best_volt, coarse_best_score);
 
         /* Update total estimate now we know how many coarse steps we used */
@@ -300,7 +302,7 @@ static void tuner_task_fn(void *arg)
         for (uint16_t v = fine_vmin; v <= fine_vmax && !aborted; v += FINE_VOLT_STEP) {
             esp_err_t err = vr_set_voltage(v);
             if (err != ESP_OK) {
-                ESP_LOGW(TAG, "vr_set_voltage(%u) failed: %d", v, err);
+                ESP_LOGW(TAG, "vr_set_voltage(%" PRIu16 ") failed: %d", v, err);
             }
 
             int consec_worse = 0;
@@ -311,7 +313,7 @@ static void tuner_task_fn(void *arg)
 
                 err = bm1370_set_frequency(f);
                 if (err != ESP_OK) {
-                    ESP_LOGW(TAG, "bm1370_set_frequency(%u) failed: %d", f, err);
+                    ESP_LOGW(TAG, "bm1370_set_frequency(%" PRIu16 ") failed: %d", f, err);
                 }
 
                 vTaskDelay(pdMS_TO_TICKS(FINE_SETTLE_MS));
@@ -324,7 +326,7 @@ static void tuner_task_fn(void *arg)
 
                 /* Skip clearly worse combos */
                 if (score < skip_threshold) {
-                    ESP_LOGI(TAG, "Fine: %uMHz @ %umV score=%.2f below threshold, skipping", f, v, score);
+                    ESP_LOGI(TAG, "Fine: %" PRIu16 "MHz @ %" PRIu16 "mV score=%.2f below threshold, skipping", f, v, score);
                     consec_worse++;
                     if (consec_worse >= FINE_CONSEC_WORSE_MAX) {
                         ESP_LOGI(TAG, "Fine: %d consecutive worse, stopping this voltage", consec_worse);
@@ -349,7 +351,7 @@ static void tuner_task_fn(void *arg)
                 tuner_set_step(step, total_est);
                 tuner_set_best(best_idx, best_eff_idx);
 
-                ESP_LOGI(TAG, "Fine %d: %uMHz @ %umV => %.2f GH/s, %.1fW, %.1fC, score=%.2f",
+                ESP_LOGI(TAG, "Fine %d: %" PRIu16 "MHz @ %" PRIu16 "mV => %.2f GH/s, %.1fW, %.1fC, score=%.2f",
                          step, f, v, slot->hashrate_ghs, slot->power_w, slot->temp, score);
             }
         }
@@ -357,7 +359,7 @@ static void tuner_task_fn(void *arg)
 sweep_done:
         if (aborted) {
             tuner_set_state(TUNER_STATE_ABORTED);
-            ESP_LOGW(TAG, "Sweep aborted. Restoring original settings: %uMHz @ %umV",
+            ESP_LOGW(TAG, "Sweep aborted. Restoring original settings: %" PRIu16 "MHz @ %" PRIu16 "mV",
                      orig_freq, orig_volt);
             vr_set_voltage(orig_volt);
             bm1370_set_frequency(orig_freq);
@@ -373,13 +375,13 @@ sweep_done:
             if (best_idx >= 0) {
                 const tuner_status_t *st = tuner_get_status();
                 const tuner_result_t *br = &st->results[best_idx];
-                ESP_LOGI(TAG, "Best overall: %uMHz @ %umV (%.2f GH/s, %.1fW, score=%.2f)",
+                ESP_LOGI(TAG, "Best overall: %" PRIu16 "MHz @ %" PRIu16 "mV (%.2f GH/s, %.1fW, score=%.2f)",
                          br->freq, br->voltage, br->hashrate_ghs, br->power_w, best_score);
             }
             if (best_eff_idx >= 0) {
                 const tuner_status_t *st = tuner_get_status();
                 const tuner_result_t *er = &st->results[best_eff_idx];
-                ESP_LOGI(TAG, "Best efficiency: %uMHz @ %umV (%.3f GH/s/W)",
+                ESP_LOGI(TAG, "Best efficiency: %" PRIu16 "MHz @ %" PRIu16 "mV (%.3f GH/s/W)",
                          er->freq, er->voltage, er->efficiency_ghs_per_w);
             }
         }
@@ -440,7 +442,7 @@ void tuner_apply_profile(tuner_mode_t mode)
         return;
     }
 
-    ESP_LOGI(TAG, "Applying profile (mode %d): %uMHz @ %umV", (int)mode, target->freq, target->voltage);
+    ESP_LOGI(TAG, "Applying profile (mode %d): %" PRIu16 "MHz @ %" PRIu16 "mV", (int)mode, target->freq, target->voltage);
 
     vr_set_voltage(target->voltage);
     bm1370_set_frequency(target->freq);

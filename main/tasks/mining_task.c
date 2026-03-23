@@ -10,6 +10,7 @@
 #include "freertos/semphr.h"
 #include "esp_log.h"
 
+#include <inttypes.h>
 #include <string.h>
 
 static const char *TAG = "mining_task";
@@ -61,7 +62,7 @@ static void mining_task_fn(void *param)
     const board_config_t *board = board_get_config();
     const TickType_t job_interval = pdMS_TO_TICKS(board->job_interval_ms);
 
-    ESP_LOGI(TAG, "Mining task started (job interval %u ms)", board->job_interval_ms);
+    ESP_LOGI(TAG, "Mining task started (job interval %" PRIu16 " ms)", board->job_interval_ms);
 
     stratum_notify_t notify;
     bool have_notify = false;
@@ -108,7 +109,7 @@ static void mining_task_fn(void *param)
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "bm1370_send_work failed: %s", esp_err_to_name(err));
         } else {
-            ESP_LOGD(TAG, "Sent work: job_id=%u extranonce2=%u diff=%.2f",
+            ESP_LOGD(TAG, "Sent work: job_id=%u extranonce2=%" PRIu32 " diff=%.2f",
                      job.job_id, s_extranonce2_counter, s_current_pool_diff);
         }
 

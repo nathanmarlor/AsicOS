@@ -208,6 +208,7 @@ static void register_routes(httpd_handle_t server)
     httpd_register_uri_handler(server, &remote_activate);
 
     /* WebSocket */
+#ifdef CONFIG_HTTPD_WS_SUPPORT
     httpd_uri_t ws = {
         .uri                    = "/api/ws",
         .method                 = HTTP_GET,
@@ -216,6 +217,9 @@ static void register_routes(httpd_handle_t server)
         .handle_ws_control_frames = true,
     };
     httpd_register_uri_handler(server, &ws);
+#else
+    ESP_LOGW(TAG, "WebSocket support not enabled (CONFIG_HTTPD_WS_SUPPORT)");
+#endif
 
     /* Prometheus metrics */
     httpd_uri_t metrics = {
