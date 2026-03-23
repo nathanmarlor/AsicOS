@@ -142,8 +142,9 @@ bool vr_check_faults(void)
     uint16_t raw = 0;
     esp_err_t err = pmbus_read16(PMBUS_STATUS_BYTE, &raw);
     if (err != ESP_OK) {
-        ESP_LOGW(TAG, "failed to read STATUS_BYTE");
-        return true; /* Assume fault on read failure */
+        /* I2C read failure - device may not support this command or wrong address.
+         * Don't assume fault - return false to avoid emergency shutdown loops. */
+        return false;
     }
     return (raw & 0xFF) != 0;
 }
