@@ -1,4 +1,6 @@
 #include "fan_controller.h"
+#include "emc2101.h"
+#include "i2c_mux.h"
 #include "esp_log.h"
 
 static const char *TAG = "fan";
@@ -14,6 +16,9 @@ static const char *TAG = "fan";
 #define I2C_TIMEOUT_MS 100
 
 static fan_config_t s_config;
+static emc2101_config_t s_emc2101[2];
+
+/* ── EMC2302 helpers ──────────────────────────────────────────────── */
 
 static uint8_t fan_setting_reg(uint8_t channel)
 {
@@ -31,13 +36,32 @@ static void fan_tach_regs(uint8_t channel, uint8_t *hi_reg, uint8_t *lo_reg)
     }
 }
 
+/* ── Public API ───────────────────────────────────────────────────── */
+
 esp_err_t fan_init(const fan_config_t *config)
 {
     if (!config) {
         return ESP_ERR_INVALID_ARG;
     }
     s_config = *config;
-    ESP_LOGI(TAG, "fan init addr=0x%02X port=%d", config->address, config->port);
+    ESP_LOGI(TAG, "fan init type=%d addr=0x%02X port=%d", config->type, config->address, config->port);
+
+    if (config->type == FAN_TYPE_EMC2101_MUX) {
+        /* Initialize both EMC2101 channels behind the mux */
+        for (int i = 0; i < 2; i++) {
+            s_emc2101[i].port = config->port;
+            s_emc2101[i].mux_addr = config->address;
+            s_emc2101[i].mux_channel = config->mux_channels[i];
+            s_emc2101[i].dev_addr = config->dev_addr;
+
+            esp_err_t err = emc2101_init(&s_emc2101[i]);
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "EMC2101 fan %d init failed: %s", i, esp_err_to_name(err));
+                return err;
+            }
+        }
+    }
+
     return ESP_OK;
 }
 
@@ -50,6 +74,12 @@ esp_err_t fan_set_speed(uint8_t channel, uint8_t percent)
         percent = 100;
     }
 
+    if (s_config.type == FAN_TYPE_EMC2101_MUX) {
+        ESP_LOGI(TAG, "fan%d (EMC2101) speed %u%%", channel, percent);
+        return emc2101_set_fan_duty(&s_emc2101[channel], percent);
+    }
+
+    /* EMC2302 path */
     uint8_t val = (uint8_t)(((uint16_t)percent * 255) / 100);
     uint8_t buf[2] = { fan_setting_reg(channel), val };
 
@@ -69,6 +99,11 @@ esp_err_t fan_get_rpm(uint8_t channel, uint16_t *rpm)
         return ESP_ERR_INVALID_ARG;
     }
 
+    if (s_config.type == FAN_TYPE_EMC2101_MUX) {
+        return emc2101_get_fan_rpm(&s_emc2101[channel], rpm);
+    }
+
+    /* EMC2302 path */
     uint8_t hi_reg, lo_reg;
     fan_tach_regs(channel, &hi_reg, &lo_reg);
 

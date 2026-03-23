@@ -10,6 +10,7 @@
 #include "board.h"
 #include "bm1370.h"
 #include "fan_controller.h"
+#include "ina260.h"
 #include "nvs_config.h"
 #include "pid.h"
 #include "temp_sensor.h"
@@ -39,6 +40,7 @@ static const char *TAG = "power";
 static power_status_t s_status;
 static pid_controller_t s_fan_pid[2];
 static int s_fan_override = -1;  // -1 = auto (PID), 0-100 = manual %
+static ina260_config_t s_ina260_config;
 
 /* ── Helpers ──────────────────────────────────────────────────────── */
 
@@ -58,6 +60,12 @@ static void power_task(void *pvParameters)
 
     const board_config_t *board = board_get_config();
     const float dt = (float)POLL_INTERVAL_MS / 1000.0f;
+
+    /* Initialise INA260 config if present */
+    if (board->power_monitor_type == 1 && board->power_monitor_addr != 0) {
+        s_ina260_config.port = I2C_NUM_0;
+        s_ina260_config.address = board->power_monitor_addr;
+    }
 
     /* Initialise PID controllers */
     pid_init(&s_fan_pid[0], PID_KP, PID_KI, PID_KD, PID_OUT_MIN, PID_OUT_MAX);
@@ -90,10 +98,22 @@ static void power_task(void *pvParameters)
         /* ── Read VR telemetry ───────────────────────────────────── */
         vr_telemetry_t telem = {0};
         if (vr_read_telemetry(&telem) == ESP_OK) {
-            s_status.vin    = telem.vin;
             s_status.vout   = telem.vout;
             s_status.vr_temp = telem.temperature;
-            s_status.power_w = telem.pout;
+            if (board->power_monitor_type == 0) {
+                /* VR telemetry is the only power source */
+                s_status.vin     = telem.vin;
+                s_status.power_w = telem.pout;
+            }
+        }
+
+        /* ── Read INA260 power monitor (if present) ──────────── */
+        if (board->power_monitor_type == 1) {
+            ina260_reading_t ina_reading = {0};
+            if (ina260_read(&s_ina260_config, &ina_reading) == ESP_OK) {
+                s_status.vin     = ina_reading.voltage_mv / 1000.0f;
+                s_status.power_w = ina_reading.power_mw / 1000.0f;
+            }
         }
 
         /* ── Check VR faults ─────────────────────────────────────── */
@@ -114,8 +134,8 @@ static void power_task(void *pvParameters)
                 ESP_LOGE(TAG, "VR FAULT detected");
             }
             emergency_shutdown();
-        } else if (board->fan_type == 0) {
-            /* ── EMC2302: software PID fan control ──────────────── */
+        } else {
+            /* ── Software PID fan control (EMC2302 or EMC2101_MUX) ── */
             if (s_fan_override >= 0) {
                 fan_set_speed(0, (uint8_t)s_fan_override);
                 fan_set_speed(1, (uint8_t)s_fan_override);
@@ -126,10 +146,6 @@ static void power_task(void *pvParameters)
                 fan_set_speed(0, (uint8_t)fan0_pct);
                 fan_set_speed(1, (uint8_t)fan1_pct);
             }
-        } else {
-            /* ── EMC2101 or other: hardware controls fan speed ──── */
-            /* Don't try to set speed (wrong protocol / device).    */
-            /* Fan is running under hardware control (EMC2101).     */
         }
 
         /* ── Read fan RPM ────────────────────────────────────────── */

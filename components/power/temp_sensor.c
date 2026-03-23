@@ -1,5 +1,7 @@
 #include <string.h>
 #include "temp_sensor.h"
+#include "emc2101.h"
+#include "i2c_mux.h"
 #include "esp_log.h"
 
 static const char *TAG = "temp_sensor";
@@ -8,6 +10,7 @@ static const char *TAG = "temp_sensor";
 #define I2C_TIMEOUT_MS    100
 
 static temp_sensor_config_t s_config;
+static emc2101_config_t s_emc2101[TEMP_SENSOR_MAX_COUNT];
 
 esp_err_t temp_sensor_init(const temp_sensor_config_t *config)
 {
@@ -15,7 +18,26 @@ esp_err_t temp_sensor_init(const temp_sensor_config_t *config)
         return ESP_ERR_INVALID_ARG;
     }
     s_config = *config;
-    ESP_LOGI(TAG, "temp sensor init, %d sensors", config->count);
+    ESP_LOGI(TAG, "temp sensor init, %d sensors, type=%d", config->count, config->type);
+
+    if (config->type == TEMP_TYPE_EMC2101) {
+        esp_err_t err = i2c_mux_init(config->port, config->mux_addr);
+        if (err != ESP_OK) return err;
+
+        for (int i = 0; i < config->count; i++) {
+            s_emc2101[i].port = config->port;
+            s_emc2101[i].mux_addr = config->mux_addr;
+            s_emc2101[i].mux_channel = config->mux_channels[i];
+            s_emc2101[i].dev_addr = config->addresses[i];
+
+            err = emc2101_init(&s_emc2101[i]);
+            if (err != ESP_OK) {
+                ESP_LOGE(TAG, "EMC2101 sensor %d init failed: %s", i, esp_err_to_name(err));
+                return err;
+            }
+        }
+    }
+
     return ESP_OK;
 }
 
@@ -25,6 +47,11 @@ esp_err_t temp_sensor_read(uint8_t index, float *temperature)
         return ESP_ERR_INVALID_ARG;
     }
 
+    if (s_config.type == TEMP_TYPE_EMC2101) {
+        return emc2101_read_external_temp(&s_emc2101[index], temperature);
+    }
+
+    /* TMP1075 path */
     uint8_t reg = TMP1075_TEMP_REG;
     uint8_t rx[2] = {0};
 

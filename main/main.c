@@ -14,6 +14,8 @@
 #include "voltage_regulator.h"
 #include "temp_sensor.h"
 #include "fan_controller.h"
+#include "ina260.h"
+#include "i2c_mux.h"
 #include "stratum_client.h"
 #include "http_server.h"
 #include "remote_access.h"
@@ -86,18 +88,43 @@ static void init_power(const board_config_t *board)
     temp_sensor_config_t temp_cfg = {
         .port = I2C_NUM_0,
         .count = board->temp_sensor_count,
+        .type = board->temp_type,
     };
-    // Set default TMP1075 addresses
-    for (int i = 0; i < temp_cfg.count && i < TEMP_SENSOR_MAX_COUNT; i++) {
-        temp_cfg.addresses[i] = 0x48 + i;
+    if (board->temp_type == TEMP_TYPE_EMC2101) {
+        /* EMC2101 sensors behind PAC9544 mux */
+        temp_cfg.mux_addr = board->fan_i2c_addr; /* mux address (0x70) */
+        for (int i = 0; i < temp_cfg.count && i < TEMP_SENSOR_MAX_COUNT; i++) {
+            temp_cfg.addresses[i] = 0x4C;       /* EMC2101 device address */
+            temp_cfg.mux_channels[i] = 2 + i;   /* channels 2, 3 */
+        }
+    } else {
+        /* TMP1075 addresses */
+        for (int i = 0; i < temp_cfg.count && i < TEMP_SENSOR_MAX_COUNT; i++) {
+            temp_cfg.addresses[i] = 0x48 + i;
+        }
     }
     temp_sensor_init(&temp_cfg);
 
     fan_config_t fan_cfg = {
         .port = I2C_NUM_0,
         .address = board->fan_i2c_addr,
+        .type = board->fan_type,
     };
+    if (board->fan_type == FAN_TYPE_EMC2101_MUX) {
+        fan_cfg.dev_addr = 0x4C;
+        fan_cfg.mux_channels[0] = 2;
+        fan_cfg.mux_channels[1] = 3;
+    }
     fan_init(&fan_cfg);
+
+    /* INA260 power monitor (if present) */
+    if (board->power_monitor_type == 1 && board->power_monitor_addr != 0) {
+        ina260_config_t ina_cfg = {
+            .port = I2C_NUM_0,
+            .address = board->power_monitor_addr,
+        };
+        ina260_init(&ina_cfg);
+    }
 }
 
 static void init_remote(void)
