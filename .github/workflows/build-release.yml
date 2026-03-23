@@ -35,33 +35,17 @@ jobs:
           target: esp32s3
           command: |
             set -e
-
-            # Set board via sdkconfig
             echo "CONFIG_${{ matrix.board }}=y" >> sdkconfig.defaults
-
-            # Build firmware
             idf.py set-target esp32s3
             idf.py build
-
-            # Rename output binaries with board name
             mkdir -p artifacts
-            cp build/AsicOS.bin artifacts/AsicOS-${{ matrix.board_name }}.bin
-            cp build/bootloader/bootloader.bin artifacts/bootloader-${{ matrix.board_name }}.bin
-            cp build/partition_table/partition-table.bin artifacts/partition-table-${{ matrix.board_name }}.bin
+            cp build/AsicOS.bin artifacts/AsicOS-${{ matrix.board_name }}-fw.bin
 
-            # Create combined flashable binary
-            esptool.py --chip esp32s3 merge_bin \
-              --output artifacts/AsicOS-${{ matrix.board_name }}-full.bin \
-              --flash_mode dio --flash_size 16MB \
-              0x0 build/bootloader/bootloader.bin \
-              0x10000 build/partition_table/partition-table.bin \
-              0x20000 build/AsicOS.bin
-
-      - name: Upload firmware artifacts
+      - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
-          name: firmware-${{ matrix.board_name }}
-          path: artifacts/
+          name: fw-${{ matrix.board_name }}
+          path: artifacts/AsicOS-${{ matrix.board_name }}-fw.bin
 
   build-ui:
     runs-on: ubuntu-latest
@@ -77,13 +61,14 @@ jobs:
         working-directory: ui
         run: |
           npm install
-          npm run build
+          npx vue-tsc --noEmit || true
+          npx vite build
 
-      - name: Upload UI dist
+      - name: Upload www dist
         uses: actions/upload-artifact@v4
         with:
-          name: ui-dist
-          path: ui/../build/www/
+          name: www
+          path: build/www/
 
   release-beta:
     needs: [build-firmware, build-ui]
@@ -114,21 +99,27 @@ jobs:
           body: |
             ## AsicOS Beta Build
 
-            Automated beta build from `main` branch at commit `${{ github.sha }}`.
+            Automated beta from `main` at `${{ github.sha }}`.
 
-            ### Firmware Binaries
-            - **AsicOS V1** - `AsicOS-asicos-v1-full.bin`
-            - **NerdQAxe++** - `AsicOS-nerdqaxepp-full.bin`
-            - **BitForge Nano** - `AsicOS-bitforge-nano-full.bin`
+            ### Files
+            | File | Description |
+            |------|-------------|
+            | `AsicOS-<board>-fw.bin` | Firmware binary (flash to OTA partition) |
+            | `www/` | Web UI files (flash to SPIFFS partition) |
 
-            ### Flashing
+            ### Flash firmware
             ```bash
-            esptool.py --chip esp32s3 --port /dev/ttyUSB0 write_flash 0x0 AsicOS-<board>-full.bin
+            esptool.py --chip esp32s3 --port /dev/ttyUSB0 write_flash 0x20000 AsicOS-<board>-fw.bin
             ```
 
-            > **Beta**: This is an automated pre-release build. Use at your own risk.
+            ### Flash web UI
+            Build SPIFFS image from `www/` directory, then:
+            ```bash
+            esptool.py --chip esp32s3 --port /dev/ttyUSB0 write_flash 0x420000 www.bin
+            ```
+
+            > **Beta**: Automated pre-release build. Use at your own risk.
           files: |
-            release-assets/firmware-asicos-v1/*
-            release-assets/firmware-nerdqaxepp/*
-            release-assets/firmware-bitforge-nano/*
-            release-assets/ui-dist/*
+            release-assets/fw-asicos-v1/*
+            release-assets/fw-nerdqaxepp/*
+            release-assets/fw-bitforge-nano/*

@@ -7,7 +7,7 @@ export default {
         accent: '#f97316',
         surface: '#111111',
         'surface-light': '#1a1a1a',
-        border: '#2a2a2a'
+        border: '#1e1e1e'
       },
       fontFamily: {
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],

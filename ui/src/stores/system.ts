@@ -18,16 +18,36 @@ export interface SystemInfo {
   free_heap: number
 }
 
+const HISTORY_SIZE = 120
+
 export const useSystemStore = defineStore('system', () => {
   const { get } = useApi()
   const info = ref<SystemInfo | null>(null)
   const error = ref<string | null>(null)
   let timer: ReturnType<typeof setInterval> | null = null
 
+  // Ring buffers for sparklines (120 points = 6 min at 3s poll)
+  const hashrateHistory = ref<number[]>([])
+  const chipTempHistory = ref<number[]>([])
+  const powerHistory = ref<number[]>([])
+  const vrTempHistory = ref<number[]>([])
+
+  function pushHistory(arr: number[], val: number) {
+    arr.push(val)
+    if (arr.length > HISTORY_SIZE) arr.shift()
+  }
+
   async function poll() {
     try {
       info.value = await get<SystemInfo>('/api/system/info')
       error.value = null
+
+      if (info.value) {
+        pushHistory(hashrateHistory.value, info.value.hashrate_ghs)
+        pushHistory(chipTempHistory.value, info.value.temps.chip)
+        pushHistory(powerHistory.value, info.value.power.watts)
+        pushHistory(vrTempHistory.value, info.value.temps.vr)
+      }
     } catch (e: any) {
       error.value = e.message
     }
@@ -46,5 +66,8 @@ export const useSystemStore = defineStore('system', () => {
     }
   }
 
-  return { info, error, start, stop, poll }
+  return {
+    info, error, start, stop, poll,
+    hashrateHistory, chipTempHistory, powerHistory, vrTempHistory
+  }
 })

@@ -92,15 +92,33 @@ function getMockMiningInfo() {
 
 let shareCounter = 1847
 
-function generateShareEvent() {
+// Generate share events with realistic difficulty distribution
+// Most shares are below pool difficulty (frequent, small diff)
+// Occasionally one meets pool difficulty (submitted)
+function generateShareEvent(forceSubmitted: boolean = false) {
   shareCounter++
-  const diff = Math.pow(2, Math.random() * 20 + 5)
+  const poolDiff = MOCK_MINING_INFO.pool_diff // 512
+
+  let diff: number
+  let submitted: boolean
+
+  if (forceSubmitted || Math.random() < 0.08) {
+    // Submitted share - meets or exceeds pool difficulty
+    diff = poolDiff * (1 + Math.random() * 5)
+    submitted = true
+  } else {
+    // Below pool difficulty - exponential distribution
+    diff = Math.pow(2, Math.random() * 8 + 3) // 8 to ~2048 range, mostly below 512
+    submitted = false
+  }
+
   return JSON.stringify({
     type: "share",
     id: shareCounter,
     difficulty: diff,
+    submitted,
     timestamp: Date.now(),
-    accepted: Math.random() > 0.01,
+    accepted: Math.random() > 0.005,
   })
 }
 
@@ -198,16 +216,23 @@ export function mockApiPlugin(): Plugin {
           ws.send(`${level} (${tag}) ${msg}`)
         }, 2000)
 
-        // Send mock share events every 3-8s
-        const shareInterval = setInterval(() => {
+        // Send frequent "all" share events every 1-3s
+        const allShareInterval = setInterval(() => {
           if (ws.readyState !== WebSocket.OPEN) return
-          ws.send(generateShareEvent())
-        }, 3000 + Math.random() * 5000)
+          ws.send(generateShareEvent(false))
+        }, 1000 + Math.random() * 2000)
+
+        // Send occasional "submitted" share events every 10-30s
+        const submittedShareInterval = setInterval(() => {
+          if (ws.readyState !== WebSocket.OPEN) return
+          ws.send(generateShareEvent(true))
+        }, 10000 + Math.random() * 20000)
 
         ws.on('close', () => {
           console.log('[mock] WebSocket client disconnected')
           clearInterval(logInterval)
-          clearInterval(shareInterval)
+          clearInterval(allShareInterval)
+          clearInterval(submittedShareInterval)
         })
       })
 
