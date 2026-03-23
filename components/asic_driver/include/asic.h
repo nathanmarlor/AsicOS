@@ -28,8 +28,8 @@ typedef struct {
     uint8_t  prev_block_hash[32];
     uint32_t version;
     // Metadata for share submission (not sent to ASIC)
-    char     stratum_job_id[32];
-    char     extranonce2[32];
+    char     stratum_job_id[64];
+    char     extranonce2[64];
     double   pool_diff;
     int      pool_id;
 } asic_job_t;

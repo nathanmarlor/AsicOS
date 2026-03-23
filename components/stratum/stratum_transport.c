@@ -1,5 +1,6 @@
 #include "stratum_transport.h"
 #include "esp_tls.h"
+#include "esp_crt_bundle.h"
 #include "esp_log.h"
 #include "lwip/sockets.h"
 #include "lwip/netdb.h"
