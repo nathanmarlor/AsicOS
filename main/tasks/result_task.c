@@ -9,6 +9,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 
 #include <string.h>
 #include <math.h>
@@ -29,6 +30,8 @@ static int           s_dedup_index = 0;
 
 static mining_stats_t s_stats;
 static uint64_t s_nonce_count = 0;
+static int64_t s_last_summary_time = 0;
+static uint32_t s_nonces_since_summary = 0;
 
 const mining_stats_t *result_task_get_stats(void)
 {
@@ -82,9 +85,6 @@ static void result_task_fn(void *param)
             continue;
         }
 
-        ESP_LOGI(TAG, "ASIC result: nonce=0x%08lx job_id=0x%02x ver=0x%04x",
-                 (unsigned long)result.nonce, result.job_id, result.rolled_version);
-
         /* Map ASIC job ID back to original job ID */
         uint8_t original_id = bm1370_asic_to_job_id(result.job_id);
 
@@ -125,13 +125,18 @@ static void result_task_fn(void *param)
         memcpy(header + 72, &job->nbits,           4);   /* nbits: LE uint32 */
         memcpy(header + 76, &result.nonce,         4);   /* nonce: raw ASIC bytes */
 
-        ESP_LOG_BUFFER_HEX_LEVEL(TAG, header, 80, ESP_LOG_DEBUG);
-
         double share_diff = 0.0;
         mining_test_nonce(header, &share_diff);
 
-        ESP_LOGI(TAG, "Nonce 0x%08lx diff=%.4f (pool_diff=%.4f)",
-                 (unsigned long)result.nonce, share_diff, job->pool_diff);
+        /* Periodic nonce summary instead of per-nonce logging */
+        s_nonces_since_summary++;
+        int64_t now = esp_timer_get_time();
+        if (now - s_last_summary_time >= 10000000LL) { /* 10 seconds */
+            ESP_LOGI(TAG, "Nonces: %lu in last 10s (latest diff=%.4f pool_diff=%.4f)",
+                     (unsigned long)s_nonces_since_summary, share_diff, job->pool_diff);
+            s_nonces_since_summary = 0;
+            s_last_summary_time = now;
+        }
 
         if (share_diff <= 0.0) {
             ESP_LOGW(TAG, "Invalid nonce test result (diff=%.6f)", share_diff);

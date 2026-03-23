@@ -53,8 +53,9 @@ export const useSystemStore = defineStore('system', () => {
         pushHistory(chipTempHistory.value, info.value.temps.chip)
         pushHistory(powerHistory.value, info.value.power.watts)
         pushHistory(vrTempHistory.value, info.value.temps.vr)
-        const eff = info.value.power.watts > 0
-          ? info.value.hashrate_ghs / info.value.power.watts : 0
+        // J/TH = watts / (hashrate_ghs / 1000)
+        const eff = (info.value.power.watts > 0 && info.value.hashrate_ghs > 0)
+          ? info.value.power.watts / (info.value.hashrate_ghs / 1000) : 0
         pushHistory(efficiencyHistory.value, eff)
       }
     } catch (e: any) {

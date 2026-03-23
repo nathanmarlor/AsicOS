@@ -110,9 +110,9 @@ static void mining_task_fn(void *param)
         esp_err_t err = bm1370_send_work(&job);
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "bm1370_send_work failed: %s", esp_err_to_name(err));
-        } else {
-            ESP_LOGI(TAG, "Job sent: id=%u extranonce2=%" PRIu32 " diff=%.2f",
-                     job.job_id, s_extranonce2_counter, s_current_pool_diff);
+        } else if (s_extranonce2_counter % 100 == 0) {
+            ESP_LOGI(TAG, "Jobs sent: %" PRIu32 " (latest id=%u diff=%.2f)",
+                     s_extranonce2_counter, job.job_id, s_current_pool_diff);
         }
 
         s_extranonce2_counter++;

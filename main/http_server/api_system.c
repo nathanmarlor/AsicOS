@@ -3,6 +3,8 @@
 #include <string.h>
 
 #include "cJSON.h"
+#include "esp_app_desc.h"
+#include "esp_http_client.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
 #include "esp_ota_ops.h"
@@ -17,6 +19,8 @@
 #include "power_task.h"
 #include "result_task.h"
 #include "stratum_client.h"
+
+#define GITHUB_OTA_REPO "nathanmarlor/AsicOS"
 
 static const char *TAG = "api_system";
 
@@ -87,6 +91,7 @@ esp_err_t api_system_info_handler(httpd_req_t *req)
     cJSON_AddStringToObject(root, "board_name",  board->name);
     cJSON_AddStringToObject(root, "asic_model",  board->asic_model);
     cJSON_AddNumberToObject(root, "expected_chips", board->expected_chip_count);
+    cJSON_AddBoolToObject(root, "has_adc_vcore", board->has_adc_vcore);
 
     /* Hashrate */
     if (hr) {
@@ -108,7 +113,12 @@ esp_err_t api_system_info_handler(httpd_req_t *req)
         cJSON *power = cJSON_AddObjectToObject(root, "power");
         cJSON_AddNumberToObject(power, "vin",     pw->vin);
         cJSON_AddNumberToObject(power, "vout",    pw->vout);
+        cJSON_AddNumberToObject(power, "iout",    pw->iout);
         cJSON_AddNumberToObject(power, "watts",   pw->power_w);
+        cJSON_AddNumberToObject(power, "input_watts", pw->input_w);
+        float eff_pct = (pw->input_w > 0.0f && pw->power_w > 0.0f)
+                        ? (pw->power_w / pw->input_w) * 100.0f : 0.0f;
+        cJSON_AddNumberToObject(power, "efficiency_pct", eff_pct);
         cJSON_AddNumberToObject(power, "fan0_rpm", pw->fan0_rpm);
         cJSON_AddNumberToObject(power, "fan1_rpm", pw->fan1_rpm);
         int fan_ovr = power_get_fan_override();
@@ -116,6 +126,8 @@ esp_err_t api_system_info_handler(httpd_req_t *req)
         cJSON_AddStringToObject(power, "fan_mode", fan_ovr < 0 ? "auto" : "manual");
         cJSON_AddBoolToObject(power, "overheat",  pw->overheat);
         cJSON_AddBoolToObject(power, "vr_fault",  pw->vr_fault);
+        cJSON_AddNumberToObject(power, "vr_temp",  pw->vr_temp);
+        cJSON_AddNumberToObject(power, "vcore_adc_mv", pw->vcore_adc_mv);
     }
 
     /* Mining stats */
@@ -152,6 +164,8 @@ esp_err_t api_system_info_handler(httpd_req_t *req)
     cJSON_AddStringToObject(config, "ui_mode", buf);
 
     /* System */
+    const esp_app_desc_t *app = esp_app_get_description();
+    cJSON_AddStringToObject(root, "firmware_version", app->version);
     cJSON_AddNumberToObject(root, "uptime_ms", (double)(esp_timer_get_time() / 1000));
     cJSON_AddNumberToObject(root, "free_heap", (double)esp_get_free_heap_size());
 

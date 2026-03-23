@@ -11,6 +11,7 @@ export interface LogEntry {
 }
 
 const logs = ref<LogEntry[]>([])
+const allLogs = ref<LogEntry[]>([])
 const connected = ref(false)
 
 let ws: WebSocket | null = null
@@ -34,12 +35,15 @@ function connect() {
         level: data.level || 'INFO',
         msg: data.msg || evt.data
       }
+      allLogs.value.push(entry)
       logs.value.push(entry)
       if (logs.value.length > 200) {
         logs.value = logs.value.slice(-200)
       }
     } catch {
-      logs.value.push({ ts: Date.now(), level: 'INFO', msg: evt.data })
+      const fallback: LogEntry = { ts: Date.now(), level: 'INFO', msg: evt.data }
+      allLogs.value.push(fallback)
+      logs.value.push(fallback)
       if (logs.value.length > 200) {
         logs.value = logs.value.slice(-200)
       }
@@ -79,5 +83,5 @@ export function useWebSocket() {
     }
   })
 
-  return { logs, connected }
+  return { logs, allLogs, connected }
 }

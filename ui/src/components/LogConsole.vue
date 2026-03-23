@@ -1,21 +1,28 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useWebSocket, type LogEntry } from '../composables/useWebSocket'
 
-const { logs, connected } = useWebSocket()
+const { logs, allLogs, connected } = useWebSocket()
 const filter = ref<'ALL' | 'INFO' | 'WARN' | 'ERROR'>('ALL')
+const modalFilter = ref<'ALL' | 'INFO' | 'WARN' | 'ERROR'>('ALL')
 const logContainer = ref<HTMLElement | null>(null)
+const modalLogContainer = ref<HTMLElement | null>(null)
 const autoScroll = ref(true)
+const modalAutoScroll = ref(true)
 const collapsed = ref(false)
+const showModal = ref(false)
 
-const filtered = computed(() => {
-  if (filter.value === 'ALL') return logs.value
-  return logs.value.filter(l => {
-    if (filter.value === 'INFO') return true
-    if (filter.value === 'WARN') return l.level === 'WARN' || l.level === 'ERROR'
+function applyFilter(entries: LogEntry[], f: 'ALL' | 'INFO' | 'WARN' | 'ERROR') {
+  if (f === 'ALL') return entries
+  return entries.filter(l => {
+    if (f === 'INFO') return true
+    if (f === 'WARN') return l.level === 'WARN' || l.level === 'ERROR'
     return l.level === 'ERROR'
   })
-})
+}
+
+const filtered = computed(() => applyFilter(logs.value, filter.value))
+const modalFiltered = computed(() => applyFilter(allLogs.value, modalFilter.value))
 
 const lastLine = computed(() => {
   if (logs.value.length === 0) return 'no log entries'
@@ -44,11 +51,39 @@ watch(filtered, async () => {
   }
 })
 
+watch(modalFiltered, async () => {
+  if (!modalAutoScroll.value || !showModal.value) return
+  await nextTick()
+  if (modalLogContainer.value) {
+    modalLogContainer.value.scrollTop = modalLogContainer.value.scrollHeight
+  }
+})
+
 function onScroll() {
   if (!logContainer.value) return
   const el = logContainer.value
   autoScroll.value = el.scrollHeight - el.scrollTop - el.clientHeight < 30
 }
+
+function onModalScroll() {
+  if (!modalLogContainer.value) return
+  const el = modalLogContainer.value
+  modalAutoScroll.value = el.scrollHeight - el.scrollTop - el.clientHeight < 30
+}
+
+function handleEsc(e: KeyboardEvent) {
+  if (e.key === 'Escape') {
+    showModal.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', handleEsc)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleEsc)
+})
 </script>
 
 <template>
@@ -66,14 +101,21 @@ function onScroll() {
         />
         <span class="text-[10px] font-mono text-[var(--text-muted)] transition-transform" :class="collapsed ? '' : 'rotate-90'">&#9654;</span>
       </div>
-      <div v-if="!collapsed" class="flex gap-0.5">
+      <div v-if="!collapsed" class="flex items-center gap-1">
+        <div class="flex gap-0.5">
+          <button
+            v-for="f in (['ALL', 'INFO', 'WARN', 'ERROR'] as const)"
+            :key="f"
+            @click.stop="filter = f"
+            class="text-[10px] font-mono px-2 py-0.5 rounded transition-colors min-h-[24px]"
+            :class="filter === f ? 'bg-[#f97316]/20 text-[#f97316]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'"
+          >{{ f }}</button>
+        </div>
         <button
-          v-for="f in (['ALL', 'INFO', 'WARN', 'ERROR'] as const)"
-          :key="f"
-          @click.stop="filter = f"
-          class="text-[10px] font-mono px-2 py-0.5 rounded transition-colors min-h-[24px]"
-          :class="filter === f ? 'bg-[#f97316]/20 text-[#f97316]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'"
-        >{{ f }}</button>
+          @click.stop="showModal = true; modalFilter = filter"
+          class="text-[10px] font-mono px-2 py-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface)] transition-colors min-h-[24px] ml-1"
+          title="Expand log console"
+        >&#x26F6;</button>
       </div>
     </button>
 
@@ -90,7 +132,7 @@ function onScroll() {
       v-else
       ref="logContainer"
       @scroll="onScroll"
-      class="flex-1 overflow-y-auto bg-[var(--bg)] border border-[var(--border)] rounded p-2 font-mono text-[11px] leading-relaxed min-h-[120px] max-h-[300px]"
+      class="flex-1 overflow-y-auto overflow-x-auto bg-[var(--bg)] border border-[var(--border)] rounded p-2 font-mono text-[11px] leading-relaxed min-h-[120px] max-h-[300px]"
     >
       <div v-if="filtered.length === 0" class="text-[var(--text-muted)] py-4 text-center">
         {{ connected ? 'no log entries' : 'connecting...' }}
@@ -98,13 +140,51 @@ function onScroll() {
       <div
         v-for="(entry, i) in filtered"
         :key="i"
-        class="flex gap-2 py-px"
+        class="flex gap-2 py-px whitespace-nowrap"
         :class="i % 2 === 0 ? '' : 'bg-[var(--surface)]/30'"
       >
         <span class="text-[var(--text-muted)]">{{ formatTs(entry.ts) }}</span>
         <span class="w-10 shrink-0" :class="levelColor(entry.level)">{{ entry.level.padEnd(5) }}</span>
-        <span class="text-[var(--text-secondary)] break-all">{{ entry.msg }}</span>
+        <span class="text-[var(--text-secondary)]">{{ entry.msg }}</span>
       </div>
     </div>
   </div>
+
+  <!-- Fullscreen modal -->
+  <teleport to="body">
+    <div v-if="showModal" class="fixed inset-0 z-50 bg-[var(--bg)] p-4 flex flex-col">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-sm font-mono text-[var(--text-secondary)]">Log Console</span>
+        <div class="flex items-center gap-2">
+          <button
+            v-for="f in (['ALL', 'INFO', 'WARN', 'ERROR'] as const)"
+            :key="f"
+            @click="modalFilter = f"
+            class="text-[10px] font-mono px-2 py-0.5 rounded transition-colors min-h-[24px]"
+            :class="modalFilter === f ? 'bg-[#f97316]/20 text-[#f97316]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'"
+          >{{ f }}</button>
+          <button @click="showModal = false" class="text-[var(--text-muted)] hover:text-[var(--text)] text-lg px-2 ml-2">&#x2715;</button>
+        </div>
+      </div>
+      <div
+        ref="modalLogContainer"
+        @scroll="onModalScroll"
+        class="flex-1 overflow-auto bg-[var(--surface)] border border-[var(--border)] rounded p-3 font-mono text-[11px] leading-relaxed"
+      >
+        <div v-if="modalFiltered.length === 0" class="text-[var(--text-muted)] py-4 text-center">
+          {{ connected ? 'no log entries' : 'connecting...' }}
+        </div>
+        <div
+          v-for="(entry, i) in modalFiltered"
+          :key="i"
+          class="flex gap-2 py-px whitespace-nowrap"
+          :class="i % 2 === 0 ? '' : 'bg-[var(--bg)]/30'"
+        >
+          <span class="text-[var(--text-muted)]">{{ formatTs(entry.ts) }}</span>
+          <span class="w-10 shrink-0" :class="levelColor(entry.level)">{{ entry.level.padEnd(5) }}</span>
+          <span class="text-[var(--text-secondary)]">{{ entry.msg }}</span>
+        </div>
+      </div>
+    </div>
+  </teleport>
 </template>

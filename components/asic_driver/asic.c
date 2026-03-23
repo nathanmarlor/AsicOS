@@ -20,6 +20,12 @@ static asic_state_t s_state = {0};
 static volatile uint32_t s_last_hash_counter[16] = {0};
 static volatile bool     s_hash_counter_valid[16] = {false};
 
+/* ------------------------------------------------------------------ */
+/* Domain counter relay (per-domain hash counts, 4 domains per chip)   */
+/* ------------------------------------------------------------------ */
+static volatile uint32_t s_domain_counters[16][ASIC_NUM_DOMAINS] = {{0}};
+static volatile bool     s_domain_counter_valid[16][ASIC_NUM_DOMAINS] = {{false}};
+
 void asic_store_hash_counter(int chip, uint32_t value)
 {
     if (chip >= 0 && chip < 16) {
@@ -35,6 +41,43 @@ uint32_t asic_get_stored_hash_counter(int chip)
         return s_last_hash_counter[chip];
     }
     return 0;
+}
+
+void asic_store_domain_counter(int chip, int domain, uint32_t value)
+{
+    if (chip >= 0 && chip < 16 && domain >= 0 && domain < ASIC_NUM_DOMAINS) {
+        s_domain_counters[chip][domain] = value;
+        s_domain_counter_valid[chip][domain] = true;
+    }
+}
+
+uint32_t asic_get_stored_domain_counter(int chip, int domain)
+{
+    if (chip >= 0 && chip < 16 && domain >= 0 && domain < ASIC_NUM_DOMAINS
+        && s_domain_counter_valid[chip][domain]) {
+        s_domain_counter_valid[chip][domain] = false;
+        return s_domain_counters[chip][domain];
+    }
+    return 0;
+}
+
+void asic_request_domain_counters(uint8_t chip_addr)
+{
+    /* Request registers 0x88..0x8B (4 domains) */
+    static const uint8_t domain_regs[ASIC_NUM_DOMAINS] = {
+        ASIC_REG_DOMAIN_0, ASIC_REG_DOMAIN_1,
+        ASIC_REG_DOMAIN_2, ASIC_REG_DOMAIN_3
+    };
+    for (int d = 0; d < ASIC_NUM_DOMAINS; d++) {
+        uint8_t cmd_buf[16];
+        int cmd_len = asic_build_cmd(cmd_buf, sizeof(cmd_buf),
+                                     ASIC_CMD_READ, ASIC_GROUP_SINGLE,
+                                     chip_addr, domain_regs[d],
+                                     NULL, 0);
+        if (cmd_len > 0) {
+            serial_tx(cmd_buf, (size_t)cmd_len);
+        }
+    }
 }
 
 void asic_request_hash_counter(uint8_t chip_addr)
@@ -269,9 +312,6 @@ int asic_receive_result(asic_result_t *result, uint32_t timeout_ms)
 
     uint8_t resp[ASIC_RESP_SIZE];
     int n = serial_rx(resp, ASIC_RESP_SIZE, timeout_ms);
-    if (n > 0) {
-        ESP_LOG_BUFFER_HEX_LEVEL(TAG, resp, n, ESP_LOG_INFO);
-    }
     if (n != ASIC_RESP_SIZE) {
         if (n > 0) {
             ESP_LOGW(TAG, "Partial ASIC response: got %d bytes, expected %d", n, ASIC_RESP_SIZE);
@@ -315,7 +355,14 @@ int asic_receive_result(asic_result_t *result, uint32_t timeout_ms)
     uint8_t reg = resp[7];
     ESP_LOGD(TAG, "Register read: chip=%d reg=0x%02x value=0x%08lx",
              chip, reg, (unsigned long)value);
-    asic_store_hash_counter(chip, value);
+
+    /* Route to domain counters or total hash counter */
+    if (reg >= ASIC_REG_DOMAIN_0 && reg <= ASIC_REG_DOMAIN_3) {
+        int domain = reg - ASIC_REG_DOMAIN_0;
+        asic_store_domain_counter(chip, domain, value);
+    } else {
+        asic_store_hash_counter(chip, value);
+    }
     return 0;
 }
 

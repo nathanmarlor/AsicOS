@@ -21,8 +21,19 @@ const { post } = useApi()
 const hashrate = computed(() => mining.info?.hashrate_ghs ?? 0)
 const efficiency = computed(() => {
   const p = system.info?.power.watts ?? 0
-  if (p === 0) return 0
-  return hashrate.value / p
+  const h = hashrate.value
+  if (p === 0 || h === 0) return 0
+  return p / (h / 1000)  // J/TH = watts / (GH/s / 1000)
+})
+const efficiencyDisplay = computed(() => {
+  return efficiency.value > 0 ? efficiency.value.toFixed(2) : '--'
+})
+const efficiencyStatus = computed(() => {
+  const e = efficiency.value
+  if (e === 0) return 'neutral' as const
+  if (e < 20) return 'good' as const
+  if (e <= 30) return 'warn' as const
+  return 'danger' as const
 })
 const power = computed(() => system.info?.power.watts ?? 0)
 const chipTemp = computed(() => system.info?.temps.chip ?? 0)
@@ -213,10 +224,10 @@ async function restart() {
       />
       <KpiCard
         label="Efficiency"
-        :value="efficiency.toFixed(2)"
-        unit="GH/s/W"
+        :value="efficiencyDisplay"
+        unit="J/TH"
         :history="system.efficiencyHistory"
-        status="neutral"
+        :status="efficiencyStatus"
         spark-color="#22c55e"
       />
       <KpiCard

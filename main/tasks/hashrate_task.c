@@ -35,24 +35,30 @@ static void hashrate_task_fn(void *param)
     ESP_LOGI(TAG, "Hashrate task started (HW counter method), warmup %d ms", WARMUP_MS);
     vTaskDelay(pdMS_TO_TICKS(WARMUP_MS));
 
-    /* Read initial counter values */
+    /* Read initial counter values (total + domain) */
     for (int i = 0; i < s_info.chip_count; i++) {
         asic_request_hash_counter((uint8_t)(i * 4));
+        asic_request_domain_counters((uint8_t)(i * 4));
     }
     vTaskDelay(pdMS_TO_TICKS(RESPONSE_WAIT_MS));
 
     uint32_t prev_counter[16] = {0};
+    uint32_t prev_domain_counter[16][HASHRATE_NUM_DOMAINS] = {{0}};
     for (int i = 0; i < s_info.chip_count; i++) {
         prev_counter[i] = asic_get_stored_hash_counter(i);
+        for (int d = 0; d < HASHRATE_NUM_DOMAINS; d++) {
+            prev_domain_counter[i][d] = asic_get_stored_domain_counter(i, d);
+        }
     }
     int64_t prev_time_us = esp_timer_get_time();
 
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(POLL_INTERVAL_MS));
 
-        /* Send read requests for all chips */
+        /* Send read requests for all chips (total + domain counters) */
         for (int i = 0; i < s_info.chip_count; i++) {
             asic_request_hash_counter((uint8_t)(i * 4));
+            asic_request_domain_counters((uint8_t)(i * 4));
         }
         vTaskDelay(pdMS_TO_TICKS(RESPONSE_WAIT_MS));
 
@@ -75,6 +81,20 @@ static void hashrate_task_fn(void *param)
                 float ghs = (float)delta / (float)dt_sec * 4294967296.0f / 1e9f;
                 s_info.per_chip_hashrate_ghs[i] = ghs;
                 total_ghs += ghs;
+            }
+
+            /* Per-domain hashrate */
+            for (int d = 0; d < HASHRATE_NUM_DOMAINS; d++) {
+                uint32_t d_counter = asic_get_stored_domain_counter(i, d);
+                if (d_counter == 0 && prev_domain_counter[i][d] == 0) {
+                    continue;
+                }
+                uint32_t d_delta = d_counter - prev_domain_counter[i][d];
+                prev_domain_counter[i][d] = d_counter;
+                if (dt_sec > 0 && d_delta > 0) {
+                    s_info.per_domain_hashrate_ghs[i][d] =
+                        (float)d_delta / (float)dt_sec * 4294967296.0f / 1e9f;
+                }
             }
         }
 

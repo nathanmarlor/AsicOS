@@ -38,7 +38,19 @@ const vrmTemp = computed(() => system.info?.temps.vr ?? 0)
 const fanRpm = computed(() => system.info?.power.fan0_rpm ?? 0)
 const efficiency = computed(() => {
   const p = power.value
-  return p > 0 ? hashrate.value / p : 0
+  const h = hashrate.value
+  if (p === 0 || h === 0) return 0
+  return p / (h / 1000)  // J/TH = watts / (GH/s / 1000)
+})
+const efficiencyDisplay = computed(() => {
+  return efficiency.value > 0 ? efficiency.value.toFixed(1) : '--'
+})
+const efficiencyColor = computed(() => {
+  const e = efficiency.value
+  if (e === 0) return 'var(--text)'
+  if (e < 20) return '#22c55e'
+  if (e <= 30) return '#eab308'
+  return '#ef4444'
 })
 const rejectRate = computed(() => {
   const a = mining.info?.accepted ?? 0
@@ -190,7 +202,7 @@ const timeToBlock = computed(() => {
         <!-- Efficiency -->
         <div class="flex items-center justify-between">
           <span class="text-[11px] font-mono text-[var(--text-secondary)]">Efficiency</span>
-          <span class="font-mono text-sm text-[var(--text)]">{{ efficiency.toFixed(1) }} GH/W</span>
+          <span class="font-mono text-sm" :style="{ color: efficiencyColor }">{{ efficiencyDisplay }} J/TH</span>
         </div>
         <!-- Reject Rate -->
         <div class="flex items-center justify-between">

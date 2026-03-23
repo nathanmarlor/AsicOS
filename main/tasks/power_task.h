@@ -14,8 +14,10 @@ typedef struct {
     float therm2_temp;   // ADC thermistor ASIC 2 (if available)
     float vin;
     float vout;
+    float iout;          // Output current from VR telemetry (A)
     float vcore_adc_mv;  // ADC VCORE readback (if available)
     float power_w;
+    float input_w;       // Input power: vin * iin (W)
     uint16_t fan0_rpm;
     uint16_t fan1_rpm;
     bool  overheat;

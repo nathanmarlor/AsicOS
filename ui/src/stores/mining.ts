@@ -5,6 +5,7 @@ import { useApi } from '../composables/useApi'
 export interface ChipInfo {
   id: number
   hashrate_ghs: number
+  domains?: number[]  // per-domain hashrate in GH/s (4 domains for BM1370)
 }
 
 export interface MiningInfo {

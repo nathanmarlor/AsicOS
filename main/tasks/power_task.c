@@ -110,8 +110,10 @@ static void power_task(void *pvParameters)
         /* ── Read VR telemetry ───────────────────────────────────── */
         vr_telemetry_t telem = {0};
         if (vr_read_telemetry(&telem) == ESP_OK) {
-            s_status.vout   = telem.vout;
+            s_status.vout    = telem.vout;
+            s_status.iout    = telem.iout;
             s_status.vr_temp = telem.temperature;
+            s_status.input_w = telem.vin * telem.iin;
             if (board->power_monitor_type == 0) {
                 /* VR telemetry is the only power source */
                 s_status.vin     = telem.vin;

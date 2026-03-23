@@ -357,8 +357,6 @@ esp_err_t bm1370_send_work(const asic_job_t *job)
         return ESP_ERR_INVALID_ARG;
     }
 
-    ESP_LOG_BUFFER_HEX_LEVEL(TAG, pkt_buf, (pkt_len > 24 ? 24 : pkt_len), ESP_LOG_INFO);
-
     serial_tx(pkt_buf, (size_t)pkt_len);
     return ESP_OK;
 }
