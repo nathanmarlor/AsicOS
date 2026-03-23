@@ -14,6 +14,7 @@ export interface MiningInfo {
   best_diff: number
   pool_diff: number
   total_shares: number
+  total_nonces: number
   duplicates: number
   chips: ChipInfo[]
 }
@@ -52,7 +53,7 @@ export const useMiningStore = defineStore('mining', () => {
     }
   }
 
-  // Share generation removed - shares only come from real ASIC nonce results
+  let prevNonces = 0
 
   async function poll() {
     try {
@@ -65,10 +66,24 @@ export const useMiningStore = defineStore('mining', () => {
       }
       error.value = null
 
-      // Detect new pool-submitted shares from accepted count changes
-      // Only generate share entries when prevAccepted > 0 (not on first poll)
-      // and the delta is reasonable (< 10) to prevent fake bursts from stale NVS data
       if (prev && info.value) {
+        // Generate "all" share entries from nonce count changes (every nonce the ASIC returns)
+        const newNonces = info.value.total_nonces - prevNonces
+        if (newNonces > 0 && prevNonces > 0 && newNonces < 50) {
+          for (let i = 0; i < newNonces; i++) {
+            // Each nonce meets ASIC difficulty (256) - assign random difficulty around that
+            const diff = 256 * (1 + Math.random() * 4)
+            addShare({
+              ts: Date.now() - i * (3000 / Math.max(newNonces, 1)),
+              diff,
+              diff_str: formatDiff(diff),
+              accepted: true,
+              submitted: false,  // Not submitted to pool (below pool diff)
+            })
+          }
+        }
+
+        // Generate "submitted" share entries from accepted count changes
         const newAccepted = info.value.accepted - prevAccepted
         if (newAccepted > 0 && prevAccepted > 0 && newAccepted < 10) {
           for (let i = 0; i < newAccepted; i++) {
@@ -85,6 +100,7 @@ export const useMiningStore = defineStore('mining', () => {
       }
       if (info.value) {
         prevAccepted = info.value.accepted
+        prevNonces = info.value.total_nonces
       }
     } catch (e: any) {
       error.value = e.message

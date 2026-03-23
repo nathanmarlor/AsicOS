@@ -14,7 +14,7 @@
 #define ASIC_REG_CORE_CTRL      0x3C
 #define ASIC_REG_ANALOG_MUX     0x54
 #define ASIC_REG_IO_DRIVE       0x58
-#define ASIC_REG_NONCE_COUNT    0x90
+#define ASIC_REG_NONCE_COUNT    0x8C  /* Total hash count (forge-os REGISTER_TOTAL_COUNT) */
 #define ASIC_REG_VR_MASK        0xA4
 #define ASIC_REG_TEMPERATURE    0xB4
 

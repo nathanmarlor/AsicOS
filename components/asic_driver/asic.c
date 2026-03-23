@@ -6,6 +6,7 @@
 #include <math.h>
 
 #include "esp_log.h"
+#include "lwip/inet.h"  /* ntohl */
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -301,14 +302,19 @@ int asic_receive_result(asic_result_t *result, uint32_t timeout_ms)
         return 1;
     }
 
-    /* Register read response - parse and store for hashrate_task.
-     * Response format: [AA 55] [data:4] [reg_addr:1] [chip_addr:1] [??:2] [crc:1]
-     * Extract 32-bit value from bytes 2-5, chip address from byte 7. */
-    uint32_t value = ((uint32_t)resp[2] << 24) | ((uint32_t)resp[3] << 16) |
-                     ((uint32_t)resp[4] <<  8) |  (uint32_t)resp[5];
-    int chip = resp[7] / 4;  /* chip address / interval */
-    ESP_LOGI(TAG, "Register read: chip=%d reg=0x%02x value=0x%08lx",
-             chip, resp[6], (unsigned long)value);
+    /* Register read response - matching forge-os bm1370_asic_result_cmd_t:
+     * [2..5] value (uint32_t, big-endian - use ntohl)
+     * [6]    asic_address (chip address: 0x00, 0x04, etc)
+     * [7]    register_address (0x8C for hash count, 0xB4 for temp, etc)
+     * [8..9] unused
+     * [10]   crc (bit 7 = 0 for register read) */
+    uint32_t raw_value;
+    memcpy(&raw_value, &resp[2], 4);
+    uint32_t value = ntohl(raw_value);
+    int chip = resp[6] / 4;  /* asic_address / interval */
+    uint8_t reg = resp[7];
+    ESP_LOGD(TAG, "Register read: chip=%d reg=0x%02x value=0x%08lx",
+             chip, reg, (unsigned long)value);
     asic_store_hash_counter(chip, value);
     return 0;
 }

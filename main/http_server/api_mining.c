@@ -56,6 +56,9 @@ esp_err_t api_mining_info_handler(httpd_req_t *req)
         cJSON_AddNumberToObject(root, "duplicates",    (double)stats->duplicate_nonces);
     }
 
+    /* Total nonces returned by ASIC (for "all shares" display) */
+    cJSON_AddNumberToObject(root, "total_nonces", (double)result_task_get_nonce_count());
+
     /* Pool */
     cJSON_AddNumberToObject(root, "pool_diff",  stratum_client_get_current_difficulty());
     cJSON_AddNumberToObject(root, "accepted",   stratum_client_get_accepted());
