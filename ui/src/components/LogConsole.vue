@@ -98,12 +98,12 @@ function onScroll() {
       <div
         v-for="(entry, i) in filtered"
         :key="i"
-        class="flex gap-2 whitespace-nowrap py-px"
+        class="flex gap-2 py-px"
         :class="i % 2 === 0 ? '' : 'bg-[var(--surface)]/30'"
       >
         <span class="text-[var(--text-muted)]">{{ formatTs(entry.ts) }}</span>
         <span class="w-10 shrink-0" :class="levelColor(entry.level)">{{ entry.level.padEnd(5) }}</span>
-        <span class="text-[var(--text-secondary)] truncate">{{ entry.msg }}</span>
+        <span class="text-[var(--text-secondary)] break-all">{{ entry.msg }}</span>
       </div>
     </div>
   </div>
