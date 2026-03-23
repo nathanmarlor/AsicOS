@@ -29,9 +29,10 @@ uint8_t  asic_crc5(const uint8_t *data, size_t len);
 uint16_t asic_crc16(const uint8_t *data, size_t len);
 
 // Build a command packet. Returns total packet length, or -1 on error.
+// chip_addr: 0x00 for broadcast, or specific chip address for single-chip commands
 int asic_build_cmd(uint8_t *buf, size_t buf_len,
                    uint8_t cmd, uint8_t group,
-                   uint8_t reg_addr,
+                   uint8_t chip_addr, uint8_t reg_addr,
                    const uint8_t *data, size_t data_len);
 
 // Build a job packet. Returns total packet length, or -1 on error.

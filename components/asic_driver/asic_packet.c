@@ -39,10 +39,14 @@ uint16_t asic_crc16(const uint8_t *data, size_t len)
 
 int asic_build_cmd(uint8_t *buf, size_t buf_len,
                    uint8_t cmd, uint8_t group,
-                   uint8_t reg_addr,
+                   uint8_t chip_addr, uint8_t reg_addr,
                    const uint8_t *data, size_t data_len)
 {
-    size_t total = 6 + data_len;
+    /* BM1370 packet format:
+     * [55 AA] [header] [length] [chip_addr] [reg_addr] [data...] [crc5]
+     * Length = total bytes after preamble (header + length + chip_addr + reg + data + crc) */
+    size_t body_len = 5 + data_len;  /* header + length + chip_addr + reg + data + crc */
+    size_t total = 2 + body_len;     /* preamble + body */
 
     if (!buf || buf_len < total) {
         return -1;
@@ -51,15 +55,16 @@ int asic_build_cmd(uint8_t *buf, size_t buf_len,
     buf[0] = ASIC_PREAMBLE_1;
     buf[1] = ASIC_PREAMBLE_2;
     buf[2] = ASIC_TYPE_CMD | group | cmd;
-    buf[3] = (uint8_t)(data_len + 2);
-    buf[4] = reg_addr;
+    buf[3] = (uint8_t)body_len;
+    buf[4] = chip_addr;
+    buf[5] = reg_addr;
 
     if (data && data_len > 0) {
-        memcpy(&buf[5], data, data_len);
+        memcpy(&buf[6], data, data_len);
     }
 
-    /* CRC5 over buf[2..end-1] (header, length, addr, data) */
-    buf[total - 1] = asic_crc5(&buf[2], total - 3);
+    /* CRC5 over all body bytes except the CRC itself */
+    buf[total - 1] = asic_crc5(&buf[2], body_len - 1);
 
     return (int)total;
 }

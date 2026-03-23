@@ -104,7 +104,7 @@ esp_err_t bm1370_set_frequency(uint16_t freq_mhz)
     uint8_t cmd_buf[16];
     int cmd_len = asic_build_cmd(cmd_buf, sizeof(cmd_buf),
                                  ASIC_CMD_WRITE, ASIC_GROUP_ALL,
-                                 ASIC_REG_PLL,
+                                 0x00, ASIC_REG_PLL,
                                  data, sizeof(data));
     if (cmd_len < 0) {
         return ESP_ERR_INVALID_ARG;
@@ -125,7 +125,7 @@ float bm1370_read_temperature(void)
     uint8_t cmd_buf[16];
     int cmd_len = asic_build_cmd(cmd_buf, sizeof(cmd_buf),
                                  ASIC_CMD_READ, ASIC_GROUP_SINGLE,
-                                 ASIC_REG_TEMPERATURE,
+                                 0x00, ASIC_REG_TEMPERATURE,
                                  data, sizeof(data));
     if (cmd_len < 0) {
         return -1.0f;

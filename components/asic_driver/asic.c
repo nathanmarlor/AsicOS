@@ -60,7 +60,7 @@ int asic_enumerate(void)
     uint8_t ver_buf[16];
     int ver_len = asic_build_cmd(ver_buf, sizeof(ver_buf),
                                  ASIC_CMD_WRITE, ASIC_GROUP_ALL,
-                                 ASIC_REG_VR_MASK, ver_data, 4);
+                                 0x00, ASIC_REG_VR_MASK, ver_data, 4);
     if (ver_len > 0) {
         serial_tx(ver_buf, (size_t)ver_len);
         serial_tx(ver_buf, (size_t)ver_len);
@@ -75,7 +75,7 @@ int asic_enumerate(void)
     uint8_t cmd_buf[16];
     int cmd_len = asic_build_cmd(cmd_buf, sizeof(cmd_buf),
                                  ASIC_CMD_READ, ASIC_GROUP_ALL,
-                                 ASIC_REG_CHIP_ID,
+                                 0x00, ASIC_REG_CHIP_ID,
                                  NULL, 0);
     if (cmd_len < 0) {
         ESP_LOGE(TAG, "Failed to build enumerate command");
@@ -121,7 +121,7 @@ esp_err_t asic_set_chip_address(int chip_index, uint8_t addr)
     uint8_t cmd_buf[16];
     int cmd_len = asic_build_cmd(cmd_buf, sizeof(cmd_buf),
                                  ASIC_CMD_SETADDR, ASIC_GROUP_SINGLE,
-                                 ASIC_REG_CHIP_ID,
+                                 addr, ASIC_REG_CHIP_ID,
                                  data, sizeof(data));
     if (cmd_len < 0) {
         return ESP_ERR_INVALID_ARG;
@@ -163,7 +163,7 @@ esp_err_t asic_set_difficulty_mask(uint64_t difficulty)
     uint8_t cmd_buf[24];
     int cmd_len = asic_build_cmd(cmd_buf, sizeof(cmd_buf),
                                  ASIC_CMD_WRITE, ASIC_GROUP_ALL,
-                                 ASIC_REG_TICKET_MASK,
+                                 0x00, ASIC_REG_TICKET_MASK,
                                  data, sizeof(data));
     if (cmd_len < 0) {
         return ESP_ERR_INVALID_ARG;
@@ -187,7 +187,7 @@ esp_err_t asic_set_version_mask(uint32_t mask)
     uint8_t cmd_buf[16];
     int cmd_len = asic_build_cmd(cmd_buf, sizeof(cmd_buf),
                                  ASIC_CMD_WRITE, ASIC_GROUP_ALL,
-                                 ASIC_REG_VR_MASK,
+                                 0x00, ASIC_REG_VR_MASK,
                                  data, sizeof(data));
     if (cmd_len < 0) {
         return ESP_ERR_INVALID_ARG;
@@ -251,7 +251,7 @@ uint32_t asic_read_hash_counter(uint8_t chip_addr)
     uint8_t cmd_buf[16];
     int cmd_len = asic_build_cmd(cmd_buf, sizeof(cmd_buf),
                                  ASIC_CMD_READ, ASIC_GROUP_SINGLE,
-                                 ASIC_REG_NONCE_COUNT,
+                                 chip_addr, ASIC_REG_NONCE_COUNT,
                                  data, sizeof(data));
     if (cmd_len < 0) {
         return 0;
