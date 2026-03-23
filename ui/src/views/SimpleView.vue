@@ -29,37 +29,56 @@ const uptime = computed(() => {
 })
 const power = computed(() => system.info?.power.watts ?? 0)
 
-// Temperature status
-const tempStatus = computed(() => {
-  const t = chipTemp.value
-  if (t < 60) return 'good'
-  if (t < 80) return 'warn'
-  return 'danger'
+// Health overview
+const vrmTemp = computed(() => system.info?.temps.vr ?? 0)
+const fanRpm = computed(() => system.info?.power.fan0_rpm ?? 0)
+const efficiency = computed(() => {
+  const p = power.value
+  return p > 0 ? hashrate.value / p : 0
+})
+const rejectRate = computed(() => {
+  const a = mining.info?.accepted ?? 0
+  const r = mining.info?.rejected ?? 0
+  const total = a + r
+  return total > 0 ? (r / total) * 100 : 0
 })
 
 const tempColor = computed(() => {
-  switch (tempStatus.value) {
-    case 'good': return '#22c55e'
-    case 'warn': return '#eab308'
-    default: return '#ef4444'
-  }
+  const t = chipTemp.value
+  if (t < 60) return '#22c55e'
+  if (t < 75) return '#eab308'
+  return '#ef4444'
 })
 
-// Temperature arc (0-120 range, 180 degree arc)
-const tempArcD = computed(() => {
-  const t = Math.min(120, Math.max(0, chipTemp.value))
-  const pct = t / 120
-  const angle = pct * 180 // 0 to 180 degrees
-  const rad = (angle * Math.PI) / 180
-  const r = 36
-  const cx = 44
-  const cy = 40
-  const startX = cx - r
-  const startY = cy
-  const endX = cx + r * Math.cos(Math.PI - rad)
-  const endY = cy - r * Math.sin(rad)
-  const largeArc = angle > 90 ? 1 : 0
-  return `M${startX},${startY} A${r},${r} 0 ${largeArc} 1 ${endX},${endY}`
+const vrmColor = computed(() => {
+  const t = vrmTemp.value
+  if (t < 70) return '#22c55e'
+  if (t < 90) return '#eab308'
+  return '#ef4444'
+})
+
+const rejectColor = computed(() => {
+  const r = rejectRate.value
+  if (r < 1) return '#22c55e'
+  if (r < 3) return '#eab308'
+  return '#ef4444'
+})
+
+const overallHealthColor = computed(() => {
+  const asicOk = chipTemp.value < 75
+  const vrmOk = vrmTemp.value < 90
+  const rejectOk = rejectRate.value < 3
+  const connected = poolConnected.value
+  if (asicOk && vrmOk && rejectOk && connected && chipTemp.value < 60) return '#22c55e'
+  if (!connected || !asicOk || !vrmOk || !rejectOk) return '#ef4444'
+  return '#eab308'
+})
+
+const overallHealthLabel = computed(() => {
+  const c = overallHealthColor.value
+  if (c === '#22c55e') return 'All systems normal'
+  if (c === '#ef4444') return 'Attention required'
+  return 'Elevated temps'
 })
 
 // Time to solo block estimate
@@ -133,34 +152,51 @@ const timeToBlock = computed(() => {
       />
     </div>
 
-    <!-- Temperature gauge arc -->
+    <!-- Health Overview -->
     <div class="bg-[#111111] border border-[#1e1e1e] rounded p-3">
-      <div class="text-[10px] font-mono text-[#6b7280] uppercase tracking-wider mb-2">Chip Temperature</div>
-      <div class="flex items-center gap-4">
-        <svg width="88" height="50" viewBox="0 0 88 50" class="shrink-0">
-          <!-- Background arc -->
-          <path
-            d="M8,40 A36,36 0 0 1 80,40"
-            fill="none"
-            stroke="#1e1e1e"
-            stroke-width="4"
-            stroke-linecap="round"
-          />
-          <!-- Value arc -->
-          <path
-            :d="tempArcD"
-            fill="none"
-            :stroke="tempColor"
-            stroke-width="4"
-            stroke-linecap="round"
-          />
-        </svg>
-        <div>
-          <div class="font-mono font-bold text-2xl" :style="{ color: tempColor }">{{ chipTemp.toFixed(0) }}&deg;C</div>
-          <div class="text-[10px] font-mono text-[#4b4b4b]">
-            {{ chipTemp < 60 ? 'Normal' : chipTemp < 80 ? 'Warm' : 'Hot' }}
+      <div class="text-[10px] font-mono text-[#6b7280] uppercase tracking-wider mb-3">System Health</div>
+      <div class="grid grid-cols-2 gap-x-4 gap-y-2.5">
+        <!-- ASIC Temp -->
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-mono text-[#6b7280]">ASIC</span>
+          <div class="flex items-center gap-1.5">
+            <span class="font-mono text-sm font-medium" :style="{ color: tempColor }">{{ chipTemp.toFixed(0) }}&deg;C</span>
+            <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: tempColor }" />
           </div>
         </div>
+        <!-- VRM Temp -->
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-mono text-[#6b7280]">VRM</span>
+          <div class="flex items-center gap-1.5">
+            <span class="font-mono text-sm font-medium" :style="{ color: vrmColor }">{{ vrmTemp.toFixed(0) }}&deg;C</span>
+            <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: vrmColor }" />
+          </div>
+        </div>
+        <!-- Fan -->
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-mono text-[#6b7280]">Fan</span>
+          <span class="font-mono text-sm text-[#e5e5e5]">{{ fanRpm.toLocaleString() }} rpm</span>
+        </div>
+        <!-- Power -->
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-mono text-[#6b7280]">Power</span>
+          <span class="font-mono text-sm text-[#e5e5e5]">{{ power.toFixed(1) }}W</span>
+        </div>
+        <!-- Efficiency -->
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-mono text-[#6b7280]">Efficiency</span>
+          <span class="font-mono text-sm text-[#e5e5e5]">{{ efficiency.toFixed(1) }} GH/W</span>
+        </div>
+        <!-- Reject Rate -->
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-mono text-[#6b7280]">Reject</span>
+          <span class="font-mono text-sm" :style="{ color: rejectColor }">{{ rejectRate.toFixed(1) }}%</span>
+        </div>
+      </div>
+      <!-- Overall status bar -->
+      <div class="mt-3 pt-2.5 border-t border-[#1e1e1e] flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: overallHealthColor }" />
+        <span class="text-[11px] font-mono" :style="{ color: overallHealthColor }">{{ overallHealthLabel }}</span>
       </div>
     </div>
 

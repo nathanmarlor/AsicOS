@@ -233,9 +233,10 @@ async function restart() {
         :status="vrmTempStatus"
       />
       <KpiCard
-        label="Health"
-        :value="healthLabel"
-        :status="healthStatus"
+        label="Reject Rate"
+        :value="rejectPct.toFixed(1) + '%'"
+        unit="of shares"
+        :status="rejectStatus"
       />
     </div>
 
