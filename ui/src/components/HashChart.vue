@@ -90,7 +90,9 @@ const lastPoint = computed(() => {
   return { x: toX(i), y: toY(props.data[i]) }
 })
 
-const gradientId = computed(() => `grad-${props.label?.replace(/\s/g, '') || 'hash'}`)
+// Unique gradient ID - strip all non-alphanumeric chars to avoid SVG url() issues
+const _uid = Math.random().toString(36).slice(2, 8)
+const gradientId = computed(() => `grad-${_uid}`)
 </script>
 
 <template>
