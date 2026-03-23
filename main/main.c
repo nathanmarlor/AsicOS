@@ -73,6 +73,7 @@ static void init_power(const board_config_t *board)
     vr_config_t vr_cfg = {
         .port = I2C_NUM_0,
         .address = board->vr_i2c_addr,
+        .type = board->vr_type,
     };
     vr_init(&vr_cfg);
 
