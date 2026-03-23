@@ -24,6 +24,7 @@ idf_component_register(
           "http_server/api_remote.c"
           "http_server/api_metrics.c"
           "http_server/ws_handler.c"
+          "display_screens.c"
     INCLUDE_DIRS "." "tasks" "http_server"
     REQUIRES "nvs_flash"
              "esp_wifi"

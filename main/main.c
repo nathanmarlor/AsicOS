@@ -28,6 +28,9 @@
 #include "tasks/loki_task.h"
 #include "display.h"
 
+// Defined in display_screens.c
+extern void display_render_screen(display_screen_t screen);
+
 static const char *TAG = "asicos";
 
 static esp_err_t init_i2c(const board_config_t *board)
@@ -205,7 +208,7 @@ void app_main(void)
         };
         esp_err_t disp_err = display_init(&disp_cfg);
         if (disp_err == ESP_OK) {
-            display_task_start();
+            display_task_start(display_render_screen);
         } else {
             ESP_LOGW(TAG, "Display init failed: %s", esp_err_to_name(disp_err));
         }

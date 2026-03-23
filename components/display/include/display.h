@@ -28,7 +28,17 @@ typedef enum {
     DISPLAY_SCREEN_OFF,
 } display_screen_t;
 
+// Callback type for rendering a screen. Called by the display task.
+typedef void (*display_screen_cb_t)(display_screen_t screen);
+
 esp_err_t display_init(const display_config_t *config);
-void display_task_start(void);
+
+// Start the display task. The render_cb is called each update cycle
+// to draw the current screen into the framebuffer.
+void display_task_start(display_screen_cb_t render_cb);
+
 void display_set_screen(display_screen_t screen);
 void display_set_backlight(bool on);
+
+// Get the current screen
+display_screen_t display_get_screen(void);

@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include "display.h"
 
 /* ── RGB565 color definitions ──────────────────────────────────────── */
 
@@ -21,9 +22,4 @@ void display_draw_rect(int x, int y, int w, int h, uint16_t color);
 void display_draw_hline(int x, int y, int w, uint16_t color);
 void display_draw_char(int x, int y, char c, uint16_t color, uint16_t bg);
 void display_draw_text(int x, int y, const char *text, uint16_t color, uint16_t bg);
-
-/* ── Screen renderers (implemented in display_screens.c) ───────────── */
-
-void display_screen_mining(void);
-void display_screen_stats(void);
-void display_screen_network(void);
+void display_flush(void);

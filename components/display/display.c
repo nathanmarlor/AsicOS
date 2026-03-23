@@ -19,6 +19,7 @@ static const char *TAG = "display";
 static display_config_t s_config;
 static esp_lcd_panel_handle_t s_panel = NULL;
 static display_screen_t s_current_screen = DISPLAY_SCREEN_MINING;
+static display_screen_cb_t s_render_cb = NULL;
 static bool s_backlight_on = true;
 static TickType_t s_last_button_tick = 0;
 
@@ -31,8 +32,7 @@ static TickType_t s_last_button_tick = 0;
 
 /* ── Framebuffer ───────────────────────────────────────────────────── */
 
-// 320x170 RGB565 = 108800 bytes, too large for single alloc on ESP32-S3
-// We use a line buffer and render row by row (or in bands)
+// Transfer band buffer (DMA-friendly, internal SRAM)
 #define BAND_HEIGHT  10
 static uint16_t s_band_buf[320 * BAND_HEIGHT];
 
@@ -41,8 +41,6 @@ static uint16_t *s_framebuffer = NULL;
 
 /* ── 8x16 Bitmap Font (CP437 subset, ASCII 0x20-0x7E) ─────────────── */
 
-// Each character is 8 pixels wide, 16 pixels tall = 16 bytes per char
-// 95 printable characters (space through tilde)
 #include "font_8x16.h"
 
 /* ── Drawing primitives ────────────────────────────────────────────── */
@@ -121,7 +119,7 @@ void display_draw_text(int x, int y, const char *text, uint16_t color, uint16_t 
 
 /* ── Flush framebuffer to panel ────────────────────────────────────── */
 
-static void display_flush(void)
+void display_flush(void)
 {
     if (!s_panel || !s_framebuffer) return;
 
@@ -151,6 +149,11 @@ void display_set_backlight(bool on)
 void display_set_screen(display_screen_t screen)
 {
     s_current_screen = screen;
+}
+
+display_screen_t display_get_screen(void)
+{
+    return s_current_screen;
 }
 
 /* ── Panel init ────────────────────────────────────────────────────── */
@@ -399,18 +402,8 @@ static void display_task(void *param)
 
             display_fill_screen(COLOR_BLACK);
 
-            switch (s_current_screen) {
-                case DISPLAY_SCREEN_MINING:
-                    display_screen_mining();
-                    break;
-                case DISPLAY_SCREEN_STATS:
-                    display_screen_stats();
-                    break;
-                case DISPLAY_SCREEN_NETWORK:
-                    display_screen_network();
-                    break;
-                default:
-                    break;
+            if (s_render_cb) {
+                s_render_cb(s_current_screen);
             }
 
             display_flush();
@@ -420,8 +413,9 @@ static void display_task(void *param)
     }
 }
 
-void display_task_start(void)
+void display_task_start(display_screen_cb_t render_cb)
 {
+    s_render_cb = render_cb;
     xTaskCreate(display_task, "display", DISPLAY_TASK_STACK_SIZE, NULL,
                 DISPLAY_TASK_PRIORITY, NULL);
     ESP_LOGI(TAG, "Display task started");

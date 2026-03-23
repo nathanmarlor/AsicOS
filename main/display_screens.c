@@ -1,3 +1,4 @@
+#include "display.h"
 #include "display_screens.h"
 
 #include <stdio.h>
@@ -16,7 +17,12 @@
 #include "stratum_client.h"
 #include "nvs_config.h"
 
-static const char *TAG = "display_scr";
+static const char *TAG __attribute__((unused)) = "display_scr";
+
+// Forward declarations for screen renderers
+static void screen_mining(void);
+static void screen_stats(void);
+static void screen_network(void);
 
 /* ── Helpers ───────────────────────────────────────────────────────── */
 
@@ -96,7 +102,7 @@ static void draw_header(const char *title)
 
 /* ── Mining Screen ─────────────────────────────────────────────────── */
 
-void display_screen_mining(void)
+static void screen_mining(void)
 {
     draw_header("AsicOS");
 
@@ -163,12 +169,10 @@ void display_screen_mining(void)
 
 /* ── Stats Screen ──────────────────────────────────────────────────── */
 
-void display_screen_stats(void)
+static void screen_stats(void)
 {
     draw_header("MINING STATS");
 
-    const hashrate_info_t *hr = hashrate_task_get_info();
-    const power_status_t *pwr = power_task_get_status();
     const mining_stats_t *stats = result_task_get_stats();
     uint32_t accepted = stratum_client_get_accepted();
     uint32_t rejected = stratum_client_get_rejected();
@@ -237,7 +241,7 @@ void display_screen_stats(void)
 
 /* ── Network Screen ────────────────────────────────────────────────── */
 
-void display_screen_network(void)
+static void screen_network(void)
 {
     draw_header("NETWORK");
 
@@ -300,5 +304,24 @@ void display_screen_network(void)
     if (ip_str[0] >= '0' && ip_str[0] <= '9') {
         snprintf(line, sizeof(line), "Web: http://%s", ip_str);
         display_draw_text(8, y, line, COLOR_GRAY, COLOR_BLACK);
+    }
+}
+
+/* ── Public render callback (passed to display_task_start) ─────────── */
+
+void display_render_screen(display_screen_t screen)
+{
+    switch (screen) {
+        case DISPLAY_SCREEN_MINING:
+            screen_mining();
+            break;
+        case DISPLAY_SCREEN_STATS:
+            screen_stats();
+            break;
+        case DISPLAY_SCREEN_NETWORK:
+            screen_network();
+            break;
+        default:
+            break;
     }
 }
