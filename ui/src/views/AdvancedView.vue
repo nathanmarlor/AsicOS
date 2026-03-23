@@ -9,7 +9,6 @@ import HashChart from '../components/HashChart.vue'
 import AsicGrid from '../components/AsicGrid.vue'
 import SharePerformance from '../components/SharePerformance.vue'
 import ShareFeed from '../components/ShareFeed.vue'
-import PoolQuality from '../components/PoolQuality.vue'
 import LogConsole from '../components/LogConsole.vue'
 
 const router = useRouter()
@@ -143,48 +142,35 @@ const shareRate = computed(() => {
   return (recent.length / span) * 60000
 })
 
-// Mining details table - grouped sections
-interface DetailRow {
-  label: string
-  value: string
-  header?: boolean
-}
+// Power & Pool computed values
+const vin = computed(() => system.info?.power.vin.toFixed(2) ?? '--')
+const vout = computed(() => (system.info ? (system.info.power.vout * 1000).toFixed(0) : '--'))
+const iout = computed(() => system.info?.power.iout.toFixed(1) ?? '--')
+const watts = computed(() => system.info?.power.watts.toFixed(1) ?? '--')
+const sessionBest = computed(() => mining.formatDiff(mining.info?.best_diff ?? 0))
+const alltimeBest = computed(() => mining.formatDiff(mining.info?.alltime_best_diff ?? 0))
+const hasAdcVcore = computed(() => system.info?.has_adc_vcore && (system.info?.power.vcore_adc_mv ?? 0) > 0)
+const vcoreAdc = computed(() => system.info?.power.vcore_adc_mv?.toFixed(0) ?? '--')
 
-const details = computed((): DetailRow[] => {
-  const m = mining.info
+// Device (Cooling + System) computed values
+const boardTemp = computed(() => system.info?.temps.board.toFixed(1) ?? '--')
+const vrTempDetail = computed(() => {
   const s = system.info
-  if (!m || !s) return []
-  const rows: DetailRow[] = [
-    { label: 'MINING', value: '', header: true },
-    { label: 'Pool Difficulty', value: mining.formatDiff(m.pool_diff) },
-    { label: 'Session Best', value: mining.formatDiff(m.best_diff) },
-    { label: 'All-Time Best', value: mining.formatDiff(m.alltime_best_diff ?? 0) },
-    { label: 'Accepted / Rejected', value: `${m.accepted} / ${m.rejected}` },
-    { label: 'ASIC', value: '', header: true },
-    { label: 'ASIC Frequency', value: `${s.config.frequency} MHz` },
-    { label: 'ASIC Voltage', value: `${s.config.voltage} mV` },
-    { label: 'POWER', value: '', header: true },
-    { label: 'Input Voltage', value: `${s.power.vin.toFixed(2)} V` },
-    { label: 'VRM Voltage', value: `${(s.power.vout * 1000).toFixed(0)} mV` },
-    { label: 'VRM Current', value: `${s.power.iout.toFixed(1)} A` },
-    { label: 'Power Draw', value: `${s.power.watts.toFixed(1)} W` },
-  ]
-  if (s.has_adc_vcore && s.power.vcore_adc_mv > 0) {
-    rows.push({ label: 'ASIC Core Voltage (ADC)', value: `${s.power.vcore_adc_mv.toFixed(0)} mV` })
-  }
-  rows.push(
-    { label: 'COOLING', value: '', header: true },
-    { label: 'VRM Temperature', value: `${(s.power.vr_temp ?? s.temps.vr).toFixed(1)}\u00B0C` },
-    { label: 'Board Temperature', value: `${s.temps.board.toFixed(1)}\u00B0C` },
-    { label: 'Fan 1', value: `${s.power.fan0_rpm.toLocaleString()} RPM` + (s.power.fan_override >= 0 ? ` (${s.power.fan_override}%)` : ' (auto)') },
-    { label: 'Fan 2', value: `${s.power.fan1_rpm.toLocaleString()} RPM` + (s.power.fan_override >= 0 ? ` (${s.power.fan_override}%)` : ' (auto)') },
-    { label: 'SYSTEM', value: '', header: true },
-    { label: 'Free Memory', value: `${(s.free_heap / 1024).toFixed(0)} KB` },
-    { label: 'Uptime', value: formatUptime(Math.floor(s.uptime_ms / 1000)) },
-    { label: 'Last Reset', value: s.reset_reason ?? 'unknown' },
-  )
-  return rows
+  if (!s) return '--'
+  return (s.power.vr_temp ?? s.temps.vr).toFixed(1)
 })
+const fan0 = computed(() => system.info?.power.fan0_rpm.toLocaleString() ?? '--')
+const fan1 = computed(() => system.info?.power.fan1_rpm.toLocaleString() ?? '--')
+const fanMode = computed(() => {
+  const s = system.info
+  if (!s) return 'auto'
+  return s.power.fan_override >= 0 ? `${s.power.fan_override}%` : 'auto'
+})
+const freq = computed(() => system.info?.config.frequency ?? '--')
+const voltage = computed(() => system.info?.config.voltage ?? '--')
+const heap = computed(() => system.info ? (system.info.free_heap / 1024).toFixed(0) : '--')
+const uptime = computed(() => system.info ? formatUptime(Math.floor(system.info.uptime_ms / 1000)) : '--')
+const resetReason = computed(() => system.info?.reset_reason ?? 'unknown')
 
 function formatUptime(s: number): string {
   const d = Math.floor(s / 86400)
@@ -225,6 +211,10 @@ async function restart() {
         <span class="text-[var(--text-secondary)]">{{ system.info?.board_name ?? '--' }}</span>
         <span class="text-[var(--text-muted)]">|</span>
         <span class="text-[var(--text-secondary)]">{{ system.info?.asic_model ?? '--' }}</span>
+        <template v-if="system.info">
+          <span class="text-[var(--text-muted)]">|</span>
+          <span class="text-[var(--text-muted)]">{{ system.info.config.frequency }} MHz / {{ system.info.config.voltage }} mV</span>
+        </template>
       </div>
       <div class="flex items-center gap-3 text-[var(--text-muted)]">
         <span v-if="system.info">uptime: {{ formatUptime(Math.floor(system.info.uptime_ms / 1000)) }}</span>
@@ -347,38 +337,65 @@ async function restart() {
       </div>
     </div>
 
-    <!-- Bottom Row: Pool + Details + Log -->
-    <div class="grid grid-cols-1 lg:grid-cols-10 gap-3">
-      <div class="lg:col-span-3 bg-[var(--surface)] border border-[var(--border)] rounded p-3">
-        <PoolQuality
-          :connected="poolConnected"
-          :url="poolUrl"
-          :difficulty="poolDiffStr"
-          :reconnects="0"
-          :worker="system.info?.config.pool_user ?? '--'"
-        />
+    <!-- Bottom Row: Power & Pool | Device | Log Console -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+
+      <!-- Power & Pool -->
+      <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3">
+        <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-2">Power & Pool</div>
+        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] font-mono">
+          <div class="text-[var(--text-muted)]">Input</div>
+          <div class="text-right text-[var(--text)]">{{ vin }} V</div>
+          <div class="text-[var(--text-muted)]">VRM Voltage</div>
+          <div class="text-right text-[var(--text)]">{{ vout }} mV</div>
+          <div class="text-[var(--text-muted)]">VRM Current</div>
+          <div class="text-right text-[var(--text)]">{{ iout }} A</div>
+          <div class="text-[var(--text-muted)]">Power</div>
+          <div class="text-right text-[var(--text)]">{{ watts }} W</div>
+          <template v-if="hasAdcVcore">
+            <div class="text-[var(--text-muted)]">Core (ADC)</div>
+            <div class="text-right text-[var(--text)]">{{ vcoreAdc }} mV</div>
+          </template>
+        </div>
+        <div class="border-t border-[var(--border)]/50 mt-2 pt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] font-mono">
+          <div class="text-[var(--text-muted)]">Pool</div>
+          <div class="text-right text-[var(--text)] truncate">{{ poolUrl }}</div>
+          <div class="text-[var(--text-muted)]">Worker</div>
+          <div class="text-right text-[var(--text)] truncate">{{ system.info?.config.pool_user ?? '--' }}</div>
+          <div class="text-[var(--text-muted)]">Pool Diff</div>
+          <div class="text-right text-[var(--text)]">{{ poolDiffStr }}</div>
+          <div class="text-[var(--text-muted)]">Session Best</div>
+          <div class="text-right text-[#f97316]">{{ sessionBest }}</div>
+          <div class="text-[var(--text-muted)]">All-Time Best</div>
+          <div class="text-right text-[#eab308]">{{ alltimeBest }}</div>
+        </div>
       </div>
-      <div class="lg:col-span-4 bg-[var(--surface)] border border-[var(--border)] rounded p-3">
-        <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-2">Mining Details</div>
-        <table class="w-full text-[11px] font-mono">
-          <tbody>
-            <template v-for="(row, i) in details" :key="row.label">
-              <tr v-if="row.header">
-                <td colspan="2" class="text-[9px] font-mono text-[var(--text-muted)] uppercase tracking-wider pt-2">{{ row.label }}</td>
-              </tr>
-              <tr
-                v-else
-                class="border-b border-[var(--border)]/50 last:border-0"
-                :class="i % 2 === 0 ? '' : 'bg-[var(--bg)]/30'"
-              >
-                <td class="py-1 text-[var(--text-secondary)] pr-4">{{ row.label }}</td>
-                <td class="py-1 text-[var(--text)] text-right">{{ row.value }}</td>
-              </tr>
-            </template>
-          </tbody>
-        </table>
+
+      <!-- Device (Cooling + System) -->
+      <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3">
+        <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-2">Device</div>
+        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] font-mono">
+          <div class="text-[var(--text-muted)]">VRM Temp</div>
+          <div class="text-right text-[var(--text)]">{{ vrTempDetail }}&deg;C</div>
+          <div class="text-[var(--text-muted)]">Board Temp</div>
+          <div class="text-right text-[var(--text)]">{{ boardTemp }}&deg;C</div>
+          <div class="text-[var(--text-muted)]">Fan 1</div>
+          <div class="text-right text-[var(--text)]">{{ fan0 }} RPM ({{ fanMode }})</div>
+          <div class="text-[var(--text-muted)]">Fan 2</div>
+          <div class="text-right text-[var(--text)]">{{ fan1 }} RPM ({{ fanMode }})</div>
+          <div class="text-[var(--text-muted)]">ASIC Config</div>
+          <div class="text-right text-[var(--text)]">{{ freq }} MHz / {{ voltage }} mV</div>
+          <div class="text-[var(--text-muted)]">Memory</div>
+          <div class="text-right text-[var(--text)]">{{ heap }} KB</div>
+          <div class="text-[var(--text-muted)]">Uptime</div>
+          <div class="text-right text-[var(--text)]">{{ uptime }}</div>
+          <div class="text-[var(--text-muted)]">Last Reset</div>
+          <div class="text-right text-[var(--text)]">{{ resetReason }}</div>
+        </div>
       </div>
-      <div class="lg:col-span-3 bg-[var(--surface)] border border-[var(--border)] rounded p-3 flex flex-col min-h-[240px]">
+
+      <!-- Log Console -->
+      <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3 flex flex-col min-h-[240px]">
         <LogConsole />
       </div>
     </div>
