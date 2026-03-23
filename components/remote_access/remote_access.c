@@ -85,7 +85,7 @@ esp_err_t remote_init(const remote_config_t *config)
 void remote_task_loop(void *param)
 {
     char device_id[32];
-    char licence_key[128];
+    static char licence_key[128];
 
     /* Step 1: Get device ID */
     licence_get_device_id(device_id, sizeof(device_id));

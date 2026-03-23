@@ -29,15 +29,15 @@ typedef struct {
 static dedup_entry_t s_dedup_ring[DEDUP_RING_SIZE];
 static int           s_dedup_index = 0;
 
-static mining_stats_t s_stats;
-static uint64_t s_nonce_count = 0;
+static volatile mining_stats_t s_stats;
+static volatile uint64_t s_nonce_count = 0;
 static uint64_t s_per_chip_nonces[16] = {0};
 static int64_t s_last_summary_time = 0;
 static uint32_t s_nonces_since_summary = 0;
 
 const mining_stats_t *result_task_get_stats(void)
 {
-    return &s_stats;
+    return (const mining_stats_t *)&s_stats;
 }
 
 uint64_t result_task_get_nonce_count(void)
@@ -96,12 +96,13 @@ static void result_task_fn(void *param)
         /* Map ASIC job ID back to original job ID */
         uint8_t original_id = bm1370_asic_to_job_id(result.job_id);
 
-        /* Lookup job */
-        const asic_job_t *job = mining_get_job(original_id);
-        if (!job) {
+        /* Lookup job (copy into local buffer while mutex is held) */
+        asic_job_t job_buf;
+        if (!mining_get_job(original_id, &job_buf)) {
             ESP_LOGW(TAG, "No job found for ASIC id %u (original %u)", result.job_id, original_id);
             continue;
         }
+        const asic_job_t *job = &job_buf;
 
         /* Check duplicate */
         if (is_duplicate(result.nonce, result.rolled_version)) {
@@ -112,6 +113,12 @@ static void result_task_fn(void *param)
 
         /* Count valid (non-duplicate) nonces */
         s_nonce_count++;
+
+        /* Transition LED to MINING on first valid nonce */
+        if (s_nonce_count == 1) {
+            led_set_state(LED_STATE_MINING);
+        }
+
         int chip_nr = bm1370_nonce_to_chip(result.nonce, 2);
         if (chip_nr >= 0 && chip_nr < 16) s_per_chip_nonces[chip_nr]++;
 
@@ -153,15 +160,19 @@ static void result_task_fn(void *param)
             continue;
         }
 
-        /* Update best difficulty */
+        /* Update best difficulty (debounce NVS write to at most once per 60s) */
         if (share_diff > s_stats.best_difficulty) {
             s_stats.best_difficulty = share_diff;
             ESP_LOGI(TAG, "New best difficulty: %.4f", share_diff);
 
-            /* Persist to NVS */
-            uint64_t diff_as_u64;
-            memcpy(&diff_as_u64, &share_diff, sizeof(uint64_t));
-            nvs_config_set_u64(NVS_KEY_BEST_DIFF, diff_as_u64);
+            static int64_t s_last_best_diff_write = 0;
+            int64_t now_us = esp_timer_get_time();
+            if (now_us - s_last_best_diff_write >= 60000000LL) { /* 60 seconds */
+                uint64_t diff_as_u64;
+                memcpy(&diff_as_u64, &share_diff, sizeof(uint64_t));
+                nvs_config_set_u64(NVS_KEY_BEST_DIFF, diff_as_u64);
+                s_last_best_diff_write = now_us;
+            }
         }
 
         /* If share meets pool difficulty, submit */

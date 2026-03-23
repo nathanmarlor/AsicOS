@@ -12,5 +12,5 @@ void mining_task_start(void);
 void mining_on_notify(const stratum_notify_t *notify, int pool_id);
 void mining_on_difficulty(double diff, int pool_id);
 
-// Job lookup (used by result task)
-const asic_job_t *mining_get_job(uint8_t job_id);
+// Job lookup (used by result task) - copies job into caller buffer while holding mutex
+bool mining_get_job(uint8_t job_id, asic_job_t *out);

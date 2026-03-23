@@ -10,6 +10,7 @@ const saving = ref(false)
 const saved = ref(false)
 const error = ref('')
 const showFallback = ref(false)
+const restartRequired = ref(false)
 
 // OTA state
 const otaChecking = ref(false)
@@ -52,10 +53,12 @@ function copyMetricsUrl() {
 const lokiUrl = ref('')
 const defaultMode = ref('simple')
 
-const freqMin = computed(() => 100)
-const freqMax = computed(() => 800)
+const freqMin = ref(100)
+const freqMax = ref(800)
+const voltMin = ref(800)
+const voltMax = ref(1500)
 
-let confirmRestart = false
+const confirmRestart = ref(false)
 
 onMounted(async () => {
   try {
@@ -72,8 +75,12 @@ onMounted(async () => {
     fallbackUser.value = ''
     frequency.value = cfg.frequency ?? 500
     voltage.value = cfg.voltage ?? 1200
-    fanTargetTemp.value = 65
-    overheatTemp.value = 95
+    freqMin.value = cfg.freq_min ?? 100
+    freqMax.value = cfg.freq_max ?? 800
+    voltMin.value = cfg.voltage_min ?? 800
+    voltMax.value = cfg.voltage_max ?? 1500
+    fanTargetTemp.value = cfg.fan_target ?? 65
+    overheatTemp.value = cfg.overheat_temp ?? 95
     lokiUrl.value = ''
     defaultMode.value = cfg.ui_mode ?? 'simple'
   } catch (e: any) {
@@ -96,9 +103,15 @@ async function save() {
     if (poolPassword.value) payload.pool_pass = poolPassword.value
     if (frequency.value) payload.frequency = frequency.value
     if (voltage.value) payload.voltage = voltage.value
+    if (fallbackUrl.value) payload.pool2_url = fallbackUrl.value
+    if (fallbackPort.value) payload.pool2_port = fallbackPort.value
+    if (fallbackUser.value) payload.pool2_user = fallbackUser.value
+    if (fanTargetTemp.value) payload.fan_target = fanTargetTemp.value
+    if (overheatTemp.value) payload.overheat_temp = overheatTemp.value
     if (defaultMode.value) payload.ui_mode = defaultMode.value
     await post('/api/system', payload)
     saved.value = true
+    restartRequired.value = true
     setTimeout(() => { saved.value = false }, 3000)
   } catch (e: any) {
     error.value = e.message
@@ -116,9 +129,9 @@ async function applyFanOverride() {
 }
 
 async function restart() {
-  if (!confirmRestart) {
-    confirmRestart = true
-    setTimeout(() => { confirmRestart = false }, 3000)
+  if (!confirmRestart.value) {
+    confirmRestart.value = true
+    setTimeout(() => { confirmRestart.value = false }, 3000)
     return
   }
   try {
@@ -282,14 +295,14 @@ async function uploadFirmware() {
         <input
           v-model.number="voltage"
           type="range"
-          min="800"
-          max="1500"
+          :min="voltMin"
+          :max="voltMax"
           step="10"
           class="w-full accent-accent bg-transparent"
         />
         <div class="flex justify-between text-[10px] text-[var(--text-muted)] font-mono">
-          <span>800</span>
-          <span>1500</span>
+          <span>{{ voltMin }}</span>
+          <span>{{ voltMax }}</span>
         </div>
       </div>
     </section>
@@ -457,6 +470,18 @@ async function uploadFirmware() {
         {{ otaError }}
       </div>
     </section>
+
+    <!-- Restart required banner -->
+    <div
+      v-if="restartRequired"
+      class="flex items-center justify-between rounded px-4 py-3 text-xs font-mono"
+      style="background: rgba(234, 179, 8, 0.15); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.3);"
+    >
+      <span>Restart required for changes to take effect</span>
+      <button @click="restart" class="ml-3 px-3 py-1 rounded text-[11px] font-mono" style="background: rgba(234, 179, 8, 0.25);">
+        Restart
+      </button>
+    </div>
 
     <!-- Actions -->
     <div class="flex gap-3">

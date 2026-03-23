@@ -18,7 +18,7 @@ static const char *TAG = "mining_task";
 static QueueHandle_t      s_notify_queue;
 static asic_job_t         s_active_jobs[128];
 static SemaphoreHandle_t  s_jobs_mutex;
-static double             s_current_pool_diff   = 1.0;
+static volatile double    s_current_pool_diff   = 1.0;
 static uint32_t           s_extranonce2_counter  = 0;
 static uint8_t            s_asic_job_id          = 0;  /* rotating ASIC job ID */
 
@@ -41,19 +41,20 @@ void mining_on_difficulty(double diff, int pool_id)
 
 /* ---- Job lookup (used by result_task) ---- */
 
-const asic_job_t *mining_get_job(uint8_t job_id)
+bool mining_get_job(uint8_t job_id, asic_job_t *out)
 {
-    if (job_id >= 128) {
-        return NULL;
+    if (job_id >= 128 || !out) {
+        return false;
     }
-    const asic_job_t *job = NULL;
     if (xSemaphoreTake(s_jobs_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
         if (s_active_jobs[job_id].stratum_job_id[0] != '\0') {
-            job = &s_active_jobs[job_id];
+            memcpy(out, &s_active_jobs[job_id], sizeof(asic_job_t));
+            xSemaphoreGive(s_jobs_mutex);
+            return true;
         }
         xSemaphoreGive(s_jobs_mutex);
     }
-    return job;
+    return false;
 }
 
 /* ---- Main task ---- */

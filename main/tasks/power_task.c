@@ -38,9 +38,9 @@ static const char *TAG = "power";
 
 /* ── Static state ─────────────────────────────────────────────────── */
 
-static power_status_t s_status;
+static volatile power_status_t s_status;
 static pid_controller_t s_fan_pid[2];
-static int s_fan_override = -1;  // -1 = auto (PID), 0-100 = manual %
+static volatile int s_fan_override = -1;  // -1 = auto (PID), 0-100 = manual %
 static ina260_config_t s_ina260_config;
 
 /* ── Helpers ──────────────────────────────────────────────────────── */
@@ -204,7 +204,7 @@ void power_task_start(void)
 
 const power_status_t *power_task_get_status(void)
 {
-    return &s_status;
+    return (const power_status_t *)&s_status;
 }
 
 void power_set_fan_override(int percent)

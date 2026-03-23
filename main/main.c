@@ -162,7 +162,10 @@ void app_main(void)
     // 4. I2C bus init (needed before power/fan/temp)
     esp_err_t i2c_err = init_i2c(board);
     if (i2c_err != ESP_OK) {
-        ESP_LOGE(TAG, "I2C init failed: %s", esp_err_to_name(i2c_err));
+        ESP_LOGE(TAG, "I2C init failed: %s - entering safe mode with fans at 100%%",
+                 esp_err_to_name(i2c_err));
+        fan_set_speed(0, 100);
+        fan_set_speed(1, 100);
     }
 
     // 4b. LED init
@@ -260,7 +263,7 @@ void app_main(void)
     // 13. Stratum client
     init_stratum(board);
 
-    // 13b. LED: connected
+    // 13b. LED: connected (stratum will transition to MINING when first nonce arrives)
     if (board->led1_gpio >= 0) {
         led_set_state(LED_STATE_CONNECTED);
     }
@@ -269,11 +272,6 @@ void app_main(void)
     mining_task_start();
     result_task_start();
     hashrate_task_start();
-
-    // 14b. LED: mining active
-    if (board->led1_gpio >= 0) {
-        led_set_state(LED_STATE_MINING);
-    }
 
     // 15. Power task
     power_task_start();

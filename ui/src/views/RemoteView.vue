@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useApi } from '../composables/useApi'
 
 const { get, post } = useApi()
@@ -8,6 +8,21 @@ const status = ref<any>(null)
 const error = ref('')
 const licenceKey = ref('')
 const activating = ref(false)
+
+const stateLabels: Record<number, string> = {
+  0: 'disabled',
+  1: 'connecting',
+  2: 'connected',
+  3: 'error',
+  4: 'unlicensed',
+}
+
+const stateLabel = computed(() => {
+  if (!status.value) return ''
+  return stateLabels[status.value.state] ?? `unknown (${status.value.state})`
+})
+
+const isConnected = computed(() => status.value?.state === 2)
 
 onMounted(async () => {
   try {
@@ -44,9 +59,9 @@ async function activate() {
         <div class="flex justify-between">
           <span class="text-[var(--text-secondary)]">Connection</span>
           <span class="flex items-center gap-1.5">
-            <span class="w-1.5 h-1.5 rounded-full" :class="status.connected ? 'bg-green-500' : 'bg-[var(--text-muted)]'" />
-            <span :class="status.connected ? 'text-green-500' : 'text-[var(--text-secondary)]'">
-              {{ status.connected ? 'connected' : 'disconnected' }}
+            <span class="w-1.5 h-1.5 rounded-full" :class="isConnected ? 'bg-green-500' : 'bg-[var(--text-muted)]'" />
+            <span :class="isConnected ? 'text-green-500' : 'text-[var(--text-secondary)]'">
+              {{ stateLabel }}
             </span>
           </span>
         </div>

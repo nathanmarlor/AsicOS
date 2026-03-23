@@ -3,9 +3,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdatomic.h>
 #include <inttypes.h>
 
-static int s_msg_id = 1;
+static _Atomic int s_msg_id = 1;
 
 /* ---------------------------------------------------------------------------
  * Build helpers - each returns length written (excl. NUL) or -1 on error.
@@ -14,7 +15,7 @@ static int s_msg_id = 1;
 
 int stratum_build_subscribe(char *buf, size_t buf_len)
 {
-    int id = s_msg_id++;
+    int id = atomic_fetch_add(&s_msg_id, 1);
     int n = snprintf(buf, buf_len,
         "{\"id\":%d,\"method\":\"mining.subscribe\",\"params\":[]}\n", id);
     return (n > 0 && (size_t)n < buf_len) ? n : -1;
@@ -23,7 +24,7 @@ int stratum_build_subscribe(char *buf, size_t buf_len)
 int stratum_build_authorize(char *buf, size_t buf_len,
                             const char *user, const char *pass)
 {
-    int id = s_msg_id++;
+    int id = atomic_fetch_add(&s_msg_id, 1);
     int n = snprintf(buf, buf_len,
         "{\"id\":%d,\"method\":\"mining.authorize\",\"params\":[\"%s\",\"%s\"]}\n",
         id, user, pass);
@@ -35,7 +36,7 @@ int stratum_build_submit(char *buf, size_t buf_len,
                          const char *extranonce2, const char *ntime,
                          const char *nonce, const char *version_bits)
 {
-    int id = s_msg_id++;
+    int id = atomic_fetch_add(&s_msg_id, 1);
     int n;
     if (version_bits && version_bits[0]) {
         n = snprintf(buf, buf_len,
@@ -53,7 +54,7 @@ int stratum_build_submit(char *buf, size_t buf_len,
 
 int stratum_build_configure(char *buf, size_t buf_len, uint32_t version_mask)
 {
-    int id = s_msg_id++;
+    int id = atomic_fetch_add(&s_msg_id, 1);
     int n = snprintf(buf, buf_len,
         "{\"id\":%d,\"method\":\"mining.configure\","
         "\"params\":[[\"version-rolling\"],"
@@ -64,7 +65,7 @@ int stratum_build_configure(char *buf, size_t buf_len, uint32_t version_mask)
 
 int stratum_build_suggest_difficulty(char *buf, size_t buf_len, double diff)
 {
-    int id = s_msg_id++;
+    int id = atomic_fetch_add(&s_msg_id, 1);
     int n = snprintf(buf, buf_len,
         "{\"id\":%d,\"method\":\"mining.suggest_difficulty\",\"params\":[%g]}\n",
         id, diff);

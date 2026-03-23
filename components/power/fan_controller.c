@@ -75,7 +75,7 @@ esp_err_t fan_set_speed(uint8_t channel, uint8_t percent)
     }
 
     if (s_config.type == FAN_TYPE_EMC2101_MUX) {
-        ESP_LOGI(TAG, "fan%d (EMC2101) speed %u%%", channel, percent);
+        ESP_LOGD(TAG, "fan%d (EMC2101) speed %u%%", channel, percent);
         return emc2101_set_fan_duty(&s_emc2101[channel], percent);
     }
 
@@ -83,7 +83,7 @@ esp_err_t fan_set_speed(uint8_t channel, uint8_t percent)
     uint8_t val = (uint8_t)(((uint16_t)percent * 255) / 100);
     uint8_t buf[2] = { fan_setting_reg(channel), val };
 
-    ESP_LOGI(TAG, "fan%d speed %u%% -> 0x%02X", channel, percent, val);
+    ESP_LOGD(TAG, "fan%d speed %u%% -> 0x%02X", channel, percent, val);
     esp_err_t err = i2c_master_write_to_device(s_config.port, s_config.address,
                                                 buf, sizeof(buf),
                                                 pdMS_TO_TICKS(I2C_TIMEOUT_MS));

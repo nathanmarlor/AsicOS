@@ -17,11 +17,11 @@ static const char *TAG = "hashrate_task";
 #define EMA_ALPHA        12
 #define RESPONSE_WAIT_MS 200
 
-static hashrate_info_t s_info;
+static volatile hashrate_info_t s_info;
 
 const hashrate_info_t *hashrate_task_get_info(void)
 {
-    return &s_info;
+    return (const hashrate_info_t *)&s_info;
 }
 
 static void hashrate_task_fn(void *param)

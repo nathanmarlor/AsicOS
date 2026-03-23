@@ -77,8 +77,8 @@ selftest_report_t selftest_run(void)
         }
     }
 
-    /* 5. ASIC Chain */
-    int chips = asic_enumerate();
+    /* 5. ASIC Chain - read chip_count from ASIC state instead of re-enumerating */
+    int chips = asic_get_state()->chip_count;
     if (chips > 0) {
         snprintf(buf, sizeof(buf), "%d chip(s) found", chips);
         add_check(&report, "ASIC Chain", SELFTEST_PASS, buf);

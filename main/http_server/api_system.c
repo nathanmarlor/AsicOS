@@ -1,5 +1,6 @@
 #include "api_system.h"
 
+#include <inttypes.h>
 #include <string.h>
 
 #include "cJSON.h"
@@ -162,6 +163,14 @@ esp_err_t api_system_info_handler(httpd_req_t *req)
     cJSON_AddStringToObject(config, "wifi_ssid", buf);
     nvs_config_get_string(NVS_KEY_UI_MODE, buf, sizeof(buf), "simple");
     cJSON_AddStringToObject(config, "ui_mode", buf);
+    cJSON_AddNumberToObject(config, "freq_min",    board->freq_min);
+    cJSON_AddNumberToObject(config, "freq_max",    board->freq_max);
+    cJSON_AddNumberToObject(config, "voltage_min", board->voltage_min);
+    cJSON_AddNumberToObject(config, "voltage_max", board->voltage_max);
+    cJSON_AddNumberToObject(config, "fan_target",
+        nvs_config_get_u16(NVS_KEY_FAN_TARGET_TEMP, board->fan_target_temp));
+    cJSON_AddNumberToObject(config, "overheat_temp",
+        nvs_config_get_u16(NVS_KEY_OVERHEAT_TEMP, board->overheat_temp));
 
     /* System */
     const esp_app_desc_t *app = esp_app_get_description();
@@ -204,11 +213,27 @@ esp_err_t api_system_patch_handler(httpd_req_t *req)
     if ((item = cJSON_GetObjectItem(json, "pool_pass")) && cJSON_IsString(item))
         nvs_config_set_string(NVS_KEY_POOL_PASS, item->valuestring);
 
-    if ((item = cJSON_GetObjectItem(json, "frequency")) && cJSON_IsNumber(item))
-        nvs_config_set_u16(NVS_KEY_ASIC_FREQ, (uint16_t)item->valuedouble);
+    if ((item = cJSON_GetObjectItem(json, "frequency")) && cJSON_IsNumber(item)) {
+        const board_config_t *board = board_get_config();
+        uint16_t freq = (uint16_t)item->valuedouble;
+        if (freq >= board->freq_min && freq <= board->freq_max) {
+            nvs_config_set_u16(NVS_KEY_ASIC_FREQ, freq);
+        } else {
+            ESP_LOGW(TAG, "Rejected frequency %" PRIu16 " (limits: %" PRIu16 "-%" PRIu16 ")",
+                     freq, board->freq_min, board->freq_max);
+        }
+    }
 
-    if ((item = cJSON_GetObjectItem(json, "voltage")) && cJSON_IsNumber(item))
-        nvs_config_set_u16(NVS_KEY_ASIC_VOLTAGE, (uint16_t)item->valuedouble);
+    if ((item = cJSON_GetObjectItem(json, "voltage")) && cJSON_IsNumber(item)) {
+        const board_config_t *board = board_get_config();
+        uint16_t volt = (uint16_t)item->valuedouble;
+        if (volt >= board->voltage_min && volt <= board->voltage_max) {
+            nvs_config_set_u16(NVS_KEY_ASIC_VOLTAGE, volt);
+        } else {
+            ESP_LOGW(TAG, "Rejected voltage %" PRIu16 " (limits: %" PRIu16 "-%" PRIu16 ")",
+                     volt, board->voltage_min, board->voltage_max);
+        }
+    }
 
     if ((item = cJSON_GetObjectItem(json, "wifi_ssid")) && cJSON_IsString(item))
         nvs_config_set_string(NVS_KEY_WIFI_SSID, item->valuestring);
@@ -218,6 +243,23 @@ esp_err_t api_system_patch_handler(httpd_req_t *req)
 
     if ((item = cJSON_GetObjectItem(json, "ui_mode")) && cJSON_IsString(item))
         nvs_config_set_string(NVS_KEY_UI_MODE, item->valuestring);
+
+    /* Fallback pool */
+    if ((item = cJSON_GetObjectItem(json, "pool2_url")) && cJSON_IsString(item))
+        nvs_config_set_string(NVS_KEY_POOL2_URL, item->valuestring);
+
+    if ((item = cJSON_GetObjectItem(json, "pool2_port")) && cJSON_IsNumber(item))
+        nvs_config_set_u16(NVS_KEY_POOL2_PORT, (uint16_t)item->valuedouble);
+
+    if ((item = cJSON_GetObjectItem(json, "pool2_user")) && cJSON_IsString(item))
+        nvs_config_set_string(NVS_KEY_POOL2_USER, item->valuestring);
+
+    /* Thermal settings */
+    if ((item = cJSON_GetObjectItem(json, "fan_target")) && cJSON_IsNumber(item))
+        nvs_config_set_u16(NVS_KEY_FAN_TARGET_TEMP, (uint16_t)item->valuedouble);
+
+    if ((item = cJSON_GetObjectItem(json, "overheat_temp")) && cJSON_IsNumber(item))
+        nvs_config_set_u16(NVS_KEY_OVERHEAT_TEMP, (uint16_t)item->valuedouble);
 
     /* Fan override: -1 = auto, 0-100 = manual % */
     if ((item = cJSON_GetObjectItem(json, "fan_override")) && cJSON_IsNumber(item))

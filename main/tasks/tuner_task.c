@@ -39,6 +39,17 @@ static const char *TAG = "tuner_task";
 
 static EventGroupHandle_t s_event_group;
 
+typedef struct {
+    uint16_t freq_min;
+    uint16_t freq_max;
+    uint16_t volt_min;
+    uint16_t volt_max;
+} tuner_params_t;
+
+static tuner_params_t s_params;
+static SemaphoreHandle_t s_params_mutex;
+
+/* Local copies used within the task after being copied under mutex */
 static uint16_t s_freq_min;
 static uint16_t s_freq_max;
 static uint16_t s_volt_min;
@@ -81,7 +92,7 @@ static tuner_result_t *sample_point(int step, uint16_t freq, uint16_t voltage)
 
     const hashrate_info_t *hr = hashrate_task_get_info();
     const power_status_t *pw = power_task_get_status();
-    float temp = bm1370_read_temperature();
+    float temp = pw ? pw->chip_temp : 0.0f;
 
     slot->freq = freq;
     slot->voltage = voltage;
@@ -171,6 +182,15 @@ static void tuner_task_fn(void *arg)
         /* Wait for START signal */
         xEventGroupWaitBits(s_event_group, BIT_START, pdTRUE, pdFALSE, portMAX_DELAY);
         xEventGroupClearBits(s_event_group, BIT_ABORT);
+
+        /* Copy params under mutex to avoid race with tuner_start() */
+        if (xSemaphoreTake(s_params_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+            s_freq_min = s_params.freq_min;
+            s_freq_max = s_params.freq_max;
+            s_volt_min = s_params.volt_min;
+            s_volt_max = s_params.volt_max;
+            xSemaphoreGive(s_params_mutex);
+        }
 
         /* Save original freq/voltage from NVS for abort restore */
         uint16_t orig_freq = nvs_config_get_u16(NVS_KEY_ASIC_FREQ, DEFAULT_ASIC_FREQ);
@@ -393,6 +413,7 @@ sweep_done:
 void tuner_task_start(void)
 {
     s_event_group = xEventGroupCreate();
+    s_params_mutex = xSemaphoreCreateMutex();
     tuner_reset_status();
 
     xTaskCreate(tuner_task_fn, "tuner_task",
@@ -403,10 +424,14 @@ void tuner_task_start(void)
 void tuner_start(uint16_t freq_min, uint16_t freq_max,
                  uint16_t volt_min, uint16_t volt_max)
 {
-    s_freq_min = freq_min;
-    s_freq_max = freq_max;
-    s_volt_min = volt_min;
-    s_volt_max = volt_max;
+    /* Write params under mutex so the task reads a consistent snapshot */
+    if (xSemaphoreTake(s_params_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+        s_params.freq_min = freq_min;
+        s_params.freq_max = freq_max;
+        s_params.volt_min = volt_min;
+        s_params.volt_max = volt_max;
+        xSemaphoreGive(s_params_mutex);
+    }
 
     xEventGroupSetBits(s_event_group, BIT_START);
 }

@@ -23,7 +23,7 @@ static const char *TAG = "wifi";
 /* ── Static state ──────────────────────────────────────────────────── */
 
 static EventGroupHandle_t s_wifi_events;
-static bool s_connected = false;
+static volatile bool s_connected = false;
 
 /* ── Event handler ─────────────────────────────────────────────────── */
 
@@ -160,9 +160,13 @@ static void dns_task(void *pvParameters)
 
         /* Walk the QNAME labels */
         while (q_offset < len && rx_buf[q_offset] != 0x00) {
-            q_offset += 1 + rx_buf[q_offset]; /* label length + label */
+            uint8_t label_len = rx_buf[q_offset];
+            if (label_len > 63 || q_offset + 1 + label_len > len) {
+                break; /* invalid label length */
+            }
+            q_offset += 1 + label_len; /* label length + label */
         }
-        if (q_offset >= len) {
+        if (q_offset >= len || rx_buf[q_offset] != 0x00) {
             continue; /* malformed */
         }
         q_offset++; /* skip the terminating 0x00 */
