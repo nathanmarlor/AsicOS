@@ -12,10 +12,6 @@
 
 static const char *TAG = "remote_access";
 
-#ifndef CONFIG_ASICOS_LICENCE_SECRET
-#define CONFIG_ASICOS_LICENCE_SECRET "default-secret"
-#endif
-
 /* ---- Static state ---- */
 
 static remote_state_t        s_state  = REMOTE_STATE_DISABLED;
@@ -101,7 +97,7 @@ void remote_task_loop(void *param)
         nvs_config_get_string(NVS_KEY_LICENCE, licence_key, sizeof(licence_key), "");
 
         if (licence_key[0] != '\0' &&
-            licence_validate(device_id, licence_key, CONFIG_ASICOS_LICENCE_SECRET)) {
+            licence_validate(device_id, licence_key)) {
             ESP_LOGI(TAG, "Licence valid");
             break;
         }

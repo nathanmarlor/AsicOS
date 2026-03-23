@@ -59,7 +59,9 @@ esp_err_t api_remote_status_handler(httpd_req_t *req)
     cJSON *root = cJSON_CreateObject();
     cJSON_AddNumberToObject(root, "state",    (double)remote_get_state());
     cJSON_AddBoolToObject(root, "licensed",   remote_is_licensed());
-    cJSON_AddStringToObject(root, "device_id", licence_get_device_id());
+    char device_id[32];
+    licence_get_device_id(device_id, sizeof(device_id));
+    cJSON_AddStringToObject(root, "device_id", device_id);
 
     send_json(req, root);
     return ESP_OK;
@@ -93,7 +95,9 @@ esp_err_t api_remote_activate_handler(httpd_req_t *req)
     nvs_config_set_string(NVS_KEY_LICENCE, key_item->valuestring);
 
     /* Validate immediately */
-    bool valid = licence_validate(key_item->valuestring);
+    char device_id[32];
+    licence_get_device_id(device_id, sizeof(device_id));
+    bool valid = licence_validate(device_id, key_item->valuestring);
     cJSON_Delete(json);
 
     cJSON *root = cJSON_CreateObject();
