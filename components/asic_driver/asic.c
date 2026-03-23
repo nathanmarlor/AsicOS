@@ -84,23 +84,31 @@ int asic_enumerate(void)
 
     serial_tx(cmd_buf, (size_t)cmd_len);
 
-    /* Wait a moment for all chips to respond */
-    vTaskDelay(pdMS_TO_TICKS(100));
+    /* Wait for all chips to respond (each sends 11 bytes back-to-back) */
+    vTaskDelay(pdMS_TO_TICKS(200));
 
-    /* Read responses – each chip replies with ASIC_RESP_SIZE (11) bytes */
+    /* Read all available data in one bulk read, then scan for BM1370 signatures.
+     * Each response is 11 bytes starting with AA 55 13 70. */
+    uint8_t bulk[128];
+    int total_read = 0;
+    int chunk;
+
+    /* Read whatever is in the UART buffer */
+    while (total_read < (int)sizeof(bulk)) {
+        chunk = serial_rx(bulk + total_read, sizeof(bulk) - total_read, 100);
+        if (chunk <= 0) break;
+        total_read += chunk;
+    }
+
+    ESP_LOGI(TAG, "Enumerate: read %d bytes from UART", total_read);
+
+    /* Scan for BM1370 chip ID signatures (AA 55 13 70) */
     int chip_count = 0;
-    uint8_t resp[ASIC_RESP_SIZE];
-
-    while (1) {
-        int n = serial_rx(resp, ASIC_RESP_SIZE, 1000);
-        if (n != ASIC_RESP_SIZE) {
-            break;
-        }
-
-        /* Validate BM1370 signature: 0xAA 0x55 0x13 0x70 */
-        if (resp[0] == 0xAA && resp[1] == 0x55 &&
-            resp[2] == 0x13 && resp[3] == 0x70) {
+    for (int i = 0; i <= total_read - 4; i++) {
+        if (bulk[i] == 0xAA && bulk[i + 1] == 0x55 &&
+            bulk[i + 2] == 0x13 && bulk[i + 3] == 0x70) {
             chip_count++;
+            i += ASIC_RESP_SIZE - 1;  /* skip past this response */
         }
     }
 
