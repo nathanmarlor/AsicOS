@@ -296,7 +296,7 @@ async function restart() {
           :reference-line="75"
           reference-label="max"
         />
-        <div class="absolute inset-0 p-3">
+        <div class="absolute inset-0 p-3 pointer-events-none">
           <HashChart
             :data="system.vrTempHistory"
             color="#3b82f6"
