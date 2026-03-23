@@ -17,7 +17,7 @@ static const char *TAG = "wifi";
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_CONNECT_TIMEOUT_MS 15000
 #define DNS_PORT 53
-#define DNS_TASK_STACK_SIZE 2048
+#define DNS_TASK_STACK_SIZE 4096
 #define DNS_TASK_PRIORITY 1
 
 /* ── Static state ──────────────────────────────────────────────────── */
