@@ -38,14 +38,25 @@ jobs:
             echo "CONFIG_${{ matrix.board }}=y" >> sdkconfig.defaults
             idf.py set-target esp32s3
             idf.py build
+
             mkdir -p artifacts
             cp build/AsicOS.bin artifacts/AsicOS-${{ matrix.board_name }}-fw.bin
+            cp build/bootloader/bootloader.bin artifacts/AsicOS-${{ matrix.board_name }}-bootloader.bin
+            cp build/partition_table/partition-table.bin artifacts/AsicOS-${{ matrix.board_name }}-partitions.bin
+
+            # Merged binary for one-shot flashing
+            esptool.py --chip esp32s3 merge_bin \
+              --output artifacts/AsicOS-${{ matrix.board_name }}-merged.bin \
+              --flash_mode dio --flash_size 16MB \
+              0x0 build/bootloader/bootloader.bin \
+              0x10000 build/partition_table/partition-table.bin \
+              0x20000 build/AsicOS.bin
 
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
           name: fw-${{ matrix.board_name }}
-          path: artifacts/AsicOS-${{ matrix.board_name }}-fw.bin
+          path: artifacts/
 
   build-ui:
     runs-on: ubuntu-latest
@@ -101,25 +112,31 @@ jobs:
 
             Automated beta from `main` at `${{ github.sha }}`.
 
-            ### Files
+            ### Downloads
             | File | Description |
             |------|-------------|
-            | `AsicOS-<board>-fw.bin` | Firmware binary (flash to OTA partition) |
-            | `www/` | Web UI files (flash to SPIFFS partition) |
+            | `AsicOS-<board>-merged.bin` | Complete flash image (bootloader + partitions + firmware) |
+            | `AsicOS-<board>-fw.bin` | Firmware only (for OTA updates) |
+            | `AsicOS-<board>-bootloader.bin` | Bootloader |
+            | `AsicOS-<board>-partitions.bin` | Partition table |
 
-            ### Flash firmware
+            ### Web Flasher
+            Visit **[asicos.io/flash](https://nathanmarlor.github.io/AsicOS/)** to flash from your browser (Chrome/Edge, USB required).
+
+            ### Manual Flash (fresh install)
             ```bash
-            esptool.py --chip esp32s3 --port /dev/ttyUSB0 write_flash 0x20000 AsicOS-<board>-fw.bin
+            esptool.py --chip esp32s3 --port /dev/ttyUSB0 --baud 460800 \
+              erase_flash && \
+            esptool.py --chip esp32s3 --port /dev/ttyUSB0 --baud 460800 \
+              write_flash 0x0 AsicOS-<board>-merged.bin
             ```
 
-            ### Flash web UI
-            Build SPIFFS image from `www/` directory, then:
-            ```bash
-            esptool.py --chip esp32s3 --port /dev/ttyUSB0 write_flash 0x420000 www.bin
-            ```
+            ### OTA Update (existing install)
+            Upload `AsicOS-<board>-fw.bin` via the web UI at Settings > OTA.
 
             > **Beta**: Automated pre-release build. Use at your own risk.
           files: |
             release-assets/fw-asicos-v1/*
             release-assets/fw-nerdqaxepp/*
             release-assets/fw-bitforge-nano/*
+            release-assets/www/*

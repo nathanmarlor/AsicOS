@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 
 typedef struct {
@@ -48,6 +49,21 @@ typedef struct {
     // Power monitor
     uint8_t power_monitor_type;  // 0 = VR_TELEMETRY (from VR PMBus), 1 = INA260
     uint8_t power_monitor_addr;  // INA260 address (0x40) or 0 for VR telemetry
+
+    // Display
+    bool has_display;
+    int display_data_gpio[8];
+    int display_wr_gpio;
+    int display_rd_gpio;
+    int display_cs_gpio;
+    int display_dc_gpio;
+    int display_rst_gpio;
+    int display_bl_gpio;
+    int display_pwr_gpio;
+    int button1_gpio;
+    int button2_gpio;
+    uint16_t display_width;
+    uint16_t display_height;
 } board_config_t;
 
 const board_config_t *board_get_config(void);

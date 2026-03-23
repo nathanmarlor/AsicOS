@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AsicOS Web Flasher</title>
+  <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #0a0a0a;
+      color: #e5e5e5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+    h1 span { color: #f97316; }
+    .subtitle { color: #6b7280; font-size: 0.875rem; margin-bottom: 2rem; }
+    .cards { display: flex; flex-wrap: wrap; gap: 1.5rem; justify-content: center; max-width: 900px; }
+    .card {
+      background: #111111;
+      border: 1px solid #1e1e1e;
+      border-radius: 8px;
+      padding: 1.5rem;
+      width: 260px;
+      text-align: center;
+    }
+    .card h2 { font-size: 1.1rem; margin-bottom: 0.25rem; }
+    .card .desc { color: #6b7280; font-size: 0.75rem; margin-bottom: 1rem; }
+    .card .chips { color: #f97316; font-size: 0.75rem; font-family: monospace; margin-bottom: 1rem; }
+    esp-web-install-button {
+      --esp-tools-button-color: #f97316;
+      --esp-tools-button-text-color: #000;
+    }
+    esp-web-install-button::part(button) {
+      background: #f97316;
+      color: #000;
+      font-weight: 600;
+      font-size: 0.875rem;
+      padding: 0.5rem 1.5rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    esp-web-install-button::part(button):hover { background: #fb923c; }
+    .warn {
+      max-width: 600px;
+      margin-top: 2rem;
+      padding: 1rem;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      color: #6b7280;
+      line-height: 1.6;
+    }
+    .warn strong { color: #eab308; }
+    a { color: #f97316; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .footer { margin-top: 2rem; font-size: 0.7rem; color: #4b4b4b; }
+  </style>
+</head>
+<body>
+  <h1><span>Asic</span>OS Web Flasher</h1>
+  <p class="subtitle">Flash firmware directly from your browser. Requires Chrome or Edge + USB cable.</p>
+
+  <div class="cards">
+    <div class="card">
+      <h2>NerdQAxe++</h2>
+      <div class="desc">4x BM1370 ASIC miner</div>
+      <div class="chips">ESP32-S3 &bull; ST7789 display</div>
+      <esp-web-install-button
+        manifest="manifests/nerdqaxepp.json"
+      ></esp-web-install-button>
+    </div>
+
+    <div class="card">
+      <h2>BitForge Nano</h2>
+      <div class="desc">2x BM1370 compact miner</div>
+      <div class="chips">ESP32-S3 &bull; TPS546D24A</div>
+      <esp-web-install-button
+        manifest="manifests/bitforge-nano.json"
+      ></esp-web-install-button>
+    </div>
+
+    <div class="card">
+      <h2>AsicOS V1</h2>
+      <div class="desc">Generic BM1370 board</div>
+      <div class="chips">ESP32-S3 &bull; TPS53647</div>
+      <esp-web-install-button
+        manifest="manifests/asicos-v1.json"
+      ></esp-web-install-button>
+    </div>
+  </div>
+
+  <div class="warn">
+    <strong>First time?</strong> This will erase your existing firmware (AxeOS, etc). Your WiFi and pool settings will be cleared.
+    After flashing, connect to the <code>AsicOS-Setup</code> WiFi network to configure.<br><br>
+    <strong>Requirements:</strong> Chrome or Edge browser, USB cable connected to your miner.
+    The browser will ask for USB permission - select your ESP32-S3 device.
+  </div>
+
+  <div class="footer">
+    <a href="https://github.com/nathanmarlor/AsicOS">GitHub</a> &bull; AsicOS
+  </div>
+</body>
+</html>

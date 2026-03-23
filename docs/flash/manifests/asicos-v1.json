@@ -1,0 +1,12 @@
+{
+  "name": "AsicOS - V1",
+  "version": "beta",
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        { "path": "https://github.com/nathanmarlor/AsicOS/releases/latest/download/AsicOS-asicos-v1-merged.bin", "offset": 0 }
+      ]
+    }
+  ]
+}

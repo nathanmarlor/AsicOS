@@ -42,6 +42,21 @@ static const board_config_t s_board = {
     .temp_sensor_count = 3,
     .power_monitor_type = 0, // VR telemetry
     .power_monitor_addr = 0,
+
+    // Display: ST7789 320x170 via Intel 8080 parallel bus
+    .has_display = true,
+    .display_data_gpio = {39, 40, 41, 42, 45, 46, 47, 48},
+    .display_wr_gpio = 8,
+    .display_rd_gpio = 9,
+    .display_cs_gpio = 6,
+    .display_dc_gpio = 7,
+    .display_rst_gpio = 5,
+    .display_bl_gpio = 38,
+    .display_pwr_gpio = 15,
+    .button1_gpio = 14,
+    .button2_gpio = 0,
+    .display_width = 320,
+    .display_height = 170,
 };
 
 const board_config_t *board_get_config(void)

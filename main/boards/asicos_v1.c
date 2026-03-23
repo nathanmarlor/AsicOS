@@ -39,6 +39,21 @@ static const board_config_t s_board = {
     .temp_sensor_count = 3,
     .power_monitor_type = 0, // VR telemetry
     .power_monitor_addr = 0,
+
+    // No display
+    .has_display = false,
+    .display_data_gpio = {0},
+    .display_wr_gpio = -1,
+    .display_rd_gpio = -1,
+    .display_cs_gpio = -1,
+    .display_dc_gpio = -1,
+    .display_rst_gpio = -1,
+    .display_bl_gpio = -1,
+    .display_pwr_gpio = -1,
+    .button1_gpio = -1,
+    .button2_gpio = -1,
+    .display_width = 0,
+    .display_height = 0,
 };
 
 const board_config_t *board_get_config(void)

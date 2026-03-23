@@ -43,4 +43,6 @@ idf_component_register(
              "esp_app_format"
              "app_update"
              "json"
+             "display"
+             "esp_lcd"
 )

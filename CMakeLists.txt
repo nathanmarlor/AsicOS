@@ -10,6 +10,7 @@ set(EXTRA_COMPONENT_DIRS
     "components/auto_tuner"
     "components/self_test"
     "components/remote_access"
+    "components/display"
 )
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)

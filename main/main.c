@@ -26,6 +26,7 @@
 #include "tasks/tuner_task.h"
 #include "tasks/remote_task.h"
 #include "tasks/loki_task.h"
+#include "display.h"
 
 static const char *TAG = "asicos";
 
@@ -181,7 +182,36 @@ void app_main(void)
     // 15. Loki task
     loki_task_start();
 
-    // 16. Log completion
+    // 16. Display (if board has one)
+    if (board->has_display) {
+        display_config_t disp_cfg = {
+            .data_gpio = {
+                board->display_data_gpio[0], board->display_data_gpio[1],
+                board->display_data_gpio[2], board->display_data_gpio[3],
+                board->display_data_gpio[4], board->display_data_gpio[5],
+                board->display_data_gpio[6], board->display_data_gpio[7],
+            },
+            .wr_gpio = board->display_wr_gpio,
+            .rd_gpio = board->display_rd_gpio,
+            .cs_gpio = board->display_cs_gpio,
+            .dc_gpio = board->display_dc_gpio,
+            .rst_gpio = board->display_rst_gpio,
+            .backlight_gpio = board->display_bl_gpio,
+            .power_gpio = board->display_pwr_gpio,
+            .button1_gpio = board->button1_gpio,
+            .button2_gpio = board->button2_gpio,
+            .width = board->display_width,
+            .height = board->display_height,
+        };
+        esp_err_t disp_err = display_init(&disp_cfg);
+        if (disp_err == ESP_OK) {
+            display_task_start();
+        } else {
+            ESP_LOGW(TAG, "Display init failed: %s", esp_err_to_name(disp_err));
+        }
+    }
+
+    // 17. Log completion
     ESP_LOGI(TAG, "Free heap: %lu bytes", esp_get_free_heap_size());
     ESP_LOGI(TAG, "All systems started");
 }
