@@ -6,6 +6,8 @@
 #include <math.h>
 
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 static const char *TAG = "asic";
 
@@ -50,6 +52,23 @@ pll_params_t asic_calc_pll(float target_freq_mhz)
 int asic_enumerate(void)
 {
     /* Flush any stale data */
+    serial_flush_rx();
+
+    /* BM1370 needs version mask writes before it responds to chip ID reads.
+     * Send version mask (reg 0xA4) three times as a wake-up sequence. */
+    uint8_t ver_data[4] = {0x00, 0x00, 0x00, 0x00};  /* version mask placeholder */
+    uint8_t ver_buf[16];
+    int ver_len = asic_build_cmd(ver_buf, sizeof(ver_buf),
+                                 ASIC_CMD_WRITE, ASIC_GROUP_ALL,
+                                 ASIC_REG_VR_MASK, ver_data, 4);
+    if (ver_len > 0) {
+        serial_tx(ver_buf, (size_t)ver_len);
+        serial_tx(ver_buf, (size_t)ver_len);
+        serial_tx(ver_buf, (size_t)ver_len);
+    }
+
+    /* Small delay for chips to process */
+    vTaskDelay(pdMS_TO_TICKS(10));
     serial_flush_rx();
 
     /* Broadcast read of CHIP_ID register (reg 0x00, group ALL) */
