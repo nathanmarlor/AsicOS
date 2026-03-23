@@ -6,6 +6,7 @@ const props = withDefaults(defineProps<{
   label: string
   value: string
   unit?: string
+  subtitle?: string
   history?: number[]
   status?: 'good' | 'warn' | 'danger' | 'neutral'
   trend?: number
@@ -65,8 +66,11 @@ const resolvedSparkColor = computed(() => {
       >{{ trendArrow }} {{ trendText }}</span>
     </div>
 
-    <!-- Unit -->
-    <div v-if="unit" class="text-[11px] font-mono text-[var(--text-secondary)] leading-tight">{{ unit }}</div>
+    <!-- Unit + subtitle -->
+    <div v-if="unit || subtitle" class="text-[11px] font-mono text-[var(--text-secondary)] leading-tight">
+      <span v-if="unit">{{ unit }}</span>
+      <span v-if="subtitle" class="text-[var(--text-muted)] ml-1">{{ subtitle }}</span>
+    </div>
 
     <!-- Sparkline -->
     <div v-if="history && history.length > 1" class="mt-1">

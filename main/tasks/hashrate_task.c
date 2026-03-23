@@ -80,10 +80,19 @@ static void hashrate_task_fn(void *param)
             uint32_t delta   = counter - prev_counter[i];
             prev_counter[i]  = counter;
 
-            /* GH/s = (delta * 2^32) / dt_us / 1000
-             * Simplify: GH/s = delta * 4.294967296 / (dt_us / 1e6)
-             *                 = delta * 4294967.296 / dt_us              */
-            float raw_ghs = (float)((double)delta * 4.294967296 / ((double)dt_us / 1000000.0));
+            /* The BM1370 hash counter (register 0x90) counts in units
+             * where each tick represents ~1 MH (1e6 hashes).
+             *
+             * hashes/sec = delta * 1e6 / dt_seconds
+             *            = delta * 1e6 / (dt_us / 1e6)
+             *            = delta * 1e12 / dt_us
+             *
+             * GH/s = hashes/sec / 1e9 = delta * 1e3 / dt_us
+             *
+             * The previous formula erroneously applied a 2^32 multiplier
+             * (assuming the counter counted nonce-space sweeps), which
+             * inflated the reported hashrate by orders of magnitude.     */
+            float raw_ghs = (float)((double)delta * 1e3 / (double)dt_us);
 
             /* Store in history ring for median filter */
             int tap = sample_idx % MEDIAN_TAPS;

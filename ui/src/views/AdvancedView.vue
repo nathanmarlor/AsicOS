@@ -35,6 +35,12 @@ const rejectPct = computed(() => {
   return (rejected.value / total) * 100
 })
 
+// Expected hashrate
+const expectedGhs = computed(() => {
+  if (!system.info) return 0
+  return (system.info.config.frequency * 2040 * system.info.expected_chips) / 1000
+})
+
 // Trends
 const hashrateTrend = computed(() => {
   const h = system.hashrateHistory
@@ -200,6 +206,7 @@ async function restart() {
         label="Hashrate"
         :value="hashrate.toFixed(1)"
         unit="GH/s"
+        :subtitle="expectedGhs > 0 ? `/ ${expectedGhs.toLocaleString()} expected` : undefined"
         :history="system.hashrateHistory"
         status="good"
         :trend="hashrateTrend"

@@ -16,8 +16,10 @@ double mining_difficulty_from_hash(const uint8_t *hash)
 {
     double d = 0.0;
 
-    /* Interpret 32-byte hash as big-endian number */
-    for (int i = 0; i < 32; i++) {
+    /* Interpret 32-byte hash as little-endian number (matching forge-os
+     * le256todouble: byte[0] is the least significant byte).
+     * The double-SHA256 result is in LE byte order. */
+    for (int i = 31; i >= 0; i--) {
         d = d * 256.0 + (double)hash[i];
     }
 
@@ -87,34 +89,14 @@ void mining_build_block_header(uint8_t *header_out,
 }
 
 bool mining_test_nonce(const uint8_t *block_header_80,
-                       uint32_t nonce, uint32_t version_bits,
                        double *out_difficulty)
 {
-    uint8_t header[80];
     uint8_t hash[32];
 
-    memcpy(header, block_header_80, 80);
-
-    /* Apply version rolling: read version, mask rolling bits, OR in new bits */
-    uint32_t version = (uint32_t)header[0]
-                     | ((uint32_t)header[1] << 8)
-                     | ((uint32_t)header[2] << 16)
-                     | ((uint32_t)header[3] << 24);
-
-    version = (version & ~(uint32_t)0x1FFFE000) | (version_bits & (uint32_t)0x1FFFE000);
-
-    header[0] = (uint8_t)(version >>  0);
-    header[1] = (uint8_t)(version >>  8);
-    header[2] = (uint8_t)(version >> 16);
-    header[3] = (uint8_t)(version >> 24);
-
-    /* Apply nonce (bytes 76-79, little-endian) */
-    header[76] = (uint8_t)(nonce >>  0);
-    header[77] = (uint8_t)(nonce >>  8);
-    header[78] = (uint8_t)(nonce >> 16);
-    header[79] = (uint8_t)(nonce >> 24);
-
-    mining_double_sha256(header, 80, hash);
+    /* Header is already fully constructed (version, nonce, etc. applied).
+     * Just double-SHA256 and compute difficulty, matching forge-os
+     * test_nonce_value(). */
+    mining_double_sha256(block_header_80, 80, hash);
 
     if (out_difficulty) {
         *out_difficulty = mining_difficulty_from_hash(hash);

@@ -7,6 +7,10 @@ const props = withDefaults(defineProps<{
   height?: number
   showGrid?: boolean
   label?: string
+  referenceLine?: number
+  referenceLabel?: string
+  minY?: number
+  maxY?: number
 }>(), {
   color: '#f97316',
   height: 200,
@@ -20,6 +24,9 @@ const chartW = computed(() => W - PAD.left - PAD.right)
 const chartH = computed(() => props.height - PAD.top - PAD.bottom)
 
 const stats = computed(() => {
+  if (props.minY != null && props.maxY != null) {
+    return { min: props.minY, max: props.maxY, range: props.maxY - props.minY }
+  }
   if (props.data.length === 0) return { min: 0, max: 100, range: 100 }
   const min = Math.min(...props.data)
   const max = Math.max(...props.data)
@@ -167,6 +174,30 @@ const gradientId = computed(() => `grad-${_uid}`)
         :fill="color"
         fill-opacity="0.3"
       />
+
+      <!-- Reference line -->
+      <template v-if="referenceLine != null">
+        <line
+          :x1="PAD.left"
+          :y1="toY(referenceLine)"
+          :x2="PAD.left + chartW"
+          :y2="toY(referenceLine)"
+          stroke="#9ca3af"
+          stroke-width="1"
+          stroke-dasharray="6,4"
+          opacity="0.7"
+        />
+        <text
+          v-if="referenceLabel"
+          :x="PAD.left + chartW - 2"
+          :y="toY(referenceLine) - 4"
+          text-anchor="end"
+          fill="#9ca3af"
+          font-size="9"
+          font-family="monospace"
+          opacity="0.8"
+        >{{ referenceLabel }} {{ referenceLine.toLocaleString() }}</text>
+      </template>
 
       <!-- Time label -->
       <text

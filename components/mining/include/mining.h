@@ -13,7 +13,6 @@ void mining_compute_merkle_root(const uint8_t *coinbase_hash,
                                 uint8_t *root_out);
 
 bool mining_test_nonce(const uint8_t *block_header_80,
-                       uint32_t nonce, uint32_t version_bits,
                        double *out_difficulty);
 
 void mining_build_block_header(uint8_t *header_out,

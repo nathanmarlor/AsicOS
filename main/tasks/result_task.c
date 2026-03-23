@@ -97,33 +97,29 @@ static void result_task_fn(void *param)
         }
 
         /* Build block header and test nonce with version rolling.
-         * rolled_version from ASIC is stored as raw LE uint16 (via memcpy).
-         * Apply ntohs to convert to host value before shifting, matching forge-os. */
-        uint8_t header[80];
+         * Matching forge-os BM1370_process_work():
+         *   version_bits = ntohs(asic_result.job.version) << 13
+         *   rolled_version = job->version | version_bits
+         */
         uint32_t version_bits = (uint32_t)ntohs(result.rolled_version) << 13;
         uint32_t rolled_version = job->version | version_bits;
 
-        /* Stratum sends prev_block_hash with each 4-byte word in reverse byte
-         * order compared to internal (block header) format.  Swap bytes within
-         * each 32-bit word so the header hash matches what the ASIC computed. */
-        uint8_t prev_hash_internal[32];
-        memcpy(prev_hash_internal, job->prev_block_hash, 32);
-        for (int b = 0; b < 32; b += 4) {
-            uint8_t tmp;
-            tmp = prev_hash_internal[b + 0]; prev_hash_internal[b + 0] = prev_hash_internal[b + 3]; prev_hash_internal[b + 3] = tmp;
-            tmp = prev_hash_internal[b + 1]; prev_hash_internal[b + 1] = prev_hash_internal[b + 2]; prev_hash_internal[b + 2] = tmp;
-        }
-
-        mining_build_block_header(header, rolled_version, prev_hash_internal,
-                                  job->merkle_root, job->ntime, job->nbits,
-                                  result.nonce);
+        /* Build header exactly as forge-os test_nonce_value() does:
+         * memcpy fields directly from the job struct with no extra swaps.
+         * The job's prev_block_hash and merkle_root are already in the
+         * correct byte order for block header hashing. */
+        uint8_t header[80];
+        memcpy(header,      &rolled_version,      4);   /* version: LE uint32 */
+        memcpy(header + 4,  job->prev_block_hash, 32);  /* prev_hash as-is */
+        memcpy(header + 36, job->merkle_root,      32);  /* merkle_root as-is */
+        memcpy(header + 68, &job->ntime,           4);   /* ntime: LE uint32 */
+        memcpy(header + 72, &job->nbits,           4);   /* nbits: LE uint32 */
+        memcpy(header + 76, &result.nonce,         4);   /* nonce: raw ASIC bytes */
 
         double share_diff = 0.0;
-        /* Header already has rolled_version applied, pass version_bits
-         * so mining_test_nonce can re-apply consistently */
-        bool valid = mining_test_nonce(header, result.nonce, version_bits, &share_diff);
+        mining_test_nonce(header, &share_diff);
 
-        if (!valid || share_diff <= 0.0) {
+        if (share_diff <= 0.0) {
             ESP_LOGD(TAG, "Invalid nonce test result");
             continue;
         }
@@ -144,7 +140,10 @@ static void result_task_fn(void *param)
             char nonce_hex[9];
             char version_hex[9];
             snprintf(nonce_hex, sizeof(nonce_hex), "%08lx", (unsigned long)result.nonce);
-            snprintf(version_hex, sizeof(version_hex), "%08lx", (unsigned long)rolled_version);
+            /* Submit version rolling MASK (delta), not the full rolled version.
+             * Matches forge-os: rolled_version ^ job->version */
+            uint32_t version_mask = rolled_version ^ job->version;
+            snprintf(version_hex, sizeof(version_hex), "%08lx", (unsigned long)version_mask);
 
             char ntime_hex[9];
             snprintf(ntime_hex, sizeof(ntime_hex), "%08lx", (unsigned long)job->ntime);
