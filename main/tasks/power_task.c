@@ -37,6 +37,7 @@ static const char *TAG = "power";
 
 static power_status_t s_status;
 static pid_controller_t s_fan_pid[2];
+static int s_fan_override = -1;  // -1 = auto (PID), 0-100 = manual %
 
 /* ── Helpers ──────────────────────────────────────────────────────── */
 
@@ -112,6 +113,10 @@ static void power_task(void *pvParameters)
                 ESP_LOGE(TAG, "VR FAULT detected");
             }
             emergency_shutdown();
+        } else if (s_fan_override >= 0) {
+            /* ── Manual fan override ────────────────────────────── */
+            fan_set_speed(0, (uint8_t)s_fan_override);
+            fan_set_speed(1, (uint8_t)s_fan_override);
         } else {
             /* ── Normal operation: PID fan control ───────────────── */
             float fan0_pct = pid_compute(&s_fan_pid[0], s_status.chip_temp, dt);
@@ -144,6 +149,22 @@ void power_task_start(void)
 {
     xTaskCreate(power_task, "power", POWER_TASK_STACK_SIZE, NULL,
                 POWER_TASK_PRIORITY, NULL);
+}
+
+const power_status_t *power_task_get_status(void)
+{
+    return &s_status;
+}
+
+void power_set_fan_override(int percent)
+{
+    if (percent < 0) {
+        s_fan_override = -1;
+        ESP_LOGI(TAG, "Fan override disabled, returning to PID auto");
+    } else {
+        s_fan_override = (percent > 100) ? 100 : percent;
+        ESP_LOGI(TAG, "Fan override set to %d%%", s_fan_override);
+    }
 }
 
 const power_status_t *power_task_get_status(void)

@@ -202,6 +202,10 @@ esp_err_t api_system_patch_handler(httpd_req_t *req)
     if ((item = cJSON_GetObjectItem(json, "ui_mode")) && cJSON_IsString(item))
         nvs_config_set_string(NVS_KEY_UI_MODE, item->valuestring);
 
+    /* Fan override: -1 = auto, 0-100 = manual % */
+    if ((item = cJSON_GetObjectItem(json, "fan_override")) && cJSON_IsNumber(item))
+        power_set_fan_override((int)item->valuedouble);
+
     cJSON_Delete(json);
 
     set_cors(req);
