@@ -26,8 +26,8 @@
 #define NVS_KEY_LOKI_URL        "loki_url"
 
 // Defaults
-#define DEFAULT_ASIC_FREQ       490
-#define DEFAULT_ASIC_VOLTAGE    1250
+#define DEFAULT_ASIC_FREQ       650
+#define DEFAULT_ASIC_VOLTAGE    1100
 #define DEFAULT_FAN_TARGET      55
 #define DEFAULT_OVERHEAT_TEMP   70
 #define DEFAULT_POOL_PORT       3333
