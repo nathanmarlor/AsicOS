@@ -83,6 +83,9 @@ onMounted(async () => {
     overheatTemp.value = cfg.overheat_temp ?? 95
     lokiUrl.value = ''
     defaultMode.value = cfg.ui_mode ?? 'simple'
+    // Load fan override from power state
+    const pwr = info.power ?? {}
+    fanOverride.value = pwr.fan_override ?? -1
   } catch (e: any) {
     error.value = 'Failed to load config: ' + e.message
   }
