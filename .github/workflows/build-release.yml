@@ -14,6 +14,7 @@ jobs:
   build-firmware:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         board: [ASICOS_BOARD_V1, ASICOS_BOARD_NERDQAXEPP, ASICOS_BOARD_BITFORGE_NANO]
         include:
@@ -27,12 +28,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup ESP-IDF
+      - name: Build firmware
         uses: espressif/esp-idf-ci-action@v1
         with:
           esp_idf_version: ${{ env.IDF_VERSION }}
           target: esp32s3
           command: |
+            set -e
+
             # Set board via sdkconfig
             echo "CONFIG_${{ matrix.board }}=y" >> sdkconfig.defaults
 
@@ -48,7 +51,7 @@ jobs:
 
             # Create combined flashable binary
             esptool.py --chip esp32s3 merge_bin \
-              -o artifacts/AsicOS-${{ matrix.board_name }}-full.bin \
+              --output artifacts/AsicOS-${{ matrix.board_name }}-full.bin \
               --flash_mode dio --flash_size 16MB \
               0x0 build/bootloader/bootloader.bin \
               0x10000 build/partition_table/partition-table.bin \
@@ -69,29 +72,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-          cache-dependency-path: ui/package-lock.json
 
       - name: Build UI
         working-directory: ui
         run: |
-          npm ci
+          npm install
           npm run build
 
-      - name: Generate SPIFFS image
-        uses: espressif/esp-idf-ci-action@v1
-        with:
-          esp_idf_version: ${{ env.IDF_VERSION }}
-          target: esp32s3
-          command: |
-            python $IDF_PATH/components/spiffs/spiffsgen.py \
-              0x300000 build/www ui/www.bin
-
-      - name: Upload UI artifact
+      - name: Upload UI dist
         uses: actions/upload-artifact@v4
         with:
-          name: ui-spiffs
-          path: ui/www.bin
+          name: ui-dist
+          path: ui/../build/www/
 
   release-beta:
     needs: [build-firmware, build-ui]
@@ -134,15 +126,9 @@ jobs:
             esptool.py --chip esp32s3 --port /dev/ttyUSB0 write_flash 0x0 AsicOS-<board>-full.bin
             ```
 
-            ### Web UI
-            Flash `www.bin` to the SPIFFS partition:
-            ```bash
-            esptool.py --chip esp32s3 --port /dev/ttyUSB0 write_flash 0x420000 www.bin
-            ```
-
             > **Beta**: This is an automated pre-release build. Use at your own risk.
           files: |
             release-assets/firmware-asicos-v1/*
             release-assets/firmware-nerdqaxepp/*
             release-assets/firmware-bitforge-nano/*
-            release-assets/ui-spiffs/*
+            release-assets/ui-dist/*

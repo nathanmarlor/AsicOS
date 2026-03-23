@@ -42,5 +42,5 @@ idf_component_register(
              "remote_access"
              "esp_app_format"
              "app_update"
-             "cJSON"
+             "json"
 )
