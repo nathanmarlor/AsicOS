@@ -47,11 +47,33 @@ function chipPctOfTotal(hashrate: number): string {
   return ((hashrate / totalHashrate.value) * 100).toFixed(1)
 }
 
+const totalNonces = computed(() => {
+  return props.chips.reduce((s, c) => s + (c.nonces ?? 0), 0)
+})
+
+function noncePct(chip: ChipInfo): string {
+  if (totalNonces.value === 0) return '0%'
+  return (((chip.nonces ?? 0) / totalNonces.value) * 100).toFixed(1) + '%'
+}
+
+function formatNonces(n: number): string {
+  return n.toLocaleString()
+}
+
 const distribution = computed(() => {
   if (props.chips.length === 0) return 0
-  const avg = avgHashrate.value
-  if (avg === 0) return 0
-  const variance = props.chips.reduce((s, c) => s + Math.pow(c.hashrate_ghs - avg, 2), 0) / props.chips.length
+  const nonces = props.chips.map(c => c.nonces ?? 0)
+  const total = nonces.reduce((s, n) => s + n, 0)
+  if (total === 0) {
+    // Fall back to hashrate-based distribution
+    const avg = avgHashrate.value
+    if (avg === 0) return 0
+    const variance = props.chips.reduce((s, c) => s + Math.pow(c.hashrate_ghs - avg, 2), 0) / props.chips.length
+    const cv = Math.sqrt(variance) / avg
+    return Math.max(0, Math.min(100, (1 - cv) * 100))
+  }
+  const avg = total / props.chips.length
+  const variance = nonces.reduce((s, n) => s + Math.pow(n - avg, 2), 0) / props.chips.length
   const cv = Math.sqrt(variance) / avg
   return Math.max(0, Math.min(100, (1 - cv) * 100))
 })
@@ -104,7 +126,7 @@ const distribution = computed(() => {
     <!-- Distribution bar -->
     <div class="mt-3">
       <div class="flex items-center justify-between text-[10px] font-mono text-[var(--text-secondary)] mb-1">
-        <span>Performance Distribution</span>
+        <span>Nonce Distribution</span>
         <span>{{ distribution.toFixed(0) }}% even</span>
       </div>
       <div class="h-1.5 bg-[var(--surface-light)] rounded-sm overflow-hidden flex">
@@ -112,9 +134,14 @@ const distribution = computed(() => {
           v-for="chip in chips"
           :key="'bar-' + chip.id"
           class="h-full transition-all duration-500"
-          :class="chip.hashrate_ghs / avgHashrate < 0.8 ? 'bg-[#ef4444]' : 'bg-[#f97316]'"
-          :style="{ width: perfPct(chip.hashrate_ghs) }"
+          :class="totalNonces > 0 && (chip.nonces ?? 0) / (totalNonces / chips.length) < 0.8 ? 'bg-[#ef4444]' : 'bg-[#f97316]'"
+          :style="{ width: totalNonces > 0 ? noncePct(chip) : perfPct(chip.hashrate_ghs) }"
         />
+      </div>
+      <div v-if="totalNonces > 0" class="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[9px] font-mono text-[var(--text-muted)]">
+        <span v-for="chip in chips" :key="'nonce-' + chip.id">
+          Chip {{ chip.id }}: {{ formatNonces(chip.nonces ?? 0) }} nonces
+        </span>
       </div>
     </div>
   </div>

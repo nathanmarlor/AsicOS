@@ -31,6 +31,7 @@ static int           s_dedup_index = 0;
 
 static mining_stats_t s_stats;
 static uint64_t s_nonce_count = 0;
+static uint64_t s_per_chip_nonces[16] = {0};
 static int64_t s_last_summary_time = 0;
 static uint32_t s_nonces_since_summary = 0;
 
@@ -42,6 +43,12 @@ const mining_stats_t *result_task_get_stats(void)
 uint64_t result_task_get_nonce_count(void)
 {
     return s_nonce_count;
+}
+
+uint64_t result_task_get_chip_nonce_count(int chip)
+{
+    if (chip >= 0 && chip < 16) return s_per_chip_nonces[chip];
+    return 0;
 }
 
 static bool is_duplicate(uint32_t nonce, uint16_t version)
@@ -103,8 +110,10 @@ static void result_task_fn(void *param)
             continue;
         }
 
-        /* Count valid (non-duplicate) nonces for hashrate calculation */
+        /* Count valid (non-duplicate) nonces */
         s_nonce_count++;
+        int chip_nr = bm1370_nonce_to_chip(result.nonce, 2);
+        if (chip_nr >= 0 && chip_nr < 16) s_per_chip_nonces[chip_nr]++;
 
         /* Build block header and test nonce with version rolling.
          * BM1370 nonce processing:

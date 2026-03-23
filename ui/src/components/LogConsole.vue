@@ -163,6 +163,14 @@ onUnmounted(() => {
             class="text-[10px] font-mono px-2 py-0.5 rounded transition-colors min-h-[24px]"
             :class="modalFilter === f ? 'bg-[#f97316]/20 text-[#f97316]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'"
           >{{ f }}</button>
+          <button
+            @click="modalAutoScroll = !modalAutoScroll"
+            class="text-[10px] font-mono px-2 py-0.5 rounded transition-colors min-h-[24px]"
+            :class="modalAutoScroll ? 'bg-[#22c55e]/20 text-[#22c55e]' : 'text-[var(--text-muted)]'"
+            title="Toggle auto-scroll"
+          >
+            {{ modalAutoScroll ? '\u2B07 Auto' : '\u23F8 Paused' }}
+          </button>
           <button @click="showModal = false" class="text-[var(--text-muted)] hover:text-[var(--text)] text-lg px-2 ml-2">&#x2715;</button>
         </div>
       </div>

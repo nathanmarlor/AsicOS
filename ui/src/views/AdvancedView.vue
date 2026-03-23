@@ -143,30 +143,42 @@ const shareRate = computed(() => {
   return (recent.length / span) * 60000
 })
 
-// Mining details table
-const details = computed(() => {
+// Mining details table - grouped sections
+interface DetailRow {
+  label: string
+  value: string
+  header?: boolean
+}
+
+const details = computed((): DetailRow[] => {
   const m = mining.info
   const s = system.info
   if (!m || !s) return []
-  const rows = [
+  const rows: DetailRow[] = [
+    { label: 'MINING', value: '', header: true },
     { label: 'Pool Difficulty', value: mining.formatDiff(m.pool_diff) },
     { label: 'Best Difficulty', value: mining.formatDiff(m.best_diff) },
     { label: 'Accepted / Rejected', value: `${m.accepted} / ${m.rejected}` },
+    { label: 'HARDWARE', value: '', header: true },
     { label: 'Frequency', value: `${s.config.frequency} MHz` },
     { label: 'Core Voltage', value: `${s.config.voltage} mV` },
     { label: 'Input Voltage (VIN)', value: `${s.power.vin.toFixed(2)} V` },
     { label: 'Output Voltage (VOUT)', value: `${s.power.vout.toFixed(3)} V` },
     { label: 'Output Current (IOUT)', value: `${s.power.iout.toFixed(1)} A` },
+  ]
+  if (s.has_adc_vcore && s.power.vcore_adc_mv > 0) {
+    rows.push({ label: 'VCORE ADC', value: `${s.power.vcore_adc_mv.toFixed(0)} mV` })
+  }
+  rows.push(
+    { label: 'THERMAL', value: '', header: true },
     { label: 'VR Temp', value: `${(s.power.vr_temp ?? s.temps.vr).toFixed(1)}\u00B0C` },
     { label: 'Board Temp', value: `${s.temps.board.toFixed(1)}\u00B0C` },
     { label: 'Fan 0', value: `${s.power.fan0_rpm} RPM` },
     { label: 'Fan 1', value: `${s.power.fan1_rpm} RPM` },
+    { label: 'SYSTEM', value: '', header: true },
     { label: 'Free Heap', value: `${(s.free_heap / 1024).toFixed(0)} KB` },
     { label: 'Uptime', value: formatUptime(Math.floor(s.uptime_ms / 1000)) },
-  ]
-  if (s.has_adc_vcore && s.power.vcore_adc_mv > 0) {
-    rows.splice(8, 0, { label: 'VCORE ADC', value: `${s.power.vcore_adc_mv.toFixed(0)} mV` })
-  }
+  )
   return rows
 })
 
@@ -346,15 +358,19 @@ async function restart() {
         <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-2">Mining Details</div>
         <table class="w-full text-[11px] font-mono">
           <tbody>
-            <tr
-              v-for="(row, i) in details"
-              :key="row.label"
-              class="border-b border-[var(--border)]/50 last:border-0"
-              :class="i % 2 === 0 ? '' : 'bg-[var(--bg)]/30'"
-            >
-              <td class="py-1 text-[var(--text-secondary)] pr-4">{{ row.label }}</td>
-              <td class="py-1 text-[var(--text)] text-right">{{ row.value }}</td>
-            </tr>
+            <template v-for="(row, i) in details" :key="row.label">
+              <tr v-if="row.header">
+                <td colspan="2" class="text-[9px] font-mono text-[var(--text-muted)] uppercase tracking-wider pt-2">{{ row.label }}</td>
+              </tr>
+              <tr
+                v-else
+                class="border-b border-[var(--border)]/50 last:border-0"
+                :class="i % 2 === 0 ? '' : 'bg-[var(--bg)]/30'"
+              >
+                <td class="py-1 text-[var(--text-secondary)] pr-4">{{ row.label }}</td>
+                <td class="py-1 text-[var(--text)] text-right">{{ row.value }}</td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>
