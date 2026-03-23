@@ -29,6 +29,16 @@ const voltage = ref(1200)
 
 const fanTargetTemp = ref(65)
 const overheatTemp = ref(95)
+const fanOverride = ref(-1)  // -1 = auto, 0-100 = manual %
+const fanMode = computed(() => fanOverride.value < 0 ? 'auto' : 'manual')
+
+const metricsUrl = computed(() => `http://${window.location.host}/metrics`)
+const metricsCopied = ref(false)
+function copyMetricsUrl() {
+  navigator.clipboard.writeText(metricsUrl.value)
+  metricsCopied.value = true
+  setTimeout(() => { metricsCopied.value = false }, 2000)
+}
 
 const lokiUrl = ref('')
 const defaultMode = ref('simple')
@@ -89,6 +99,14 @@ async function save() {
     error.value = e.message
   } finally {
     saving.value = false
+  }
+}
+
+async function applyFanOverride() {
+  try {
+    await post('/api/system', { fan_override: fanOverride.value })
+  } catch (e: any) {
+    error.value = 'Fan override failed: ' + e.message
   }
 }
 
@@ -212,9 +230,9 @@ async function restart() {
       </div>
     </section>
 
-    <!-- Thermal -->
+    <!-- Thermal & Fan -->
     <section class="card space-y-3">
-      <div class="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider">Thermal</div>
+      <div class="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider">Thermal & Fan</div>
       <div>
         <div class="flex justify-between text-xs mb-1">
           <label class="text-[var(--text-secondary)]">Fan Target Temp</label>
@@ -229,6 +247,42 @@ async function restart() {
         </div>
         <input v-model.number="overheatTemp" type="range" min="70" max="120" class="w-full accent-accent bg-transparent" />
       </div>
+      <!-- Fan Override -->
+      <div class="border-t border-[var(--border)] pt-3">
+        <div class="flex items-center justify-between text-xs mb-2">
+          <label class="text-[var(--text-secondary)]">Fan Override</label>
+          <div class="flex gap-1.5">
+            <button
+              @click="fanOverride = -1; applyFanOverride()"
+              class="text-[10px] font-mono px-2 py-0.5 rounded transition-colors"
+              :class="fanOverride < 0 ? 'bg-[#22c55e]/20 text-[#22c55e]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'"
+            >Auto</button>
+            <button
+              @click="fanOverride = 100; applyFanOverride()"
+              class="text-[10px] font-mono px-2 py-0.5 rounded transition-colors"
+              :class="fanOverride === 100 ? 'bg-[#f97316]/20 text-[#f97316]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'"
+            >100%</button>
+          </div>
+        </div>
+        <div v-if="fanOverride >= 0">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-[var(--text-muted)]">Manual Speed</span>
+            <span class="font-mono text-[#f97316]">{{ fanOverride }}%</span>
+          </div>
+          <input
+            v-model.number="fanOverride"
+            @change="applyFanOverride"
+            type="range"
+            min="0"
+            max="100"
+            step="5"
+            class="w-full accent-accent bg-transparent"
+          />
+        </div>
+        <div v-else class="text-[10px] font-mono text-[var(--text-muted)]">
+          Fan speed controlled by PID (target: {{ fanTargetTemp }}&deg;C)
+        </div>
+      </div>
     </section>
 
     <!-- Monitoring -->
@@ -237,6 +291,21 @@ async function restart() {
       <div>
         <label class="text-xs text-[var(--text-secondary)] block mb-1">Loki URL</label>
         <input v-model="lokiUrl" type="text" class="w-full" placeholder="http://loki:3100" />
+      </div>
+      <div class="border-t border-[var(--border)] pt-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-xs text-[var(--text-secondary)]">Prometheus Endpoint</div>
+            <div class="text-[10px] text-[var(--text-muted)] mt-0.5">Scrape this URL from your Prometheus config</div>
+          </div>
+          <button
+            @click="copyMetricsUrl"
+            class="text-[10px] font-mono px-2 py-1 rounded bg-[var(--surface-light)] text-[var(--text-secondary)] hover:text-[var(--text)] transition-colors"
+          >{{ metricsCopied ? 'Copied!' : 'Copy' }}</button>
+        </div>
+        <div class="mt-1.5 font-mono text-[11px] text-[#f97316] bg-[var(--bg)] rounded px-2 py-1.5 select-all break-all">
+          {{ metricsUrl }}
+        </div>
       </div>
     </section>
 
