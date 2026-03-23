@@ -11,7 +11,22 @@ env:
   IDF_VERSION: v5.3
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev
+
+      - name: Run host tests
+        working-directory: test
+        run: |
+          make all
+          make run
+
   build-firmware:
+    needs: [test]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
