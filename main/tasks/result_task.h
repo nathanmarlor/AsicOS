@@ -6,7 +6,8 @@
 #define RESULT_TASK_PRIORITY    15
 
 typedef struct {
-    double   best_difficulty;
+    double   session_best_diff;   // Best difficulty this session (since boot)
+    double   alltime_best_diff;   // Best difficulty ever (persisted to NVS)
     uint64_t total_shares_submitted;
     uint64_t duplicate_nonces;
 } mining_stats_t;

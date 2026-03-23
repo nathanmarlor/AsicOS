@@ -122,10 +122,31 @@ static esp_err_t init_spiffs(void)
     return ESP_OK;
 }
 
+/* ── CORS preflight handler ────────────────────────────────────────── */
+
+static esp_err_t cors_options_handler(httpd_req_t *req)
+{
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Headers", "Content-Type, Authorization");
+    httpd_resp_set_hdr(req, "Access-Control-Max-Age", "86400");
+    httpd_resp_set_status(req, "204 No Content");
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
 /* ── Route registration ────────────────────────────────────────────── */
 
 static void register_routes(httpd_handle_t server)
 {
+    /* CORS preflight (OPTIONS) catch-all - must be registered early */
+    httpd_uri_t cors_preflight = {
+        .uri      = "/api/*",
+        .method   = HTTP_OPTIONS,
+        .handler  = cors_options_handler,
+    };
+    httpd_register_uri_handler(server, &cors_preflight);
+
     /* System API */
     httpd_uri_t system_info = {
         .uri      = "/api/system/info",

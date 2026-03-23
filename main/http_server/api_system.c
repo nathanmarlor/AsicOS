@@ -134,7 +134,8 @@ esp_err_t api_system_info_handler(httpd_req_t *req)
     /* Mining stats */
     if (stats) {
         cJSON *mining = cJSON_AddObjectToObject(root, "mining");
-        cJSON_AddNumberToObject(mining, "best_difficulty",        stats->best_difficulty);
+        cJSON_AddNumberToObject(mining, "session_best_diff",      stats->session_best_diff);
+        cJSON_AddNumberToObject(mining, "alltime_best_diff",      stats->alltime_best_diff);
         cJSON_AddNumberToObject(mining, "total_shares_submitted", (double)stats->total_shares_submitted);
         cJSON_AddNumberToObject(mining, "duplicate_nonces",       (double)stats->duplicate_nonces);
     }

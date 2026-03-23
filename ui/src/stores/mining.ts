@@ -14,6 +14,7 @@ export interface MiningInfo {
   accepted: number
   rejected: number
   best_diff: number
+  alltime_best_diff: number
   pool_diff: number
   total_shares: number
   total_nonces: number

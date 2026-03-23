@@ -69,14 +69,15 @@ static void result_task_fn(void *param)
 {
     ESP_LOGI(TAG, "Result task started");
 
-    /* Load persisted best difficulty */
+    /* Load persisted all-time best difficulty from NVS */
     uint64_t stored_diff = nvs_config_get_u64(NVS_KEY_BEST_DIFF, 0);
-    double best_diff_bits;
-    memcpy(&best_diff_bits, &stored_diff, sizeof(double));
-    if (!isfinite(best_diff_bits) || best_diff_bits < 0.0) {
-        best_diff_bits = 0.0;
+    double alltime_best;
+    memcpy(&alltime_best, &stored_diff, sizeof(double));
+    if (!isfinite(alltime_best) || alltime_best < 0.0) {
+        alltime_best = 0.0;
     }
-    s_stats.best_difficulty = best_diff_bits;
+    s_stats.alltime_best_diff = alltime_best;
+    s_stats.session_best_diff = 0.0;
 
     asic_result_t result;
 
@@ -160,11 +161,16 @@ static void result_task_fn(void *param)
             continue;
         }
 
-        /* Update best difficulty (debounce NVS write to at most once per 60s) */
-        if (share_diff > s_stats.best_difficulty) {
-            s_stats.best_difficulty = share_diff;
-            ESP_LOGI(TAG, "New best difficulty: %.4f", share_diff);
+        /* Update best difficulties */
+        if (share_diff > s_stats.session_best_diff) {
+            s_stats.session_best_diff = share_diff;
+            ESP_LOGI(TAG, "New session best difficulty: %.4f", share_diff);
+        }
+        if (share_diff > s_stats.alltime_best_diff) {
+            s_stats.alltime_best_diff = share_diff;
+            ESP_LOGI(TAG, "New all-time best difficulty: %.4f", share_diff);
 
+            /* Debounce NVS write to at most once per 60s */
             static int64_t s_last_best_diff_write = 0;
             int64_t now_us = esp_timer_get_time();
             if (now_us - s_last_best_diff_write >= 60000000LL) { /* 60 seconds */

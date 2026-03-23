@@ -7,6 +7,15 @@ void sha256_hash(const uint8_t *data, size_t len, uint8_t *out)
     mbedtls_sha256(data, len, out, 0);
 }
 
+/*
+ * WARNING: This function does NOT produce a correct SHA-256 midstate.
+ * A true midstate requires extracting the SHA-256 internal compression
+ * state after processing the first 64-byte block, but mbedTLS does not
+ * expose this. The output of this function is a full SHA-256 hash of
+ * the first 64 bytes (with padding), which is NOT the same thing.
+ * This function is currently unused in practice; the BM1370 driver
+ * computes midstate on-chip. Do not rely on this for correctness.
+ */
 void sha256_midstate(const uint8_t *block_header_64, uint8_t *midstate)
 {
     /*

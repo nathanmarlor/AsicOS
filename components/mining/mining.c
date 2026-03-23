@@ -20,20 +20,20 @@ static const double bits64  = 18446744073709551616.0;
 
 static double le256todouble(const void *target)
 {
-    uint64_t *data64;
+    uint64_t d;
     double dcut64;
 
-    data64 = (uint64_t *)((const uint8_t *)target + 24);
-    dcut64 = *data64 * bits192;
+    memcpy(&d, (const uint8_t *)target + 24, sizeof(d));
+    dcut64 = d * bits192;
 
-    data64 = (uint64_t *)((const uint8_t *)target + 16);
-    dcut64 += *data64 * bits128;
+    memcpy(&d, (const uint8_t *)target + 16, sizeof(d));
+    dcut64 += d * bits128;
 
-    data64 = (uint64_t *)((const uint8_t *)target + 8);
-    dcut64 += *data64 * bits64;
+    memcpy(&d, (const uint8_t *)target + 8, sizeof(d));
+    dcut64 += d * bits64;
 
-    data64 = (uint64_t *)((const uint8_t *)target);
-    dcut64 += *data64;
+    memcpy(&d, (const uint8_t *)target, sizeof(d));
+    dcut64 += d;
 
     return dcut64;
 }

@@ -232,7 +232,11 @@ void stratum_client_task(void *param)
 {
     (void)param;
     char line[LINE_BUF_SIZE];
-    int retry_delay_s = 5;
+
+    /* Exponential backoff: start 5s, double each retry, cap at 300s, reset on success */
+    #define BACKOFF_INITIAL_S   5
+    #define BACKOFF_MAX_S     300
+    int retry_delay_s = BACKOFF_INITIAL_S;
 
     while (1) {
         /* Try primary pool */
@@ -243,11 +247,13 @@ void stratum_client_task(void *param)
                 if (!do_connect(&s_config.fallback)) {
                     ESP_LOGE(TAG, "Fallback also failed, retrying in %ds", retry_delay_s);
                     vTaskDelay(pdMS_TO_TICKS(retry_delay_s * 1000));
+                    retry_delay_s = (retry_delay_s * 2 > BACKOFF_MAX_S) ? BACKOFF_MAX_S : retry_delay_s * 2;
                     continue;
                 }
             } else {
                 ESP_LOGE(TAG, "Connection failed, retrying in %ds", retry_delay_s);
                 vTaskDelay(pdMS_TO_TICKS(retry_delay_s * 1000));
+                retry_delay_s = (retry_delay_s * 2 > BACKOFF_MAX_S) ? BACKOFF_MAX_S : retry_delay_s * 2;
                 continue;
             }
         }
@@ -257,9 +263,14 @@ void stratum_client_task(void *param)
             stratum_disconnect(s_conn);
             s_conn = NULL;
             s_state = STRATUM_STATE_ERROR;
+            ESP_LOGE(TAG, "Handshake failed, retrying in %ds", retry_delay_s);
             vTaskDelay(pdMS_TO_TICKS(retry_delay_s * 1000));
+            retry_delay_s = (retry_delay_s * 2 > BACKOFF_MAX_S) ? BACKOFF_MAX_S : retry_delay_s * 2;
             continue;
         }
+
+        /* Successfully connected - reset backoff */
+        retry_delay_s = BACKOFF_INITIAL_S;
 
         /* Enter mining loop */
         s_state = STRATUM_STATE_MINING;
@@ -277,11 +288,12 @@ void stratum_client_task(void *param)
         }
 
         /* Disconnected - clean up and retry */
-        ESP_LOGW(TAG, "Disconnected from pool");
+        ESP_LOGW(TAG, "Disconnected from pool, retrying in %ds", retry_delay_s);
         stratum_disconnect(s_conn);
         s_conn = NULL;
         s_state = STRATUM_STATE_DISCONNECTED;
         vTaskDelay(pdMS_TO_TICKS(retry_delay_s * 1000));
+        retry_delay_s = (retry_delay_s * 2 > BACKOFF_MAX_S) ? BACKOFF_MAX_S : retry_delay_s * 2;
     }
 }
 

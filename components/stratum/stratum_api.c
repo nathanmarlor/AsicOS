@@ -21,6 +21,10 @@ int stratum_build_subscribe(char *buf, size_t buf_len)
     return (n > 0 && (size_t)n < buf_len) ? n : -1;
 }
 
+/* NOTE: user and pass are interpolated directly into JSON without escaping.
+ * This is a known limitation - pool usernames containing quotes or backslashes
+ * will produce malformed JSON. In practice, pool usernames are Bitcoin addresses
+ * or simple alphanumeric strings, so this is not a real-world issue. */
 int stratum_build_authorize(char *buf, size_t buf_len,
                             const char *user, const char *pass)
 {

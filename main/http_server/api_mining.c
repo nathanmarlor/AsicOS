@@ -57,9 +57,10 @@ esp_err_t api_mining_info_handler(httpd_req_t *req)
 
     /* Shares -- field names match UI store interface */
     if (stats) {
-        cJSON_AddNumberToObject(root, "best_diff",    stats->best_difficulty);
-        cJSON_AddNumberToObject(root, "total_shares",  (double)stats->total_shares_submitted);
-        cJSON_AddNumberToObject(root, "duplicates",    (double)stats->duplicate_nonces);
+        cJSON_AddNumberToObject(root, "best_diff",         stats->session_best_diff);
+        cJSON_AddNumberToObject(root, "alltime_best_diff", stats->alltime_best_diff);
+        cJSON_AddNumberToObject(root, "total_shares",      (double)stats->total_shares_submitted);
+        cJSON_AddNumberToObject(root, "duplicates",        (double)stats->duplicate_nonces);
     }
 
     /* Total nonces returned by ASIC (for "all shares" display) */

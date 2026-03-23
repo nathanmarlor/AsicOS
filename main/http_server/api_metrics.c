@@ -114,13 +114,17 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
 
     /* Difficulty */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
-        "# HELP asicos_best_difficulty Best share difficulty\n"
-        "# TYPE asicos_best_difficulty gauge\n"
-        "asicos_best_difficulty %.6e\n\n"
+        "# HELP asicos_session_best_difficulty Best share difficulty this session\n"
+        "# TYPE asicos_session_best_difficulty gauge\n"
+        "asicos_session_best_difficulty %.6e\n\n"
+        "# HELP asicos_alltime_best_difficulty Best share difficulty ever\n"
+        "# TYPE asicos_alltime_best_difficulty gauge\n"
+        "asicos_alltime_best_difficulty %.6e\n\n"
         "# HELP asicos_pool_difficulty Current pool difficulty\n"
         "# TYPE asicos_pool_difficulty gauge\n"
         "asicos_pool_difficulty %.0f\n\n",
-        stats ? stats->best_difficulty : 0.0,
+        stats ? stats->session_best_diff : 0.0,
+        stats ? stats->alltime_best_diff : 0.0,
         pool_diff);
 
     /* Fans */

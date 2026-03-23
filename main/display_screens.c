@@ -156,7 +156,7 @@ static void screen_mining(void)
 
     // Best difficulty
     char diff_str[16];
-    format_difficulty(stats->best_difficulty, diff_str, sizeof(diff_str));
+    format_difficulty(stats->session_best_diff, diff_str, sizeof(diff_str));
     snprintf(line, sizeof(line), "Best: %s", diff_str);
     display_draw_text(8, y, line, COLOR_WHITE, COLOR_BLACK);
     y += 18;
@@ -195,7 +195,7 @@ static void screen_stats(void)
     y += 16;
 
     // Best difficulty
-    format_difficulty(stats->best_difficulty, diff_str, sizeof(diff_str));
+    format_difficulty(stats->session_best_diff, diff_str, sizeof(diff_str));
     snprintf(line, sizeof(line), "Best Diff:  %s", diff_str);
     display_draw_text(8, y, line, COLOR_WHITE, COLOR_BLACK);
     y += 16;
