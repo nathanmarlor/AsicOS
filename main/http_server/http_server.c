@@ -289,7 +289,7 @@ esp_err_t http_server_start(void)
 
     httpd_config_t config   = HTTPD_DEFAULT_CONFIG();
     config.max_uri_handlers = 24;
-    config.stack_size       = 8192;
+    config.stack_size       = 12288;
     config.max_resp_headers = 16;
     config.recv_wait_timeout  = 10;
     config.send_wait_timeout  = 10;
