@@ -50,22 +50,23 @@ let confirmRestart = false
 
 onMounted(async () => {
   try {
-    const cfg = await get('/api/system/config')
+    const info = await get('/api/system/info')
+    const cfg = info.config ?? {}
     wifiSsid.value = cfg.wifi_ssid ?? ''
-    wifiPassword.value = cfg.wifi_password ?? ''
+    wifiPassword.value = ''  // Never returned by API for security
     poolUrl.value = cfg.pool_url ?? ''
     poolPort.value = cfg.pool_port ?? 3333
     poolUser.value = cfg.pool_user ?? ''
-    poolPassword.value = cfg.pool_password ?? ''
-    fallbackUrl.value = cfg.fallback_url ?? ''
-    fallbackPort.value = cfg.fallback_port ?? 3333
-    fallbackUser.value = cfg.fallback_user ?? ''
+    poolPassword.value = ''
+    fallbackUrl.value = ''
+    fallbackPort.value = 3333
+    fallbackUser.value = ''
     frequency.value = cfg.frequency ?? 500
-    voltage.value = cfg.core_voltage ?? 1200
-    fanTargetTemp.value = cfg.fan_target_temp ?? 65
-    overheatTemp.value = cfg.overheat_temp ?? 95
-    lokiUrl.value = cfg.loki_url ?? ''
-    defaultMode.value = cfg.default_mode ?? 'simple'
+    voltage.value = cfg.voltage ?? 1200
+    fanTargetTemp.value = 65
+    overheatTemp.value = 95
+    lokiUrl.value = ''
+    defaultMode.value = cfg.ui_mode ?? 'simple'
   } catch (e: any) {
     error.value = 'Failed to load config: ' + e.message
   }
@@ -76,22 +77,16 @@ async function save() {
   saved.value = false
   error.value = ''
   try {
-    await post('/api/system/config', {
+    await post('/api/system', {
       wifi_ssid: wifiSsid.value,
-      wifi_password: wifiPassword.value,
+      wifi_pass: wifiPassword.value,
       pool_url: poolUrl.value,
       pool_port: poolPort.value,
       pool_user: poolUser.value,
-      pool_password: poolPassword.value,
-      fallback_url: fallbackUrl.value,
-      fallback_port: fallbackPort.value,
-      fallback_user: fallbackUser.value,
+      pool_pass: poolPassword.value,
       frequency: frequency.value,
-      core_voltage: voltage.value,
-      fan_target_temp: fanTargetTemp.value,
-      overheat_temp: overheatTemp.value,
-      loki_url: lokiUrl.value,
-      default_mode: defaultMode.value
+      voltage: voltage.value,
+      ui_mode: defaultMode.value
     })
     saved.value = true
     setTimeout(() => { saved.value = false }, 3000)
