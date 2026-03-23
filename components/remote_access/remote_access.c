@@ -102,9 +102,9 @@ void remote_task_loop(void *param)
             break;
         }
 
-        ESP_LOGW(TAG, "No valid licence, retrying in 10s...");
+        ESP_LOGW(TAG, "No valid licence, retrying in 60s...");
         s_state = REMOTE_STATE_UNLICENSED;
-        vTaskDelay(pdMS_TO_TICKS(10000));
+        vTaskDelay(pdMS_TO_TICKS(60000));
     }
 
     /* Step 3: Initialise remote config with device_id */

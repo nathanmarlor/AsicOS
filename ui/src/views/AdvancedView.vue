@@ -323,7 +323,10 @@ async function restart() {
           :accepted="accepted"
           :rejected="rejected"
           :best-diff="bestDiffStr"
+          :alltime-best-diff="alltimeBest"
           :pool-diff="poolDiffStr"
+          :pool-url="poolUrl"
+          :pool-connected="poolConnected"
           :duplicates="mining.info?.duplicates ?? 0"
           :share-rate="shareRate"
         />
@@ -337,53 +340,48 @@ async function restart() {
       </div>
     </div>
 
-    <!-- Bottom Row: Power & Pool | Device | Log Console -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+    <!-- Info Row: 3 compact cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
 
-      <!-- Power & Pool -->
+      <!-- Power -->
       <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3">
-        <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-2">Power & Pool</div>
-        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] font-mono">
+        <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-2">Power</div>
+        <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] font-mono">
           <div class="text-[var(--text-muted)]">Input</div>
           <div class="text-right text-[var(--text)]">{{ vin }} V</div>
-          <div class="text-[var(--text-muted)]">VRM Voltage</div>
-          <div class="text-right text-[var(--text)]">{{ vout }} mV</div>
-          <div class="text-[var(--text-muted)]">VRM Current</div>
-          <div class="text-right text-[var(--text)]">{{ iout }} A</div>
-          <div class="text-[var(--text-muted)]">Power</div>
+          <div class="text-[var(--text-muted)]">VRM</div>
+          <div class="text-right text-[var(--text)]">{{ vout }} mV / {{ iout }} A</div>
+          <div class="text-[var(--text-muted)]">Draw</div>
           <div class="text-right text-[var(--text)]">{{ watts }} W</div>
           <template v-if="hasAdcVcore">
-            <div class="text-[var(--text-muted)]">Core (ADC)</div>
+            <div class="text-[var(--text-muted)]">Core ADC</div>
             <div class="text-right text-[var(--text)]">{{ vcoreAdc }} mV</div>
           </template>
         </div>
-        <div class="border-t border-[var(--border)]/50 mt-2 pt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] font-mono">
-          <div class="text-[var(--text-muted)]">Pool</div>
-          <div class="text-right text-[var(--text)] truncate">{{ poolUrl }}</div>
-          <div class="text-[var(--text-muted)]">Worker</div>
-          <div class="text-right text-[var(--text)] truncate">{{ system.info?.config.pool_user ?? '--' }}</div>
-          <div class="text-[var(--text-muted)]">Pool Diff</div>
-          <div class="text-right text-[var(--text)]">{{ poolDiffStr }}</div>
-          <div class="text-[var(--text-muted)]">Session Best</div>
-          <div class="text-right text-[#f97316]">{{ sessionBest }}</div>
-          <div class="text-[var(--text-muted)]">All-Time Best</div>
-          <div class="text-right text-[#eab308]">{{ alltimeBest }}</div>
+      </div>
+
+      <!-- Cooling -->
+      <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3">
+        <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-2">Cooling</div>
+        <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] font-mono">
+          <div class="text-[var(--text-muted)]">VRM</div>
+          <div class="text-right text-[var(--text)]">{{ vrTempDetail }}&deg;C</div>
+          <div class="text-[var(--text-muted)]">Board</div>
+          <div class="text-right text-[var(--text)]">{{ boardTemp }}&deg;C</div>
+          <div class="text-[var(--text-muted)]">Fan 1</div>
+          <div class="text-right text-[var(--text)]">{{ fan0 }} RPM</div>
+          <div class="text-[var(--text-muted)]">Fan 2</div>
+          <div class="text-right text-[var(--text)]">{{ fan1 }} RPM</div>
+          <div class="text-[var(--text-muted)]">Mode</div>
+          <div class="text-right text-[var(--text)]">{{ fanMode }}</div>
         </div>
       </div>
 
-      <!-- Device (Cooling + System) -->
+      <!-- System -->
       <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3">
-        <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-2">Device</div>
-        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] font-mono">
-          <div class="text-[var(--text-muted)]">VRM Temp</div>
-          <div class="text-right text-[var(--text)]">{{ vrTempDetail }}&deg;C</div>
-          <div class="text-[var(--text-muted)]">Board Temp</div>
-          <div class="text-right text-[var(--text)]">{{ boardTemp }}&deg;C</div>
-          <div class="text-[var(--text-muted)]">Fan 1</div>
-          <div class="text-right text-[var(--text)]">{{ fan0 }} RPM ({{ fanMode }})</div>
-          <div class="text-[var(--text-muted)]">Fan 2</div>
-          <div class="text-right text-[var(--text)]">{{ fan1 }} RPM ({{ fanMode }})</div>
-          <div class="text-[var(--text-muted)]">ASIC Config</div>
+        <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-2">System</div>
+        <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] font-mono">
+          <div class="text-[var(--text-muted)]">ASIC</div>
           <div class="text-right text-[var(--text)]">{{ freq }} MHz / {{ voltage }} mV</div>
           <div class="text-[var(--text-muted)]">Memory</div>
           <div class="text-right text-[var(--text)]">{{ heap }} KB</div>
@@ -393,11 +391,11 @@ async function restart() {
           <div class="text-right text-[var(--text)]">{{ resetReason }}</div>
         </div>
       </div>
+    </div>
 
-      <!-- Log Console -->
-      <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3 flex flex-col min-h-[240px]">
-        <LogConsole />
-      </div>
+    <!-- Log Console: full width -->
+    <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3 flex flex-col min-h-[180px] max-h-[280px]">
+      <LogConsole />
     </div>
 
     <!-- Action Buttons -->

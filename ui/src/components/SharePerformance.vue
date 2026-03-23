@@ -6,7 +6,10 @@ const props = defineProps<{
   accepted: number
   rejected: number
   bestDiff: string
+  alltimeBestDiff?: string
   poolDiff: string
+  poolUrl?: string
+  poolConnected?: boolean
   duplicates: number
   shareRate: number
   shareRateHistory?: number[]
@@ -19,7 +22,13 @@ const rejectPct = computed(() => total.value === 0 ? 0 : (props.rejected / total
 
 <template>
   <div class="flex flex-col gap-3">
-    <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider">Share Performance</div>
+    <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider">Pool & Shares</div>
+
+    <!-- Pool connection -->
+    <div v-if="poolUrl" class="flex items-center gap-2 text-[11px] font-mono pb-1 border-b border-[var(--border)]/50">
+      <span class="w-2 h-2 rounded-full shrink-0" :class="poolConnected ? 'bg-[#22c55e]' : 'bg-[#ef4444]'" />
+      <span class="text-[var(--text-muted)] truncate">{{ poolUrl }}</span>
+    </div>
 
     <!-- Accepted / Rejected bars -->
     <div class="space-y-2">
@@ -57,8 +66,12 @@ const rejectPct = computed(() => total.value === 0 ? 0 : (props.rejected / total
         </div>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-[var(--text-secondary)]">Best Diff</span>
+        <span class="text-[var(--text-secondary)]">Session Best</span>
         <span class="text-[#f97316]">{{ bestDiff }}</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-[var(--text-secondary)]">All-Time Best</span>
+        <span class="text-[#eab308]">{{ alltimeBestDiff ?? '--' }}</span>
       </div>
       <div class="flex items-center justify-between">
         <span class="text-[var(--text-secondary)]">Pool Diff</span>
