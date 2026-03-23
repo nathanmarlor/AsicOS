@@ -1,0 +1,20 @@
+menu "AsicOS Configuration"
+
+    choice ASICOS_BOARD
+        prompt "Board variant"
+        default ASICOS_BOARD_V1
+        help
+            Select the hardware board variant.
+
+        config ASICOS_BOARD_V1
+            bool "AsicOS V1"
+    endchoice
+
+    config ASICOS_LICENCE_SECRET
+        string "Licence signing secret"
+        default "CHANGE_ME_IN_PRODUCTION_32BYTES!"
+        help
+            HMAC-SHA256 secret used for licence key generation and validation.
+            Must be changed for production builds.
+
+endmenu
