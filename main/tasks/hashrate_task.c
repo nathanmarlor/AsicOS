@@ -18,6 +18,11 @@ static const char *TAG = "hashrate_task";
 #define RESPONSE_WAIT_MS 200
 
 static volatile hashrate_info_t s_info;
+static volatile bool s_reset_requested = false;
+
+void hashrate_task_reset(void) {
+    s_reset_requested = true;
+}
 
 const hashrate_info_t *hashrate_task_get_info(void)
 {
@@ -50,6 +55,27 @@ static void hashrate_task_fn(void *param)
 
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(POLL_INTERVAL_MS));
+
+        /* Handle reset request: zero out EMA and counters, re-read baselines */
+        if (s_reset_requested) {
+            s_reset_requested = false;
+            ESP_LOGI(TAG, "Reset requested – clearing EMA and re-reading baseline counters");
+            s_info.total_hashrate_ghs = 0.0f;
+            for (int i = 0; i < s_info.chip_count; i++) {
+                s_info.per_chip_hashrate_ghs[i] = 0.0f;
+                for (int d = 0; d < HASHRATE_NUM_DOMAINS; d++) {
+                    s_info.per_domain_hashrate_ghs[i][d] = 0.0f;
+                }
+                asic_request_hash_counter((uint8_t)(i * 4));
+                asic_request_domain_counters((uint8_t)(i * 4));
+            }
+            vTaskDelay(pdMS_TO_TICKS(RESPONSE_WAIT_MS));
+            for (int i = 0; i < s_info.chip_count; i++) {
+                prev_counter[i] = asic_get_stored_hash_counter(i);
+            }
+            prev_time_us = esp_timer_get_time();
+            continue;  /* Skip this cycle, wait for next poll with fresh baseline */
+        }
 
         /* Send read requests for all chips (total + domain counters) */
         for (int i = 0; i < s_info.chip_count; i++) {

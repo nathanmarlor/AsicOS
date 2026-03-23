@@ -16,3 +16,4 @@ typedef struct {
 
 void hashrate_task_start(void);
 const hashrate_info_t *hashrate_task_get_info(void);
+void hashrate_task_reset(void);  // Reset EMA and counters for fresh measurement

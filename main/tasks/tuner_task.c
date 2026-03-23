@@ -248,6 +248,10 @@ static void tuner_task_fn(void *arg)
                 vTaskDelay(pdMS_TO_TICKS(COARSE_SETTLE_MS));
                 if (check_abort()) { aborted = true; break; }
 
+                hashrate_task_reset();  /* Clear stale EMA from previous frequency */
+                vTaskDelay(pdMS_TO_TICKS(12000));  /* Wait for one fresh measurement cycle */
+                if (check_abort()) { aborted = true; break; }
+
                 tuner_result_t *slot = sample_point(step, f, v);
                 if (!slot) { break; }
 
@@ -338,6 +342,10 @@ static void tuner_task_fn(void *arg)
                 }
 
                 vTaskDelay(pdMS_TO_TICKS(FINE_SETTLE_MS));
+                if (check_abort()) { aborted = true; break; }
+
+                hashrate_task_reset();  /* Clear stale EMA from previous frequency */
+                vTaskDelay(pdMS_TO_TICKS(12000));  /* Wait for one fresh measurement cycle */
                 if (check_abort()) { aborted = true; break; }
 
                 tuner_result_t *slot = sample_point(step, f, v);

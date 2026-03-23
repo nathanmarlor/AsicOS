@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = withDefaults(defineProps<{
   data: number[]
@@ -97,6 +97,45 @@ const lastPoint = computed(() => {
   return { x: toX(i), y: toY(props.data[i]) }
 })
 
+// Hover state
+const hovering = ref(false)
+const hoverIndex = ref(-1)
+const hoverPos = ref({ x: 0, y: 0 })
+
+function onMouseMove(e: MouseEvent | TouchEvent) {
+  const svg = e.currentTarget as SVGSVGElement
+  const rect = svg.getBoundingClientRect()
+  const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX
+  const svgX = ((clientX - rect.left) / rect.width) * W
+
+  if (props.data.length < 2) return
+  const relX = Math.max(0, Math.min(1, (svgX - PAD.left) / chartW.value))
+  const idx = Math.round(relX * (props.data.length - 1))
+
+  hoverIndex.value = idx
+  hoverPos.value = { x: toX(idx), y: toY(props.data[idx]) }
+  hovering.value = true
+}
+
+function onMouseLeave() {
+  hovering.value = false
+  hoverIndex.value = -1
+}
+
+const hoverValue = computed(() => {
+  if (hoverIndex.value < 0 || hoverIndex.value >= props.data.length) return null
+  return props.data[hoverIndex.value]
+})
+
+const hoverTimeAgo = computed(() => {
+  if (hoverIndex.value < 0) return ''
+  const totalPoints = props.data.length
+  const pointsFromEnd = totalPoints - 1 - hoverIndex.value
+  const secondsAgo = pointsFromEnd * 3
+  if (secondsAgo < 60) return `${secondsAgo}s ago`
+  return `${Math.floor(secondsAgo / 60)}m ${secondsAgo % 60}s ago`
+})
+
 // Unique gradient ID - strip all non-alphanumeric chars to avoid SVG url() issues
 const _uid = Math.random().toString(36).slice(2, 8)
 const gradientId = computed(() => `grad-${_uid}`)
@@ -108,6 +147,10 @@ const gradientId = computed(() => `grad-${_uid}`)
       :viewBox="`0 0 ${W} ${height}`"
       class="w-full block"
       preserveAspectRatio="xMidYMid meet"
+      @mousemove="onMouseMove"
+      @mouseleave="onMouseLeave"
+      @touchmove.prevent="onMouseMove"
+      @touchend="onMouseLeave"
     >
       <defs>
         <linearGradient :id="gradientId" x1="0" y1="0" x2="0" y2="1">
@@ -221,6 +264,39 @@ const gradientId = computed(() => `grad-${_uid}`)
         text-transform="uppercase"
         letter-spacing="0.05em"
       >{{ label }}</text>
+
+      <!-- Hover crosshair + tooltip -->
+      <template v-if="hovering && hoverValue != null">
+        <!-- Vertical line at hover position -->
+        <line
+          :x1="hoverPos.x" :y1="PAD.top"
+          :x2="hoverPos.x" :y2="PAD.top + chartH"
+          stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"
+        />
+        <!-- Dot at hover point -->
+        <circle :cx="hoverPos.x" :cy="hoverPos.y" r="4" :fill="color" />
+        <!-- Tooltip background -->
+        <rect
+          :x="hoverPos.x + (hoverPos.x > W/2 ? -90 : 10)"
+          :y="hoverPos.y - 28"
+          width="80" height="22" rx="3"
+          fill="var(--surface)" stroke="var(--border)" stroke-width="1"
+        />
+        <!-- Tooltip text -->
+        <text
+          :x="hoverPos.x + (hoverPos.x > W/2 ? -50 : 50)"
+          :y="hoverPos.y - 14"
+          text-anchor="middle"
+          fill="var(--text)" font-size="11" font-family="monospace"
+        >{{ hoverValue.toFixed(1) }}</text>
+        <!-- Time label -->
+        <text
+          :x="hoverPos.x + (hoverPos.x > W/2 ? -50 : 50)"
+          :y="hoverPos.y - 2"
+          text-anchor="middle"
+          fill="var(--text-muted)" font-size="9" font-family="monospace"
+        >{{ hoverTimeAgo }}</text>
+      </template>
     </svg>
   </div>
 </template>
