@@ -11,6 +11,7 @@
 #include "api_remote.h"
 #include "api_system.h"
 #include "api_tuner.h"
+#include "api_metrics.h"
 #include "ws_handler.h"
 
 static const char *TAG = "http_server";
@@ -215,6 +216,14 @@ static void register_routes(httpd_handle_t server)
         .handle_ws_control_frames = true,
     };
     httpd_register_uri_handler(server, &ws);
+
+    /* Prometheus metrics */
+    httpd_uri_t metrics = {
+        .uri      = "/metrics",
+        .method   = HTTP_GET,
+        .handler  = api_metrics_handler,
+    };
+    httpd_register_uri_handler(server, &metrics);
 
     /* SPIFFS catch-all (must be last — wildcard) */
     httpd_uri_t spiffs_catch_all = {

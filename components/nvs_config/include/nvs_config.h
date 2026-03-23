@@ -23,6 +23,7 @@
 #define NVS_KEY_POOL2_URL       "pool2_url"
 #define NVS_KEY_POOL2_PORT      "pool2_port"
 #define NVS_KEY_POOL2_USER      "pool2_user"
+#define NVS_KEY_LOKI_URL        "loki_url"
 
 // Defaults
 #define DEFAULT_ASIC_FREQ       490

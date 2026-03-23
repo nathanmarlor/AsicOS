@@ -15,7 +15,9 @@ idf_component_register(
           "http_server/api_mining.c"
           "http_server/api_tuner.c"
           "http_server/api_remote.c"
+          "http_server/api_metrics.c"
           "http_server/ws_handler.c"
+          "tasks/loki_task.c"
     INCLUDE_DIRS "." "tasks" "http_server"
-    REQUIRES "nvs_flash" "esp_wifi" "esp_http_server" "spiffs" "json" "app_update" "self_test"
+    REQUIRES "nvs_flash" "esp_wifi" "esp_http_server" "esp_http_client" "spiffs" "json" "app_update" "self_test"
 )

@@ -19,33 +19,83 @@ static const char *TAG = "tuner_task";
 #define BIT_START (1 << 0)
 #define BIT_ABORT (1 << 1)
 
+/* Coarse sweep parameters */
+#define COARSE_FREQ_STEP  100   /* MHz */
+#define COARSE_VOLT_STEP  100   /* mV  */
+#define COARSE_SETTLE_MS  20000 /* 20s stabilisation */
+
+/* Fine sweep parameters */
+#define FINE_FREQ_RANGE   75    /* +/- MHz around best coarse */
+#define FINE_FREQ_STEP    25    /* MHz */
+#define FINE_VOLT_RANGE   50    /* +/- mV around best coarse */
+#define FINE_VOLT_STEP    25    /* mV  */
+#define FINE_SETTLE_MS    30000 /* 30s stabilisation */
+
+/* Early-exit thresholds */
+#define FINE_SKIP_RATIO       0.50  /* skip if score < 50% of best coarse */
+#define FINE_CONSEC_WORSE_MAX 3     /* stop direction after 3 consecutive worse */
+
 static EventGroupHandle_t s_event_group;
 
+static tuner_mode_t s_mode;
 static uint16_t s_freq_min;
 static uint16_t s_freq_max;
-static uint16_t s_freq_step;
 static uint16_t s_volt_min;
 static uint16_t s_volt_max;
-static uint16_t s_volt_step;
 
 /* ---------- helpers ---------- */
 
-static int count_steps(uint16_t fmin, uint16_t fmax, uint16_t fstep,
-                       uint16_t vmin, uint16_t vmax, uint16_t vstep)
+static bool check_abort(void)
 {
-    int freq_steps = (fstep > 0) ? ((fmax - fmin) / fstep + 1) : 1;
-    int volt_steps = (vstep > 0) ? ((vmax - vmin) / vstep + 1) : 1;
-    int total = freq_steps * volt_steps;
+    EventBits_t bits = xEventGroupGetBits(s_event_group);
+    return (bits & BIT_ABORT) != 0;
+}
+
+static int estimate_total_steps(void)
+{
+    int freq_coarse = (s_freq_max - s_freq_min) / COARSE_FREQ_STEP + 1;
+    int volt_coarse = (s_volt_max - s_volt_min) / COARSE_VOLT_STEP + 1;
+    int coarse = freq_coarse * volt_coarse;
+
+    /* Fine: up to 7 freq * 5 volt = 35, but expect ~15-20 with skipping */
+    int fine_est = 20;
+
+    int total = coarse + fine_est;
     if (total > TUNER_MAX_RESULTS) {
         total = TUNER_MAX_RESULTS;
     }
     return total;
 }
 
-static bool check_abort(void)
+/**
+ * Sample the current operating point and fill a result slot.
+ * Returns the slot pointer, or NULL on failure.
+ */
+static tuner_result_t *sample_point(int step, uint16_t freq, uint16_t voltage)
 {
-    EventBits_t bits = xEventGroupGetBits(s_event_group);
-    return (bits & BIT_ABORT) != 0;
+    tuner_result_t *slot = tuner_get_result_slot(step);
+    if (!slot) {
+        return NULL;
+    }
+
+    const hashrate_info_t *hr = hashrate_task_get_info();
+    const power_status_t *pw = power_task_get_status();
+    float temp = bm1370_read_temperature();
+
+    slot->freq = freq;
+    slot->voltage = voltage;
+    slot->hashrate_ghs = hr ? hr->total_hashrate_ghs : 0.0f;
+    slot->power_w = pw ? pw->power_w : 0.0f;
+    slot->temp = temp;
+    slot->efficiency_ghs_per_w = (slot->power_w > 0.0f)
+        ? slot->hashrate_ghs / slot->power_w
+        : 0.0f;
+
+    slot->stable = (slot->hashrate_ghs > 0.0f)
+        && (pw ? !pw->overheat : true)
+        && (pw ? !pw->vr_fault : true);
+
+    return slot;
 }
 
 /* ---------- main task ---------- */
@@ -65,15 +115,14 @@ static void tuner_task_fn(void *arg)
 
         /* Reset status and start */
         tuner_reset_status();
+        tuner_set_mode(s_mode);
 
-        int total = count_steps(s_freq_min, s_freq_max, s_freq_step,
-                                s_volt_min, s_volt_max, s_volt_step);
-        tuner_set_step(0, total);
+        int total_est = estimate_total_steps();
+        tuner_set_step(0, total_est);
         tuner_set_state(TUNER_STATE_RUNNING);
 
-        ESP_LOGI(TAG, "Starting sweep: freq %u-%u step %u, volt %u-%u step %u (%d steps)",
-                 s_freq_min, s_freq_max, s_freq_step,
-                 s_volt_min, s_volt_max, s_volt_step, total);
+        ESP_LOGI(TAG, "Starting adaptive 2-phase sweep: freq %u-%u, volt %u-%u, mode %d (~%d steps)",
+                 s_freq_min, s_freq_max, s_volt_min, s_volt_max, (int)s_mode, total_est);
 
         double best_score = -1.0;
         double best_eff = -1.0;
@@ -82,65 +131,149 @@ static void tuner_task_fn(void *arg)
         int step = 0;
         bool aborted = false;
 
-        for (uint16_t v = s_volt_min; v <= s_volt_max && !aborted; v += s_volt_step) {
-            /* Set voltage */
+        /* ── Phase 1: Coarse sweep ──────────────────────────────────── */
+        ESP_LOGI(TAG, "Phase 1: Coarse sweep (step %u/%u/%u)",
+                 COARSE_FREQ_STEP, COARSE_VOLT_STEP, COARSE_SETTLE_MS);
+
+        uint16_t coarse_best_freq = s_freq_min;
+        uint16_t coarse_best_volt = s_volt_min;
+        double coarse_best_score = -1.0;
+
+        for (uint16_t v = s_volt_min; v <= s_volt_max && !aborted; v += COARSE_VOLT_STEP) {
             esp_err_t err = vr_set_voltage(v);
             if (err != ESP_OK) {
                 ESP_LOGW(TAG, "vr_set_voltage(%u) failed: %d", v, err);
             }
 
-            for (uint16_t f = s_freq_min; f <= s_freq_max && !aborted; f += s_freq_step) {
-                if (check_abort()) {
-                    aborted = true;
-                    break;
+            bool skip_higher_freq = false;
+
+            for (uint16_t f = s_freq_min; f <= s_freq_max && !aborted; f += COARSE_FREQ_STEP) {
+                if (check_abort()) { aborted = true; break; }
+                if (step >= TUNER_MAX_RESULTS) { break; }
+
+                if (skip_higher_freq) {
+                    ESP_LOGI(TAG, "Coarse: skipping %uMHz @ %umV (previous unstable/overheat)", f, v);
+                    continue;
                 }
 
-                if (step >= TUNER_MAX_RESULTS) {
-                    ESP_LOGW(TAG, "Result buffer full, stopping early");
-                    break;
-                }
-
-                /* Set frequency */
                 err = bm1370_set_frequency(f);
                 if (err != ESP_OK) {
                     ESP_LOGW(TAG, "bm1370_set_frequency(%u) failed: %d", f, err);
                 }
 
-                /* Wait 30s for stabilization */
-                vTaskDelay(pdMS_TO_TICKS(30000));
+                vTaskDelay(pdMS_TO_TICKS(COARSE_SETTLE_MS));
+                if (check_abort()) { aborted = true; break; }
 
-                if (check_abort()) {
-                    aborted = true;
-                    break;
+                tuner_result_t *slot = sample_point(step, f, v);
+                if (!slot) { break; }
+
+                double score = tuner_score(slot, s_mode);
+
+                /* Early exit: if score is 0 (unstable/overheat), skip higher freqs at this voltage */
+                if (score <= 0.0) {
+                    skip_higher_freq = true;
                 }
 
-                /* Sample data */
-                const hashrate_info_t *hr = hashrate_task_get_info();
-                const power_status_t *pw = power_task_get_status();
-                float temp = bm1370_read_temperature();
-
-                /* Fill result slot */
-                tuner_result_t *slot = tuner_get_result_slot(step);
-                if (!slot) {
-                    break;
+                if (score > best_score) {
+                    best_score = score;
+                    best_idx = step;
+                }
+                if (score > coarse_best_score) {
+                    coarse_best_score = score;
+                    coarse_best_freq = f;
+                    coarse_best_volt = v;
+                }
+                if (slot->stable && slot->efficiency_ghs_per_w > best_eff) {
+                    best_eff = slot->efficiency_ghs_per_w;
+                    best_eff_idx = step;
                 }
 
-                slot->freq = f;
-                slot->voltage = v;
-                slot->hashrate_ghs = hr ? hr->total_hashrate_ghs : 0.0f;
-                slot->power_w = pw ? pw->power_w : 0.0f;
-                slot->temp = temp;
-                slot->efficiency_ghs_per_w = (slot->power_w > 0.0f)
-                    ? slot->hashrate_ghs / slot->power_w
-                    : 0.0f;
+                step++;
+                tuner_set_result_count(step);
+                tuner_set_step(step, total_est);
+                tuner_set_best(best_idx, best_eff_idx);
 
-                /* Stability: hashrate > 0, no overheat, no VR fault */
-                slot->stable = (slot->hashrate_ghs > 0.0f)
-                    && (pw ? !pw->overheat : true)
-                    && (pw ? !pw->vr_fault : true);
+                ESP_LOGI(TAG, "Coarse %d: %uMHz @ %umV => %.2f GH/s, %.1fW, %.1fC, score=%.2f",
+                         step, f, v, slot->hashrate_ghs, slot->power_w, slot->temp, score);
+            }
+        }
 
-                /* Score and track best */
-                double score = tuner_score(slot);
+        if (aborted) {
+            goto sweep_done;
+        }
+
+        if (coarse_best_score <= 0.0) {
+            ESP_LOGW(TAG, "No viable coarse point found, skipping fine phase");
+            goto sweep_done;
+        }
+
+        /* ── Phase 2: Fine sweep around best coarse result ──────────── */
+        ESP_LOGI(TAG, "Phase 2: Fine sweep around %uMHz @ %umV (coarse score=%.2f)",
+                 coarse_best_freq, coarse_best_volt, coarse_best_score);
+
+        /* Update total estimate now we know how many coarse steps we used */
+        {
+            int fine_freq_steps = (FINE_FREQ_RANGE * 2) / FINE_FREQ_STEP + 1; /* 7 */
+            int fine_volt_steps = (FINE_VOLT_RANGE * 2) / FINE_VOLT_STEP + 1; /* 5 */
+            int fine_max = fine_freq_steps * fine_volt_steps;
+            int new_total = step + fine_max;
+            if (new_total > TUNER_MAX_RESULTS) {
+                new_total = TUNER_MAX_RESULTS;
+            }
+            total_est = new_total;
+            tuner_set_step(step, total_est);
+        }
+
+        /* Compute fine sweep bounds, clamped to original range */
+        uint16_t fine_fmin = (coarse_best_freq > s_freq_min + FINE_FREQ_RANGE)
+            ? coarse_best_freq - FINE_FREQ_RANGE : s_freq_min;
+        uint16_t fine_fmax = (coarse_best_freq + FINE_FREQ_RANGE < s_freq_max)
+            ? coarse_best_freq + FINE_FREQ_RANGE : s_freq_max;
+        uint16_t fine_vmin = (coarse_best_volt > s_volt_min + FINE_VOLT_RANGE)
+            ? coarse_best_volt - FINE_VOLT_RANGE : s_volt_min;
+        uint16_t fine_vmax = (coarse_best_volt + FINE_VOLT_RANGE < s_volt_max)
+            ? coarse_best_volt + FINE_VOLT_RANGE : s_volt_max;
+
+        double skip_threshold = coarse_best_score * FINE_SKIP_RATIO;
+
+        for (uint16_t v = fine_vmin; v <= fine_vmax && !aborted; v += FINE_VOLT_STEP) {
+            esp_err_t err = vr_set_voltage(v);
+            if (err != ESP_OK) {
+                ESP_LOGW(TAG, "vr_set_voltage(%u) failed: %d", v, err);
+            }
+
+            int consec_worse = 0;
+
+            for (uint16_t f = fine_fmin; f <= fine_fmax && !aborted; f += FINE_FREQ_STEP) {
+                if (check_abort()) { aborted = true; break; }
+                if (step >= TUNER_MAX_RESULTS) { break; }
+
+                err = bm1370_set_frequency(f);
+                if (err != ESP_OK) {
+                    ESP_LOGW(TAG, "bm1370_set_frequency(%u) failed: %d", f, err);
+                }
+
+                vTaskDelay(pdMS_TO_TICKS(FINE_SETTLE_MS));
+                if (check_abort()) { aborted = true; break; }
+
+                tuner_result_t *slot = sample_point(step, f, v);
+                if (!slot) { break; }
+
+                double score = tuner_score(slot, s_mode);
+
+                /* Skip clearly worse combos */
+                if (score < skip_threshold) {
+                    ESP_LOGI(TAG, "Fine: %uMHz @ %umV score=%.2f below threshold, skipping", f, v, score);
+                    consec_worse++;
+                    if (consec_worse >= FINE_CONSEC_WORSE_MAX) {
+                        ESP_LOGI(TAG, "Fine: %d consecutive worse, stopping this voltage", consec_worse);
+                        break;
+                    }
+                    /* Still record the result */
+                } else {
+                    consec_worse = 0;
+                }
+
                 if (score > best_score) {
                     best_score = score;
                     best_idx = step;
@@ -152,20 +285,15 @@ static void tuner_task_fn(void *arg)
 
                 step++;
                 tuner_set_result_count(step);
-                tuner_set_step(step, total);
+                tuner_set_step(step, total_est);
                 tuner_set_best(best_idx, best_eff_idx);
 
-                ESP_LOGI(TAG, "Step %d/%d: %uMHz @ %umV => %.2f GH/s, %.1fW, %.1fC, score=%.2f",
-                         step, total, f, v,
-                         slot->hashrate_ghs, slot->power_w, slot->temp, score);
-
-                /* Avoid infinite loop when step is 0 */
-                if (s_freq_step == 0) break;
+                ESP_LOGI(TAG, "Fine %d: %uMHz @ %umV => %.2f GH/s, %.1fW, %.1fC, score=%.2f",
+                         step, f, v, slot->hashrate_ghs, slot->power_w, slot->temp, score);
             }
-            /* Avoid infinite loop when step is 0 */
-            if (s_volt_step == 0) break;
         }
 
+sweep_done:
         if (aborted) {
             tuner_set_state(TUNER_STATE_ABORTED);
             ESP_LOGW(TAG, "Sweep aborted. Restoring original settings: %uMHz @ %umV",
@@ -173,6 +301,8 @@ static void tuner_task_fn(void *arg)
             vr_set_voltage(orig_volt);
             bm1370_set_frequency(orig_freq);
         } else {
+            /* Update final total to actual step count */
+            tuner_set_step(step, step);
             tuner_set_state(TUNER_STATE_COMPLETE);
             ESP_LOGI(TAG, "Sweep complete. %d results collected.", step);
             if (best_idx >= 0) {
@@ -203,15 +333,15 @@ void tuner_task_start(void)
                 TUNER_TASK_PRIORITY, NULL);
 }
 
-void tuner_start(uint16_t freq_min, uint16_t freq_max, uint16_t freq_step,
-                 uint16_t volt_min, uint16_t volt_max, uint16_t volt_step)
+void tuner_start(tuner_mode_t mode,
+                 uint16_t freq_min, uint16_t freq_max,
+                 uint16_t volt_min, uint16_t volt_max)
 {
+    s_mode = mode;
     s_freq_min = freq_min;
     s_freq_max = freq_max;
-    s_freq_step = freq_step;
     s_volt_min = volt_min;
     s_volt_max = volt_max;
-    s_volt_step = volt_step;
 
     xEventGroupSetBits(s_event_group, BIT_START);
 }

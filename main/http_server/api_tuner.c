@@ -40,6 +40,23 @@ static const char *state_str(tuner_state_t s)
     }
 }
 
+static const char *mode_str(tuner_mode_t m)
+{
+    switch (m) {
+        case TUNER_MODE_ECO:      return "eco";
+        case TUNER_MODE_BALANCED: return "balanced";
+        case TUNER_MODE_POWER:    return "power";
+        default:                  return "balanced";
+    }
+}
+
+static tuner_mode_t parse_mode(const char *str)
+{
+    if (str && strcmp(str, "eco") == 0)   return TUNER_MODE_ECO;
+    if (str && strcmp(str, "power") == 0) return TUNER_MODE_POWER;
+    return TUNER_MODE_BALANCED;
+}
+
 /* ── GET /api/tuner/status ─────────────────────────────────────────── */
 
 esp_err_t api_tuner_status_handler(httpd_req_t *req)
@@ -49,6 +66,7 @@ esp_err_t api_tuner_status_handler(httpd_req_t *req)
 
     cJSON *root = cJSON_CreateObject();
     cJSON_AddStringToObject(root, "state", state_str(st->state));
+    cJSON_AddStringToObject(root, "mode", mode_str(st->mode));
 
     /* Progress */
     int pct = 0;
@@ -88,8 +106,27 @@ esp_err_t api_tuner_start_handler(httpd_req_t *req)
 {
     const board_config_t *board = board_get_config();
 
-    tuner_start(board->freq_min, board->freq_max, 25,
-                board->voltage_min, board->voltage_max, 50);
+    /* Parse optional mode from JSON body */
+    tuner_mode_t mode = TUNER_MODE_BALANCED;
+    int content_len = req->content_len;
+    if (content_len > 0 && content_len < 256) {
+        char buf[256] = {0};
+        int ret = httpd_req_recv(req, buf, content_len);
+        if (ret > 0) {
+            cJSON *body = cJSON_Parse(buf);
+            if (body) {
+                cJSON *mode_json = cJSON_GetObjectItem(body, "mode");
+                if (cJSON_IsString(mode_json)) {
+                    mode = parse_mode(mode_json->valuestring);
+                }
+                cJSON_Delete(body);
+            }
+        }
+    }
+
+    tuner_start(mode,
+                board->freq_min, board->freq_max,
+                board->voltage_min, board->voltage_max);
 
     set_cors(req);
     httpd_resp_set_type(req, "application/json");

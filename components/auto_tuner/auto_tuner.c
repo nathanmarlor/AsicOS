@@ -3,24 +3,42 @@
 
 static tuner_status_t s_status;
 
-double tuner_score(const tuner_result_t *r)
+double tuner_score(const tuner_result_t *r, tuner_mode_t mode)
 {
     if (!r->stable) {
         return 0.0;
     }
 
-    /* Temp penalty: above 60C ramp down linearly, above 70C = 0 */
-    double temp_penalty = 1.0;
-    if (r->temp >= 70.0f) {
-        temp_penalty = 0.0;
-    } else if (r->temp > 60.0f) {
-        temp_penalty = 1.0 - (r->temp - 60.0) / 10.0;
+    double score = 0.0;
+
+    switch (mode) {
+    case TUNER_MODE_ECO:
+        /* Pure efficiency: GH/s per watt, penalise high temps heavily */
+        score = (r->power_w > 0) ? r->hashrate_ghs / r->power_w : 0;
+        if (r->temp > 60.0) score *= 1.0 - ((r->temp - 60.0) / 10.0);
+        if (r->temp > 70.0) score = 0.0;
+        break;
+
+    case TUNER_MODE_BALANCED:
+        /* Hashrate weighted by efficiency and thermal headroom */
+        score = r->hashrate_ghs;
+        {
+            double eff = (r->power_w > 0) ? r->hashrate_ghs / r->power_w : 0;
+            score *= (1.0 + eff * 0.1);
+        }
+        if (r->temp > 60.0) score *= 1.0 - ((r->temp - 60.0) / 10.0);
+        if (r->temp > 70.0) score = 0.0;
+        break;
+
+    case TUNER_MODE_POWER:
+        /* Raw hashrate, only penalise near overheat */
+        score = r->hashrate_ghs;
+        if (r->temp > 68.0) score *= 1.0 - ((r->temp - 68.0) / 5.0);
+        if (r->temp > 73.0) score = 0.0;
+        break;
     }
 
-    /* Efficiency bonus: 1.0 + (GH/s per watt) * 0.1 */
-    double efficiency_bonus = 1.0 + (double)r->efficiency_ghs_per_w * 0.1;
-
-    return (double)r->hashrate_ghs * efficiency_bonus * temp_penalty;
+    return score;
 }
 
 const tuner_status_t *tuner_get_status(void)
@@ -33,10 +51,16 @@ void tuner_set_state(tuner_state_t state)
     s_status.state = state;
 }
 
+void tuner_set_mode(tuner_mode_t mode)
+{
+    s_status.mode = mode;
+}
+
 void tuner_reset_status(void)
 {
     memset(&s_status, 0, sizeof(s_status));
     s_status.state = TUNER_STATE_IDLE;
+    s_status.mode = TUNER_MODE_BALANCED;
     s_status.best_index = -1;
     s_status.best_eff_index = -1;
 }
