@@ -122,7 +122,25 @@ void app_main(void)
     const board_config_t *board = board_get_config();
     ESP_LOGI(TAG, "Board: %s, ASIC: %s", board->name, board->asic_model);
 
-    // 3. Self-test (POST)
+    // 3. WiFi (non-blocking, runs as FreeRTOS task)
+    wifi_task_start();
+
+    // 4. I2C bus init (needed before power/fan/temp)
+    esp_err_t i2c_err = init_i2c(board);
+    if (i2c_err != ESP_OK) {
+        ESP_LOGE(TAG, "I2C init failed: %s", esp_err_to_name(i2c_err));
+    }
+
+    // 5. Serial/UART (must be before self-test and ASIC init)
+    serial_config_t serial_cfg = {
+        .port = UART_NUM_1,
+        .tx_pin = board->uart_tx_pin,
+        .rx_pin = board->uart_rx_pin,
+        .baud_rate = 115200,
+    };
+    serial_init(&serial_cfg);
+
+    // 6. Self-test (POST) - runs after serial/I2C so ASIC and sensor tests work
     selftest_report_t report = selftest_run();
     for (int i = 0; i < report.check_count; i++) {
         selftest_check_t check = report.checks[i];
@@ -134,24 +152,6 @@ void app_main(void)
     if (!report.all_pass) {
         ESP_LOGW(TAG, "POST: some checks failed, continuing boot");
     }
-
-    // 4. WiFi (non-blocking, runs as FreeRTOS task)
-    wifi_task_start();
-
-    // 5. I2C bus init (needed before power/fan/temp)
-    esp_err_t i2c_err = init_i2c(board);
-    if (i2c_err != ESP_OK) {
-        ESP_LOGE(TAG, "I2C init failed: %s", esp_err_to_name(i2c_err));
-    }
-
-    // 6. Serial/UART
-    serial_config_t serial_cfg = {
-        .port = UART_NUM_1,
-        .tx_pin = board->uart_tx_pin,
-        .rx_pin = board->uart_rx_pin,
-        .baud_rate = 115200,
-    };
-    serial_init(&serial_cfg);
 
     // 7. ASIC init
     uint16_t freq = nvs_config_get_u16(NVS_KEY_ASIC_FREQ, board->freq_default);

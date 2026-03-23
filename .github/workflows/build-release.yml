@@ -45,11 +45,12 @@ jobs:
             cp build/partition_table/partition-table.bin artifacts/AsicOS-${{ matrix.board_name }}-partitions.bin
 
             # Merged binary for one-shot flashing
+            # Use offsets from build output (flash_args)
             esptool.py --chip esp32s3 merge_bin \
               --output artifacts/AsicOS-${{ matrix.board_name }}-merged.bin \
               --flash_mode dio --flash_size 16MB \
               0x0 build/bootloader/bootloader.bin \
-              0x10000 build/partition_table/partition-table.bin \
+              0x8000 build/partition_table/partition-table.bin \
               0x20000 build/AsicOS.bin
 
       - name: Upload firmware
