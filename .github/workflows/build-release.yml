@@ -1,0 +1,148 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+env:
+  IDF_VERSION: v5.3
+
+jobs:
+  build-firmware:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        board: [ASICOS_BOARD_V1, ASICOS_BOARD_NERDQAXEPP, ASICOS_BOARD_BITFORGE_NANO]
+        include:
+          - board: ASICOS_BOARD_V1
+            board_name: asicos-v1
+          - board: ASICOS_BOARD_NERDQAXEPP
+            board_name: nerdqaxepp
+          - board: ASICOS_BOARD_BITFORGE_NANO
+            board_name: bitforge-nano
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup ESP-IDF
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: ${{ env.IDF_VERSION }}
+          target: esp32s3
+          command: |
+            # Set board via sdkconfig
+            echo "CONFIG_${{ matrix.board }}=y" >> sdkconfig.defaults
+
+            # Build firmware
+            idf.py set-target esp32s3
+            idf.py build
+
+            # Rename output binaries with board name
+            mkdir -p artifacts
+            cp build/AsicOS.bin artifacts/AsicOS-${{ matrix.board_name }}.bin
+            cp build/bootloader/bootloader.bin artifacts/bootloader-${{ matrix.board_name }}.bin
+            cp build/partition_table/partition-table.bin artifacts/partition-table-${{ matrix.board_name }}.bin
+
+            # Create combined flashable binary
+            esptool.py --chip esp32s3 merge_bin \
+              -o artifacts/AsicOS-${{ matrix.board_name }}-full.bin \
+              --flash_mode dio --flash_size 16MB \
+              0x0 build/bootloader/bootloader.bin \
+              0x10000 build/partition_table/partition-table.bin \
+              0x20000 build/AsicOS.bin
+
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.board_name }}
+          path: artifacts/
+
+  build-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Build UI
+        working-directory: ui
+        run: |
+          npm ci
+          npm run build
+
+      - name: Generate SPIFFS image
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: ${{ env.IDF_VERSION }}
+          target: esp32s3
+          command: |
+            python $IDF_PATH/components/spiffs/spiffsgen.py \
+              0x300000 build/www ui/www.bin
+
+      - name: Upload UI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-spiffs
+          path: ui/www.bin
+
+  release-beta:
+    needs: [build-firmware, build-ui]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Get short SHA
+        id: sha
+        run: echo "short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Create beta release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: beta-${{ steps.sha.outputs.short }}
+          name: "Beta Build ${{ steps.sha.outputs.short }}"
+          prerelease: true
+          generate_release_notes: true
+          body: |
+            ## AsicOS Beta Build
+
+            Automated beta build from `main` branch at commit `${{ github.sha }}`.
+
+            ### Firmware Binaries
+            - **AsicOS V1** - `AsicOS-asicos-v1-full.bin`
+            - **NerdQAxe++** - `AsicOS-nerdqaxepp-full.bin`
+            - **BitForge Nano** - `AsicOS-bitforge-nano-full.bin`
+
+            ### Flashing
+            ```bash
+            esptool.py --chip esp32s3 --port /dev/ttyUSB0 write_flash 0x0 AsicOS-<board>-full.bin
+            ```
+
+            ### Web UI
+            Flash `www.bin` to the SPIFFS partition:
+            ```bash
+            esptool.py --chip esp32s3 --port /dev/ttyUSB0 write_flash 0x420000 www.bin
+            ```
+
+            > **Beta**: This is an automated pre-release build. Use at your own risk.
+          files: |
+            release-assets/firmware-asicos-v1/*
+            release-assets/firmware-nerdqaxepp/*
+            release-assets/firmware-bitforge-nano/*
+            release-assets/ui-spiffs/*
