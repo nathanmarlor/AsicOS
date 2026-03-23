@@ -215,9 +215,8 @@ const timeToBlock = computed(() => {
     </div>
 
     <!-- Footer stats -->
-    <div class="flex justify-between text-[10px] font-mono text-[var(--text-muted)] pt-1">
+    <div class="text-center text-[10px] font-mono text-[var(--text-muted)] pt-1">
       <span>uptime: {{ uptime }}</span>
-      <span>{{ power.toFixed(1) }}W</span>
     </div>
   </div>
 </template>
