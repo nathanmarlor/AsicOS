@@ -2,6 +2,8 @@
 import { onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import ModeToggle from './components/ModeToggle.vue'
+import ThemeToggle from './components/ThemeToggle.vue'
+import Logo from './components/Logo.vue'
 import { useSystemStore } from './stores/system'
 import { useMiningStore } from './stores/mining'
 
@@ -21,17 +23,18 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#0a0a0a] text-gray-200 font-sans">
+  <div class="min-h-screen font-sans" style="background-color: var(--bg); color: var(--text);">
     <!-- Top bar -->
-    <header class="h-10 flex items-center justify-between px-4 border-b border-border bg-surface select-none">
-      <router-link to="/" class="flex items-center gap-2 text-sm font-mono font-medium text-gray-300 hover:text-white transition-colors">
-        <span class="text-accent font-bold">Asic</span><span>OS</span>
-        <span v-if="system.info" class="text-[10px] text-gray-600 ml-1">{{ system.info.board_name }}</span>
+    <header class="h-10 flex items-center justify-between px-4 border-b select-none" style="border-color: var(--border); background-color: var(--surface);">
+      <router-link to="/" class="flex items-center gap-2 text-sm font-mono font-medium hover:text-white transition-colors" style="color: var(--text);">
+        <Logo />
+        <span v-if="system.info" class="text-[10px] ml-1" style="color: var(--text-muted);">{{ system.info.board_name }}</span>
       </router-link>
 
       <div class="flex items-center gap-3">
         <ModeToggle />
-        <router-link to="/settings" class="text-gray-500 hover:text-gray-300 transition-colors text-xs font-mono">
+        <ThemeToggle />
+        <router-link to="/settings" class="hover:text-gray-300 transition-colors text-xs font-mono" style="color: var(--text-secondary);">
           settings
         </router-link>
       </div>
