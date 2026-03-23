@@ -1,6 +1,14 @@
+if(CONFIG_ASICOS_BOARD_NERDQAXEPP)
+    set(BOARD_SRC "boards/nerdqaxepp.c")
+elseif(CONFIG_ASICOS_BOARD_BITFORGE_NANO)
+    set(BOARD_SRC "boards/bitforge_nano.c")
+else()
+    set(BOARD_SRC "boards/asicos_v1.c")
+endif()
+
 idf_component_register(
     SRCS "main.c"
-          "boards/asicos_v1.c"
+          "${BOARD_SRC}"
           "tasks/wifi_task.c"
           "http_server/http_server.c"
           "http_server/api_system.c"

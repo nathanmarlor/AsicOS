@@ -8,6 +8,12 @@ menu "AsicOS Configuration"
 
         config ASICOS_BOARD_V1
             bool "AsicOS V1"
+
+        config ASICOS_BOARD_NERDQAXEPP
+            bool "NerdQAxe++"
+
+        config ASICOS_BOARD_BITFORGE_NANO
+            bool "BitForge Nano"
     endchoice
 
 endmenu
