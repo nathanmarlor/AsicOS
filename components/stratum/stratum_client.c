@@ -53,6 +53,10 @@ static int pool_id(void)
 
 static void handle_line(const char *line)
 {
+    if (!line || line[0] == '\0') {
+        return;
+    }
+
     char method[64];
     if (stratum_detect_method(line, method, sizeof(method)) == 0) {
         /* Server push methods */

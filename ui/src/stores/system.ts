@@ -40,7 +40,12 @@ export const useSystemStore = defineStore('system', () => {
 
   async function poll() {
     try {
-      info.value = await get<SystemInfo>('/api/system/info')
+      const data = await get<SystemInfo>('/api/system/info')
+      if (info.value) {
+        Object.assign(info.value, data)
+      } else {
+        info.value = data
+      }
       error.value = null
 
       if (info.value) {

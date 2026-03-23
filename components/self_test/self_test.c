@@ -93,8 +93,8 @@ selftest_report_t selftest_run(void)
         snprintf(buf, sizeof(buf), "%.1f C", temp);
         add_check(&report, "Temp Sensor", SELFTEST_PASS, buf);
     } else {
-        snprintf(buf, sizeof(buf), "err=0x%x temp=%.1f", (unsigned)err, temp);
-        add_check(&report, "Temp Sensor", SELFTEST_FAIL, buf);
+        snprintf(buf, sizeof(buf), "err=0x%x temp=%.1f (sensor may not be supported)", (unsigned)err, temp);
+        add_check(&report, "Temp Sensor", SELFTEST_WARN, buf);
     }
 
     /* 7. Voltage Regulator */

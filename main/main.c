@@ -3,6 +3,7 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "driver/i2c.h"
+#include "driver/gpio.h"
 
 #include "nvs_config.h"
 #include "board.h"
@@ -65,7 +66,7 @@ static void init_stratum(const board_config_t *board)
     cfg.on_difficulty = mining_on_difficulty;
 
     stratum_client_init(&cfg);
-    xTaskCreate(stratum_client_task, "stratum", 16384, NULL, 5, NULL);
+    xTaskCreate(stratum_client_task, "stratum", 24576, NULL, 5, NULL);
 }
 
 static void init_power(const board_config_t *board)
@@ -154,7 +155,29 @@ void app_main(void)
         ESP_LOGW(TAG, "POST: some checks failed, continuing boot");
     }
 
-    // 7. ASIC init
+    // 7. ASIC power-on sequence and init
+    // Enable buck converter (powers the ASICs)
+    gpio_reset_pin(board->buck_enable_pin);
+    gpio_set_direction(board->buck_enable_pin, GPIO_MODE_OUTPUT);
+    gpio_set_level(board->buck_enable_pin, 1);
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    // Enable LDO if present (some boards like NerdQAxe have separate LDO)
+    if (board->ldo_enable_pin >= 0) {
+        gpio_reset_pin(board->ldo_enable_pin);
+        gpio_set_direction(board->ldo_enable_pin, GPIO_MODE_OUTPUT);
+        gpio_set_level(board->ldo_enable_pin, 1);
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+
+    // ASIC reset sequence: assert low, wait, release high
+    gpio_reset_pin(board->asic_reset_pin);
+    gpio_set_direction(board->asic_reset_pin, GPIO_MODE_OUTPUT);
+    gpio_set_level(board->asic_reset_pin, 0);  // Assert reset
+    vTaskDelay(pdMS_TO_TICKS(100));
+    gpio_set_level(board->asic_reset_pin, 1);  // Release reset
+    vTaskDelay(pdMS_TO_TICKS(100));
+
     uint16_t freq = nvs_config_get_u16(NVS_KEY_ASIC_FREQ, board->freq_default);
     bm1370_init(board->expected_chip_count);
     bm1370_set_frequency(freq);

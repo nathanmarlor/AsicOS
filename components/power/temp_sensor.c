@@ -33,6 +33,8 @@ esp_err_t temp_sensor_read(uint8_t index, float *temperature)
                                                   &reg, 1, rx, 2,
                                                   pdMS_TO_TICKS(I2C_TIMEOUT_MS));
     if (err != ESP_OK) {
+        *temperature = 0.0f;
+        ESP_LOGD(TAG, "sensor %d read failed: 0x%X", index, err);
         return err;
     }
 

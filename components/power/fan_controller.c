@@ -54,9 +54,13 @@ esp_err_t fan_set_speed(uint8_t channel, uint8_t percent)
     uint8_t buf[2] = { fan_setting_reg(channel), val };
 
     ESP_LOGI(TAG, "fan%d speed %u%% -> 0x%02X", channel, percent, val);
-    return i2c_master_write_to_device(s_config.port, s_config.address,
-                                      buf, sizeof(buf),
-                                      pdMS_TO_TICKS(I2C_TIMEOUT_MS));
+    esp_err_t err = i2c_master_write_to_device(s_config.port, s_config.address,
+                                                buf, sizeof(buf),
+                                                pdMS_TO_TICKS(I2C_TIMEOUT_MS));
+    if (err != ESP_OK) {
+        ESP_LOGD(TAG, "fan%d set speed failed: 0x%X", channel, err);
+    }
+    return err;
 }
 
 esp_err_t fan_get_rpm(uint8_t channel, uint16_t *rpm)
@@ -75,6 +79,8 @@ esp_err_t fan_get_rpm(uint8_t channel, uint16_t *rpm)
                                         &hi_reg, 1, &hi, 1,
                                         pdMS_TO_TICKS(I2C_TIMEOUT_MS));
     if (err != ESP_OK) {
+        ESP_LOGD(TAG, "fan%d tach read failed: 0x%X", channel, err);
+        *rpm = 0;
         return err;
     }
 
@@ -82,6 +88,8 @@ esp_err_t fan_get_rpm(uint8_t channel, uint16_t *rpm)
                                         &lo_reg, 1, &lo, 1,
                                         pdMS_TO_TICKS(I2C_TIMEOUT_MS));
     if (err != ESP_OK) {
+        ESP_LOGD(TAG, "fan%d tach read failed: 0x%X", channel, err);
+        *rpm = 0;
         return err;
     }
 

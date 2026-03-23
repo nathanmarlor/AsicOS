@@ -87,7 +87,12 @@ export const useMiningStore = defineStore('mining', () => {
   async function poll() {
     try {
       const prev = info.value
-      info.value = await get<MiningInfo>('/api/mining/info')
+      const data = await get<MiningInfo>('/api/mining/info')
+      if (info.value) {
+        Object.assign(info.value, data)
+      } else {
+        info.value = data
+      }
       error.value = null
 
       // Detect new pool-submitted shares from accepted count changes
