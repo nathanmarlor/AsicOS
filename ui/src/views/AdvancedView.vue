@@ -258,16 +258,36 @@ async function restart() {
           :height="200"
           label="HASHRATE (GH/s)"
           show-grid
+          :reference-line="expectedGhs > 0 ? expectedGhs : undefined"
+          reference-label="expected"
         />
       </div>
-      <div class="lg:col-span-2 bg-[var(--surface)] border border-[var(--border)] rounded p-3">
+      <div class="lg:col-span-2 bg-[var(--surface)] border border-[var(--border)] rounded p-3 relative">
         <HashChart
           :data="system.chipTempHistory"
           color="#ef4444"
           :height="200"
           label="TEMPERATURE (C)"
           show-grid
+          :min-y="20"
+          :max-y="100"
+          :reference-line="75"
+          reference-label="max"
         />
+        <div class="absolute inset-0 p-3">
+          <HashChart
+            :data="system.vrTempHistory"
+            color="#3b82f6"
+            :height="200"
+            :show-grid="false"
+            :min-y="20"
+            :max-y="100"
+          />
+        </div>
+        <div class="flex gap-4 mt-1 text-[10px] font-mono">
+          <span class="text-[#ef4444]">&mdash; ASIC</span>
+          <span class="text-[#3b82f6]">&mdash; VRM</span>
+        </div>
       </div>
     </div>
 

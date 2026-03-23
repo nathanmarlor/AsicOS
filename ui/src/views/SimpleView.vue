@@ -28,6 +28,10 @@ const uptime = computed(() => {
   return d > 0 ? `${d}d ${h}h ${m}m` : `${h}h ${m}m`
 })
 const power = computed(() => system.info?.power.watts ?? 0)
+const expectedGhs = computed(() => {
+  if (!system.info) return 0
+  return (system.info.config.frequency * 2040 * system.info.expected_chips) / 1000
+})
 
 // Health overview
 const vrmTemp = computed(() => system.info?.temps.vr ?? 0)
@@ -106,6 +110,7 @@ const timeToBlock = computed(() => {
           {{ hashrate.toFixed(1) }}
         </div>
         <div class="text-sm font-mono text-[var(--text-secondary)] mt-1 tracking-widest">GH/s</div>
+        <div v-if="expectedGhs > 0" class="text-[11px] font-mono text-[var(--text-muted)] mt-0.5">expected: {{ expectedGhs.toLocaleString() }}</div>
         <!-- Accent underline -->
         <div class="mt-2 mx-auto h-[2px] w-16 bg-[#f97316] rounded-full" :class="{ 'animate-pulse-subtle': isMining }" />
       </div>
