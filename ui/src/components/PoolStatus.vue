@@ -12,7 +12,7 @@ defineProps<{
       :class="connected ? 'bg-green-500' : 'bg-red-500'"
     />
     <span class="text-[var(--text-secondary)] truncate">{{ url }}</span>
-    <span :class="connected ? 'text-[#22c55e]' : 'text-[#ef4444]'"
+    <span :class="connected ? 'text-[#22c55e]' : 'text-[#ef4444]'">
       {{ connected ? 'connected' : 'disconnected' }}
     </span>
   </div>

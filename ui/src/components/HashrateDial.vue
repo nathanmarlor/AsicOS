@@ -40,7 +40,7 @@ watch(() => props.hashrate, (newVal) => {
         class="w-1.5 h-1.5 rounded-full"
         :class="isMining ? 'bg-green-500 animate-pulse-subtle' : 'bg-[var(--text-muted)]'"
       />
-      <span class="text-[11px] font-mono" :class="isMining ? 'text-green-500' : 'text-[var(--text-muted)]'"
+      <span class="text-[11px] font-mono" :class="isMining ? 'text-green-500' : 'text-[var(--text-muted)]'">
         {{ isMining ? 'mining' : 'idle' }}
       </span>
     </div>
