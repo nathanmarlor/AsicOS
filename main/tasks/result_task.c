@@ -1,0 +1,148 @@
+#include "result_task.h"
+#include "mining_task.h"
+#include "stratum_client.h"
+#include "stratum_job.h"
+#include "bm1370.h"
+#include "mining.h"
+#include "nvs_config.h"
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_log.h"
+
+#include <string.h>
+#include <math.h>
+
+static const char *TAG = "result_task";
+
+#define DEDUP_RING_SIZE 32
+#define RESULT_TIMEOUT_MS 60000
+
+typedef struct {
+    uint32_t nonce;
+    uint16_t version;
+} dedup_entry_t;
+
+static dedup_entry_t s_dedup_ring[DEDUP_RING_SIZE];
+static int           s_dedup_index = 0;
+
+static mining_stats_t s_stats;
+
+const mining_stats_t *result_task_get_stats(void)
+{
+    return &s_stats;
+}
+
+static bool is_duplicate(uint32_t nonce, uint16_t version)
+{
+    for (int i = 0; i < DEDUP_RING_SIZE; i++) {
+        if (s_dedup_ring[i].nonce == nonce && s_dedup_ring[i].version == version) {
+            return true;
+        }
+    }
+    /* Add to ring */
+    s_dedup_ring[s_dedup_index].nonce   = nonce;
+    s_dedup_ring[s_dedup_index].version = version;
+    s_dedup_index = (s_dedup_index + 1) % DEDUP_RING_SIZE;
+    return false;
+}
+
+static void result_task_fn(void *param)
+{
+    ESP_LOGI(TAG, "Result task started");
+
+    /* Load persisted best difficulty */
+    uint64_t stored_diff = nvs_config_get_u64(NVS_KEY_BEST_DIFF, 0);
+    double best_diff_bits;
+    memcpy(&best_diff_bits, &stored_diff, sizeof(double));
+    if (!isfinite(best_diff_bits) || best_diff_bits < 0.0) {
+        best_diff_bits = 0.0;
+    }
+    s_stats.best_difficulty = best_diff_bits;
+
+    asic_result_t result;
+
+    for (;;) {
+        int rc = asic_receive_result(&result, RESULT_TIMEOUT_MS);
+        if (rc <= 0) {
+            ESP_LOGD(TAG, "No result received (timeout)");
+            continue;
+        }
+
+        /* Map ASIC job ID back to original job ID */
+        uint8_t original_id = bm1370_asic_to_job_id(result.job_id);
+
+        /* Lookup job */
+        const asic_job_t *job = mining_get_job(original_id);
+        if (!job) {
+            ESP_LOGW(TAG, "No job found for ASIC id %u (original %u)", result.job_id, original_id);
+            continue;
+        }
+
+        /* Check duplicate */
+        if (is_duplicate(result.nonce, result.rolled_version)) {
+            s_stats.duplicate_nonces++;
+            ESP_LOGD(TAG, "Duplicate nonce 0x%08lx", (unsigned long)result.nonce);
+            continue;
+        }
+
+        /* Build block header and test nonce with version rolling */
+        uint8_t header[80];
+        uint32_t rolled_version = job->version | ((uint32_t)result.rolled_version << 13);
+
+        mining_build_block_header(header, rolled_version, job->prev_block_hash,
+                                  job->merkle_root, job->ntime, job->nbits,
+                                  result.nonce);
+
+        double share_diff = 0.0;
+        bool valid = mining_test_nonce(header, result.nonce, result.rolled_version, &share_diff);
+
+        if (!valid || share_diff <= 0.0) {
+            ESP_LOGD(TAG, "Invalid nonce test result");
+            continue;
+        }
+
+        /* Update best difficulty */
+        if (share_diff > s_stats.best_difficulty) {
+            s_stats.best_difficulty = share_diff;
+            ESP_LOGI(TAG, "New best difficulty: %.4f", share_diff);
+
+            /* Persist to NVS */
+            uint64_t diff_as_u64;
+            memcpy(&diff_as_u64, &share_diff, sizeof(uint64_t));
+            nvs_config_set_u64(NVS_KEY_BEST_DIFF, diff_as_u64);
+        }
+
+        /* If share meets pool difficulty, submit */
+        if (share_diff >= job->pool_diff) {
+            char nonce_hex[9];
+            char version_hex[9];
+            snprintf(nonce_hex, sizeof(nonce_hex), "%08lx", (unsigned long)result.nonce);
+            snprintf(version_hex, sizeof(version_hex), "%04x", result.rolled_version);
+
+            char ntime_hex[9];
+            snprintf(ntime_hex, sizeof(ntime_hex), "%08lx", (unsigned long)job->ntime);
+
+            esp_err_t err = stratum_client_submit_share(
+                job->stratum_job_id, job->extranonce2,
+                ntime_hex, nonce_hex, version_hex);
+
+            if (err == ESP_OK) {
+                s_stats.total_shares_submitted++;
+                ESP_LOGI(TAG, "Share submitted: diff=%.4f pool_diff=%.4f nonce=0x%s",
+                         share_diff, job->pool_diff, nonce_hex);
+            } else {
+                ESP_LOGW(TAG, "Share submission failed: %s", esp_err_to_name(err));
+            }
+        }
+    }
+}
+
+void result_task_start(void)
+{
+    memset(&s_stats, 0, sizeof(s_stats));
+    memset(s_dedup_ring, 0, sizeof(s_dedup_ring));
+
+    xTaskCreate(result_task_fn, "result", RESULT_TASK_STACK_SIZE,
+                NULL, RESULT_TASK_PRIORITY, NULL);
+}
