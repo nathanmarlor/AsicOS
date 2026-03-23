@@ -36,7 +36,6 @@ export const useMiningStore = defineStore('mining', () => {
   const shares = allShares
   let timer: ReturnType<typeof setInterval> | null = null
   let prevAccepted = 0
-  let shareGenTimer: ReturnType<typeof setInterval> | null = null
 
   const totalHashrate = computed(() => info.value?.hashrate_ghs ?? 0)
 
@@ -53,36 +52,7 @@ export const useMiningStore = defineStore('mining', () => {
     }
   }
 
-  // Generate realistic share events between polls
-  function startShareGen() {
-    if (shareGenTimer) return
-    // Generate "all" shares (below pool diff) every 1-3 seconds
-    function scheduleNext() {
-      const delay = 1000 + Math.random() * 2000
-      shareGenTimer = setTimeout(() => {
-        if (info.value) {
-          // Exponential distribution for difficulty
-          const diff = Math.pow(2, Math.random() * 14 + 3) // 8 to ~16K range
-          addShare({
-            ts: Date.now(),
-            diff,
-            diff_str: formatDiff(diff),
-            accepted: true,
-            submitted: false,
-          })
-        }
-        scheduleNext()
-      }, delay)
-    }
-    scheduleNext()
-  }
-
-  function stopShareGen() {
-    if (shareGenTimer) {
-      clearTimeout(shareGenTimer)
-      shareGenTimer = null
-    }
-  }
+  // Share generation removed - shares only come from real ASIC nonce results
 
   async function poll() {
     try {
@@ -133,7 +103,6 @@ export const useMiningStore = defineStore('mining', () => {
     if (timer) return
     poll()
     timer = setInterval(poll, 3000)
-    startShareGen()
   }
 
   function stop() {
@@ -141,7 +110,6 @@ export const useMiningStore = defineStore('mining', () => {
       clearInterval(timer)
       timer = null
     }
-    stopShareGen()
   }
 
   return {
