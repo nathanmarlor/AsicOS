@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "esp_psram.h"
+#include "esp_heap_caps.h"
 #include "esp_system.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -44,7 +44,7 @@ selftest_report_t selftest_run(void)
     char buf[64];
 
     /* 1. PSRAM */
-    size_t psram_size = esp_psram_get_size();
+    size_t psram_size = heap_caps_get_total_size(MALLOC_CAP_SPIRAM);
     if (psram_size > 0) {
         snprintf(buf, sizeof(buf), "%u KB", (unsigned)(psram_size / 1024));
         add_check(&report, "PSRAM", SELFTEST_PASS, buf);

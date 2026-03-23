@@ -67,7 +67,7 @@ static void init_stratum(const board_config_t *board)
 static void init_power(const board_config_t *board)
 {
     vr_config_t vr_cfg = {
-        .i2c_port = I2C_NUM_0,
+        .port = I2C_NUM_0,
         .address = board->vr_i2c_addr,
     };
     vr_init(&vr_cfg);
@@ -77,17 +77,17 @@ static void init_power(const board_config_t *board)
     vr_enable(true);
 
     temp_sensor_config_t temp_cfg = {
-        .i2c_port = I2C_NUM_0,
+        .port = I2C_NUM_0,
         .count = board->temp_sensor_count,
     };
     // Set default TMP1075 addresses
-    for (int i = 0; i < temp_cfg.count && i < MAX_TEMP_SENSORS; i++) {
+    for (int i = 0; i < temp_cfg.count && i < TEMP_SENSOR_MAX_COUNT; i++) {
         temp_cfg.addresses[i] = 0x48 + i;
     }
     temp_sensor_init(&temp_cfg);
 
     fan_config_t fan_cfg = {
-        .i2c_port = I2C_NUM_0,
+        .port = I2C_NUM_0,
         .address = board->fan_i2c_addr,
     };
     fan_init(&fan_cfg);
@@ -141,10 +141,16 @@ void app_main(void)
     }
 
     // 6. Serial/UART
-    serial_init(board->tx_pin, board->rx_pin, 115200);
+    serial_config_t serial_cfg = {
+        .port = UART_NUM_1,
+        .tx_pin = board->uart_tx_pin,
+        .rx_pin = board->uart_rx_pin,
+        .baud_rate = 115200,
+    };
+    serial_init(&serial_cfg);
 
     // 7. ASIC init
-    uint16_t freq = nvs_config_get_u16(NVS_KEY_ASIC_FREQ, board->frequency_default);
+    uint16_t freq = nvs_config_get_u16(NVS_KEY_ASIC_FREQ, board->freq_default);
     bm1370_init(board->expected_chip_count);
     bm1370_set_frequency(freq);
     serial_set_baud(1000000);
