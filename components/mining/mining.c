@@ -1,6 +1,7 @@
 #include "mining.h"
 #include "sha256.h"
 #include <string.h>
+#include <stdint.h>
 
 static const double TRUEDIFFONE =
     26959535291011309493156476344723991336010898738574164086137773096960.0;
@@ -12,22 +13,40 @@ void mining_double_sha256(const uint8_t *data, size_t len, uint8_t *out)
     sha256_hash(tmp, 32, out);
 }
 
+/* Matches forge-os le256todouble() exactly */
+static const double bits192 = 6277101735386680763835789423207666416102355444464034512896.0;
+static const double bits128 = 340282366920938463463374607431768211456.0;
+static const double bits64  = 18446744073709551616.0;
+
+static double le256todouble(const void *target)
+{
+    uint64_t *data64;
+    double dcut64;
+
+    data64 = (uint64_t *)((const uint8_t *)target + 24);
+    dcut64 = *data64 * bits192;
+
+    data64 = (uint64_t *)((const uint8_t *)target + 16);
+    dcut64 += *data64 * bits128;
+
+    data64 = (uint64_t *)((const uint8_t *)target + 8);
+    dcut64 += *data64 * bits64;
+
+    data64 = (uint64_t *)((const uint8_t *)target);
+    dcut64 += *data64;
+
+    return dcut64;
+}
+
 double mining_difficulty_from_hash(const uint8_t *hash)
 {
-    double d = 0.0;
+    double d64, s64, ds;
 
-    /* Interpret 32-byte hash as little-endian number (matching forge-os
-     * le256todouble: byte[0] is the least significant byte).
-     * The double-SHA256 result is in LE byte order. */
-    for (int i = 31; i >= 0; i--) {
-        d = d * 256.0 + (double)hash[i];
-    }
+    d64 = TRUEDIFFONE;
+    s64 = le256todouble(hash);
+    ds = d64 / s64;
 
-    if (d == 0.0) {
-        return TRUEDIFFONE;
-    }
-
-    return TRUEDIFFONE / d;
+    return ds;
 }
 
 void mining_compute_merkle_root(const uint8_t *coinbase_hash,
