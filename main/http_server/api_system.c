@@ -443,7 +443,7 @@ esp_err_t api_system_ota_check_handler(httpd_req_t *req)
 
     char url[256];
     snprintf(url, sizeof(url),
-             "https://api.github.com/repos/%s/releases/latest",
+             "https://api.github.com/repos/%s/releases?per_page=1",
              GITHUB_OTA_REPO);
 
     char *resp_buf = calloc(1, OTA_CHECK_BUF_SIZE);
@@ -477,11 +477,18 @@ esp_err_t api_system_ota_check_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    /* Parse the GitHub release JSON */
-    cJSON *gh = cJSON_Parse(resp_buf);
+    /* Parse the GitHub releases JSON (array with 1 element) */
+    cJSON *gh_array = cJSON_Parse(resp_buf);
     free(resp_buf);
-    if (!gh) {
+    if (!gh_array) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to parse GitHub response");
+        return ESP_FAIL;
+    }
+
+    cJSON *gh = cJSON_IsArray(gh_array) ? cJSON_GetArrayItem(gh_array, 0) : gh_array;
+    if (!gh) {
+        cJSON_Delete(gh_array);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "No releases found");
         return ESP_FAIL;
     }
 
@@ -507,7 +514,7 @@ esp_err_t api_system_ota_check_handler(httpd_req_t *req)
     cJSON_AddBoolToObject(root, "update_available",  update_available);
     cJSON_AddStringToObject(root, "download_url",    download_url);
 
-    cJSON_Delete(gh);
+    cJSON_Delete(gh_array);
     send_json(req, root);
     return ESP_OK;
 }
