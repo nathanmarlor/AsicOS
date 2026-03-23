@@ -31,6 +31,7 @@ export const useSystemStore = defineStore('system', () => {
   const chipTempHistory = ref<number[]>([])
   const powerHistory = ref<number[]>([])
   const vrTempHistory = ref<number[]>([])
+  const efficiencyHistory = ref<number[]>([])
 
   function pushHistory(arr: number[], val: number) {
     arr.push(val)
@@ -47,6 +48,9 @@ export const useSystemStore = defineStore('system', () => {
         pushHistory(chipTempHistory.value, info.value.temps.chip)
         pushHistory(powerHistory.value, info.value.power.watts)
         pushHistory(vrTempHistory.value, info.value.temps.vr)
+        const eff = info.value.power.watts > 0
+          ? info.value.hashrate_ghs / info.value.power.watts : 0
+        pushHistory(efficiencyHistory.value, eff)
       }
     } catch (e: any) {
       error.value = e.message
@@ -68,6 +72,6 @@ export const useSystemStore = defineStore('system', () => {
 
   return {
     info, error, start, stop, poll,
-    hashrateHistory, chipTempHistory, powerHistory, vrTempHistory
+    hashrateHistory, chipTempHistory, powerHistory, vrTempHistory, efficiencyHistory
   }
 })

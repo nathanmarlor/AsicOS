@@ -208,7 +208,9 @@ async function restart() {
         label="Efficiency"
         :value="efficiency.toFixed(2)"
         unit="GH/s/W"
+        :history="system.efficiencyHistory"
         status="neutral"
+        spark-color="#22c55e"
       />
       <KpiCard
         label="Power"
@@ -256,7 +258,7 @@ async function restart() {
           :data="system.chipTempHistory"
           color="#ef4444"
           :height="200"
-          label="TEMPERATURE (\u00B0C)"
+          label="TEMPERATURE (C)"
           show-grid
         />
       </div>
