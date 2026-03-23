@@ -13,3 +13,4 @@ typedef struct {
 
 void result_task_start(void);
 const mining_stats_t *result_task_get_stats(void);
+uint64_t result_task_get_nonce_count(void);

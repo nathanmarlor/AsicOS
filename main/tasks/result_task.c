@@ -28,10 +28,16 @@ static dedup_entry_t s_dedup_ring[DEDUP_RING_SIZE];
 static int           s_dedup_index = 0;
 
 static mining_stats_t s_stats;
+static uint64_t s_nonce_count = 0;
 
 const mining_stats_t *result_task_get_stats(void)
 {
     return &s_stats;
+}
+
+uint64_t result_task_get_nonce_count(void)
+{
+    return s_nonce_count;
 }
 
 static bool is_duplicate(uint32_t nonce, uint16_t version)
@@ -95,6 +101,9 @@ static void result_task_fn(void *param)
             ESP_LOGD(TAG, "Duplicate nonce 0x%08lx", (unsigned long)result.nonce);
             continue;
         }
+
+        /* Count valid (non-duplicate) nonces for hashrate calculation */
+        s_nonce_count++;
 
         /* Build block header and test nonce with version rolling.
          * Matching forge-os BM1370_process_work():
