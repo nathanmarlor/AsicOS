@@ -286,18 +286,7 @@ async function restart() {
         />
       </div>
       <div class="lg:col-span-2 bg-[var(--surface)] border border-[var(--border)] rounded p-3 relative">
-        <HashChart
-          :data="system.chipTempHistory"
-          color="#ef4444"
-          :height="200"
-          label="TEMPERATURE (C)"
-          show-grid
-          :min-y="20"
-          :max-y="100"
-          :reference-line="75"
-          reference-label="max"
-        />
-        <div class="absolute inset-0 p-3 pointer-events-none">
+        <div class="absolute inset-0 p-3" style="pointer-events: none;">
           <HashChart
             :data="system.vrTempHistory"
             color="#3b82f6"
@@ -305,6 +294,19 @@ async function restart() {
             :show-grid="false"
             :min-y="20"
             :max-y="100"
+          />
+        </div>
+        <div class="relative" style="z-index: 1;">
+          <HashChart
+            :data="system.chipTempHistory"
+            color="#ef4444"
+            :height="200"
+            label="TEMPERATURE (C)"
+            show-grid
+            :min-y="20"
+            :max-y="100"
+            :reference-line="75"
+            reference-label="max"
           />
         </div>
         <div class="flex gap-4 mt-1 text-[10px] font-mono">
