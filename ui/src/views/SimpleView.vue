@@ -13,6 +13,7 @@ const isMining = computed(() => system.info?.pool.state === 'mining')
 const accepted = computed(() => mining.info?.accepted ?? 0)
 const bestDiff = computed(() => mining.info?.best_diff ?? 0)
 const bestDiffStr = computed(() => mining.formatDiff(bestDiff.value))
+const alltimeDiffStr = computed(() => mining.formatDiff(mining.info?.alltime_best_diff ?? 0))
 const chipTemp = computed(() => system.info?.temps.chip ?? 0)
 const poolUrl = computed(() => {
   if (!system.info) return '--'
@@ -142,14 +143,18 @@ const timeToBlock = computed(() => {
     </div>
 
     <!-- Stats row -->
-    <div class="grid grid-cols-2 gap-2">
+    <div class="grid grid-cols-3 gap-2">
       <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3 text-center">
         <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-1">Shares</div>
-        <div class="font-mono font-bold text-2xl text-[#22c55e]">{{ accepted.toLocaleString() }}</div>
+        <div class="font-mono font-bold text-xl text-[#22c55e]">{{ accepted.toLocaleString() }}</div>
       </div>
       <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3 text-center">
-        <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-1">Best Diff</div>
-        <div class="font-mono font-bold text-2xl text-[#f97316]">{{ bestDiffStr }}</div>
+        <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-1">Session Best</div>
+        <div class="font-mono font-bold text-xl text-[#f97316]">{{ bestDiffStr }}</div>
+      </div>
+      <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3 text-center">
+        <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-1">All-Time Best</div>
+        <div class="font-mono font-bold text-xl text-[#eab308]">{{ alltimeDiffStr }}</div>
       </div>
     </div>
 
