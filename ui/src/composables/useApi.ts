@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.DEV ? 'http://192.168.4.1' : ''
+const BASE_URL = import.meta.env.VITE_MOCK === '1' ? '' : (import.meta.env.DEV ? 'http://192.168.4.1' : '')
 
 export function useApi() {
   async function get<T = any>(path: string): Promise<T> {

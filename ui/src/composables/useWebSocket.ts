@@ -1,6 +1,8 @@
 import { ref, onUnmounted } from 'vue'
 
-const WS_BASE = import.meta.env.DEV ? 'ws://192.168.4.1' : `ws://${location.host}`
+const WS_BASE = import.meta.env.VITE_MOCK === '1'
+  ? `ws://${location.host}`
+  : (import.meta.env.DEV ? 'ws://192.168.4.1' : `ws://${location.host}`)
 
 export interface LogEntry {
   ts: number

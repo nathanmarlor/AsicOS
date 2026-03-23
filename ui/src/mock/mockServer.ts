@@ -1,4 +1,5 @@
-import type { Plugin } from 'vite'
+import type { Plugin, ViteDevServer } from 'vite'
+import { WebSocketServer, WebSocket } from 'ws'
 
 const MOCK_SYSTEM_INFO = {
   board: "NerdQAxe++",
@@ -58,39 +59,40 @@ const MOCK_REMOTE_STATUS = {
   device_id: "ASICOS-AABBCCDDEEFF",
 }
 
-// Simulate live data variation
 function jitter(base: number, pct: number = 0.02): number {
   return base * (1 + (Math.random() - 0.5) * 2 * pct)
 }
 
+let mockAccepted = 1847
+
 function getMockSystemInfo() {
+  mockAccepted += Math.random() > 0.5 ? 1 : 0
   return {
     ...MOCK_SYSTEM_INFO,
-    uptime_s: MOCK_SYSTEM_INFO.uptime_s + Math.floor(Date.now() / 1000) % 100000,
+    uptime_s: Math.floor(Date.now() / 1000) - 1711100000,
     hashrate_ghs: jitter(487.3),
     chip_hashrate: MOCK_SYSTEM_INFO.chip_hashrate.map(h => jitter(h)),
     chip_temp: jitter(54.2, 0.01),
     vr_temp: jitter(43.8, 0.01),
+    board_temp: jitter(37.1, 0.01),
     power_w: jitter(15.8),
     fan0_rpm: Math.round(jitter(3240, 0.03)),
     fan1_rpm: Math.round(jitter(2890, 0.03)),
-    accepted: MOCK_SYSTEM_INFO.accepted + Math.floor(Math.random() * 3),
+    accepted: mockAccepted,
     free_heap: Math.round(jitter(183240, 0.05)),
   }
 }
 
 function getMockMiningInfo() {
-  const accepted = MOCK_MINING_INFO.accepted + Math.floor(Math.random() * 3)
   return {
     ...MOCK_MINING_INFO,
     hashrate_ghs: jitter(487.3),
-    accepted,
-    total_shares: accepted + MOCK_MINING_INFO.rejected,
+    accepted: mockAccepted,
+    total_shares: mockAccepted + MOCK_MINING_INFO.rejected,
     chips: MOCK_MINING_INFO.chips.map(c => ({ ...c, hashrate_ghs: jitter(c.hashrate_ghs) })),
   }
 }
 
-// Simulated share events for WebSocket
 let shareCounter = 1847
 
 function generateShareEvent() {
@@ -140,51 +142,75 @@ asicos_power_watts ${jitter(15.8)}
 
 # HELP asicos_shares_accepted_total Accepted shares
 # TYPE asicos_shares_accepted_total counter
-asicos_shares_accepted_total ${MOCK_SYSTEM_INFO.accepted}
+asicos_shares_accepted_total ${mockAccepted}
 `
 
 export function mockApiPlugin(): Plugin {
   return {
     name: 'asicos-mock-api',
-    configureServer(server) {
-      // Mock WebSocket
-      server.ws.on('connection', (socket) => {
-        // Send mock log lines periodically
+    configureServer(server: ViteDevServer) {
+      // WebSocket server for /api/ws - attach to Vite's HTTP server
+      const wss = new WebSocketServer({ noServer: true })
+
+      server.httpServer?.on('upgrade', (request, socket, head) => {
+        if (request.url === '/api/ws') {
+          wss.handleUpgrade(request, socket, head, (ws) => {
+            wss.emit('connection', ws, request)
+          })
+        }
+      })
+
+      wss.on('connection', (ws: WebSocket) => {
+        console.log('[mock] WebSocket client connected to /api/ws')
+
+        // Send mock log lines every 2s
         const logInterval = setInterval(() => {
+          if (ws.readyState !== WebSocket.OPEN) return
           const levels = ['I', 'I', 'I', 'I', 'D', 'W']
           const tags = ['stratum', 'mining', 'hashrate', 'power', 'asic']
           const level = levels[Math.floor(Math.random() * levels.length)]
           const tag = tags[Math.floor(Math.random() * tags.length)]
           const messages: Record<string, string[]> = {
-            stratum: ['Share accepted', 'New job received', 'Pool difficulty set to 512'],
-            mining: ['Job dispatched to ASICs', 'Extranonce2 incremented'],
-            hashrate: [`Hashrate: ${jitter(487.3).toFixed(1)} GH/s`],
-            power: [`T:${jitter(54.2, 0.01).toFixed(1)}C P:${jitter(15.8).toFixed(1)}W`],
-            asic: ['Nonce found', 'Result processed'],
+            stratum: ['Share accepted', 'New job received', 'Pool difficulty set to 512', 'Nonce submitted'],
+            mining: ['Job dispatched to ASICs', 'Extranonce2 incremented', 'New block template received'],
+            hashrate: [`Hashrate: ${jitter(487.3).toFixed(1)} GH/s`, `Chip 0: ${jitter(123).toFixed(1)} GH/s`],
+            power: [`T:${jitter(54.2, 0.01).toFixed(1)}C P:${jitter(15.8).toFixed(1)}W F:${Math.round(jitter(3240, 0.03))}rpm`],
+            asic: ['Nonce found', 'Result processed', 'Difficulty target met'],
           }
           const msg = messages[tag][Math.floor(Math.random() * messages[tag].length)]
-          socket.send(JSON.stringify({ type: 'log', data: `${level} (${tag}) ${msg}` }))
+          ws.send(`${level} (${tag}) ${msg}`)
         }, 2000)
 
-        // Send mock share events
+        // Send mock share events every 3-8s
         const shareInterval = setInterval(() => {
-          if (Math.random() > 0.3) {
-            socket.send(generateShareEvent())
-          }
-        }, 5000)
+          if (ws.readyState !== WebSocket.OPEN) return
+          ws.send(generateShareEvent())
+        }, 3000 + Math.random() * 5000)
 
-        socket.on('close', () => {
+        ws.on('close', () => {
+          console.log('[mock] WebSocket client disconnected')
           clearInterval(logInterval)
           clearInterval(shareInterval)
         })
       })
 
-      // Mock REST API
+      // REST API middleware
       server.middlewares.use((req, res, next) => {
         const url = req.url || ''
 
+        // CORS
+        res.setHeader('Access-Control-Allow-Origin', '*')
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+
+        if (req.method === 'OPTIONS') {
+          res.statusCode = 204
+          res.end()
+          return
+        }
+
         if (url === '/metrics') {
-          res.setHeader('Content-Type', 'text/plain; version=0.0.4')
+          res.setHeader('Content-Type', 'text/plain; version=0.0.4; charset=utf-8')
           res.end(MOCK_METRICS())
           return
         }
@@ -197,7 +223,7 @@ export function mockApiPlugin(): Plugin {
 
         if (req.method === 'POST' && POST_ROUTES[url]) {
           let body = ''
-          req.on('data', chunk => body += chunk)
+          req.on('data', (chunk: Buffer) => body += chunk.toString())
           req.on('end', () => {
             res.setHeader('Content-Type', 'application/json')
             res.end(JSON.stringify(POST_ROUTES[url](body)))

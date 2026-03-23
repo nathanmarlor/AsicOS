@@ -9,6 +9,9 @@ export default defineConfig({
     vue(),
     ...(useMock ? [mockApiPlugin()] : []),
   ],
+  define: {
+    'import.meta.env.VITE_MOCK': JSON.stringify(useMock ? '1' : '0'),
+  },
   base: './',
   build: {
     outDir: '../build/www',
