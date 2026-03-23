@@ -20,6 +20,7 @@ static asic_job_t         s_active_jobs[128];
 static SemaphoreHandle_t  s_jobs_mutex;
 static double             s_current_pool_diff   = 1.0;
 static uint32_t           s_extranonce2_counter  = 0;
+static uint8_t            s_asic_job_id          = 0;  /* rotating ASIC job ID */
 
 /* ---- Callbacks (called from stratum task context) ---- */
 
@@ -95,6 +96,10 @@ static void mining_task_fn(void *param)
             continue;
         }
 
+        /* Assign rotating job ID (matches forge-os: id = (id + 24) % 128) */
+        job.job_id = s_asic_job_id;
+        s_asic_job_id = (s_asic_job_id + 24) % 128;
+
         /* Set difficulty mask on ASIC */
         asic_set_difficulty_mask((uint64_t)s_current_pool_diff);
 
@@ -109,7 +114,7 @@ static void mining_task_fn(void *param)
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "bm1370_send_work failed: %s", esp_err_to_name(err));
         } else {
-            ESP_LOGD(TAG, "Sent work: job_id=%u extranonce2=%" PRIu32 " diff=%.2f",
+            ESP_LOGI(TAG, "Job sent: id=%u extranonce2=%" PRIu32 " diff=%.2f",
                      job.job_id, s_extranonce2_counter, s_current_pool_diff);
         }
 

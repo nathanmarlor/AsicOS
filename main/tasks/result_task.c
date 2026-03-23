@@ -65,9 +65,17 @@ static void result_task_fn(void *param)
     for (;;) {
         int rc = asic_receive_result(&result, RESULT_TIMEOUT_MS);
         if (rc <= 0) {
-            ESP_LOGD(TAG, "No result received (timeout)");
+            /* Log periodically to aid debugging without spamming */
+            static int timeout_count = 0;
+            timeout_count++;
+            if (timeout_count % 10 == 0) {
+                ESP_LOGW(TAG, "No ASIC response in %d attempts", timeout_count);
+            }
             continue;
         }
+
+        ESP_LOGI(TAG, "ASIC result: nonce=0x%08lx job_id=0x%02x ver=0x%04x",
+                 (unsigned long)result.nonce, result.job_id, result.rolled_version);
 
         /* Map ASIC job ID back to original job ID */
         uint8_t original_id = bm1370_asic_to_job_id(result.job_id);

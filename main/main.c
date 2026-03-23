@@ -236,6 +236,8 @@ void app_main(void)
     bm1370_set_frequency(freq);
 
     // 10. Ramp UART to 1MHz for mining
+    // First configure the ASIC's UART divider, THEN switch the host baud
+    bm1370_set_max_baud();
     serial_set_baud(1000000);
 
     // 11. Self-test (POST) - runs AFTER everything is initialized

@@ -16,18 +16,17 @@ static const char *TAG = "bm1370";
 /* ------------------------------------------------------------------ */
 uint8_t bm1370_job_to_asic_id(uint8_t job_id)
 {
-    return (uint8_t)((job_id * 24) & 0x7F);
+    /* In forge-os the job_id IS the ASIC-facing ID (cycling via (id+24)%128).
+     * The mining_task already sets job_id to the correct ASIC ID,
+     * so no remapping is needed here. */
+    return job_id;
 }
 
 uint8_t bm1370_asic_to_job_id(uint8_t asic_id)
 {
-    /* Linear search for inverse mapping */
-    for (uint8_t jid = 0; jid < BM1370_MAX_JOB_ID; jid++) {
-        if (bm1370_job_to_asic_id(jid) == asic_id) {
-            return jid;
-        }
-    }
-    return 0xFF;  /* not found */
+    /* The ASIC returns the job_id as-is. Extract the 7-bit job portion
+     * matching forge-os: job_id = (asic_result.job_id & 0xf0) >> 1 */
+    return (asic_id & 0xf0) >> 1;
 }
 
 /* ------------------------------------------------------------------ */
@@ -80,17 +79,7 @@ esp_err_t bm1370_init(int expected_chips)
         return ESP_ERR_NOT_FOUND;
     }
 
-    /* Assign addresses to each chip (forge-os uses i*4 spacing) */
-    for (int i = 0; i < found; i++) {
-        uint8_t addr = (uint8_t)(i * 4);
-        esp_err_t err = asic_set_chip_address(i, addr);
-        if (err != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to set address for chip %d", i);
-            return err;
-        }
-    }
-
-    /* Configure version rolling mask */
+    /* Configure version rolling mask (post-enumerate, matching forge-os) */
     esp_err_t err = asic_set_version_mask(0x1FFFE000);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to set version mask");
@@ -104,6 +93,22 @@ esp_err_t bm1370_init(int expected_chips)
 
     /* 2. Misc Control reg 0x18 */
     write_reg_all(ASIC_REG_MISC_CTRL, (uint8_t[]){0xF0, 0x00, 0xC1, 0x00}, 4);
+
+    /* 2a. Chain inactive (required before setting chip addresses) */
+    {
+        uint8_t inactive_buf[16];
+        int n = asic_build_cmd(inactive_buf, sizeof(inactive_buf),
+                               ASIC_CMD_INACTIVE, ASIC_GROUP_ALL,
+                               0x00, 0x00, NULL, 0);
+        if (n > 0) serial_tx(inactive_buf, n);
+        vTaskDelay(pdMS_TO_TICKS(5));
+    }
+
+    /* 2b. Re-assign chip addresses (after chain_inactive) */
+    for (int i = 0; i < found; i++) {
+        uint8_t addr = (uint8_t)(i * 4);
+        asic_set_chip_address(i, addr);
+    }
 
     /* 3. Core Register Control reg 0x3C */
     write_reg_all(ASIC_REG_CORE_CTRL, (uint8_t[]){0x80, 0x00, 0x8B, 0x00}, 4);
@@ -153,11 +158,17 @@ static esp_err_t pll_write_step(float freq_mhz)
 {
     pll_params_t pll = asic_calc_pll(freq_mhz);
 
+    /* PLL register format (matches forge-os):
+     * byte 0: 0x40 (or 0x50 if fb_divider*25/refdiv >= 2400)
+     * byte 1: fb_divider
+     * byte 2: ref_divider
+     * byte 3: ((postdiv1-1) << 4) | (postdiv2-1)
+     */
     uint8_t data[4];
-    data[0] = (uint8_t)(pll.fb_divider & 0xFF);
-    data[1] = (uint8_t)((pll.refdiv << 4) | (pll.postdiv1 & 0x0F));
-    data[2] = pll.postdiv2;
-    data[3] = 0x00;
+    data[0] = ((float)pll.fb_divider * 25.0f / (float)pll.refdiv >= 2400.0f) ? 0x50 : 0x40;
+    data[1] = (uint8_t)(pll.fb_divider & 0xFF);
+    data[2] = pll.refdiv;
+    data[3] = (uint8_t)((((pll.postdiv1 - 1) & 0x0F) << 4) | ((pll.postdiv2 - 1) & 0x0F));
 
     uint8_t cmd_buf[16];
     int cmd_len = asic_build_cmd(cmd_buf, sizeof(cmd_buf),
@@ -222,13 +233,11 @@ esp_err_t bm1370_set_frequency(uint16_t freq_mhz)
 float bm1370_read_temperature(void)
 {
     /* Build READ command for temperature register, chip 0 */
-    uint8_t data[2] = {0x00, 0x00};
-
     uint8_t cmd_buf[16];
     int cmd_len = asic_build_cmd(cmd_buf, sizeof(cmd_buf),
                                  ASIC_CMD_READ, ASIC_GROUP_SINGLE,
                                  0x00, ASIC_REG_TEMPERATURE,
-                                 data, sizeof(data));
+                                 NULL, 0);
     if (cmd_len < 0) {
         return -1.0f;
     }
@@ -254,6 +263,19 @@ float bm1370_read_temperature(void)
 }
 
 /* ------------------------------------------------------------------ */
+/* Set max baud rate                                                   */
+/* ------------------------------------------------------------------ */
+int bm1370_set_max_baud(void)
+{
+    /* Forge-os sends a raw packet to configure FAST_UART register (0x28)
+     * for 1 Mbaud: {0x55, 0xAA, 0x51, 0x09, 0x00, 0x28, 0x11, 0x30, 0x02, 0x00, 0x03}
+     * This configures the ASIC's UART divider before the host switches baud. */
+    write_reg_all(ASIC_REG_FAST_UART, (uint8_t[]){0x11, 0x30, 0x02, 0x00}, 4);
+    ESP_LOGI(TAG, "BM1370 FAST_UART configured for 1 Mbaud");
+    return 1000000;
+}
+
+/* ------------------------------------------------------------------ */
 /* Send work                                                           */
 /* ------------------------------------------------------------------ */
 
@@ -272,18 +294,17 @@ esp_err_t bm1370_send_work(const asic_job_t *job)
         return ESP_ERR_INVALID_ARG;
     }
 
-    /* Build 86-byte job data:
+    /* Build 82-byte job data (matches forge-os BM1370_job packed struct):
      * [0]      asic job_id (mapped)
-     * [1]      midstate_count
-     * [2..5]   starting_nonce (big-endian)
-     * [6..9]   nbits (big-endian)
-     * [10..13] ntime (big-endian)
+     * [1]      num_midstates
+     * [2..5]   starting_nonce (4 bytes)
+     * [6..9]   nbits (4 bytes)
+     * [10..13] ntime (4 bytes)
      * [14..45] merkle_root (32 bytes)
      * [46..77] prev_block_hash (32 bytes)
-     * [78..81] version (big-endian)
-     * [82..85] padding / reserved
+     * [78..81] version (4 bytes)
      */
-    uint8_t job_data[86];
+    uint8_t job_data[82];
     memset(job_data, 0, sizeof(job_data));
 
     job_data[0] = bm1370_job_to_asic_id(job->job_id);

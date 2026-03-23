@@ -82,8 +82,10 @@ int asic_build_job(uint8_t *buf, size_t buf_len,
 
     buf[0] = ASIC_PREAMBLE_1;
     buf[1] = ASIC_PREAMBLE_2;
-    buf[2] = ASIC_TYPE_JOB | ASIC_GROUP_ALL;
-    buf[3] = (uint8_t)(job_len + 2);
+    /* Header: TYPE_JOB | GROUP_SINGLE | CMD_WRITE = 0x21 (matches forge-os) */
+    buf[2] = ASIC_TYPE_JOB | ASIC_GROUP_SINGLE | ASIC_CMD_WRITE;
+    /* Length = total bytes after preamble: header(1) + len(1) + data + crc(2) */
+    buf[3] = (uint8_t)(job_len + 4);
 
     memcpy(&buf[4], job_data, job_len);
 

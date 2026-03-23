@@ -13,5 +13,6 @@ int     bm1370_nonce_to_chip(uint32_t nonce, int chip_count);
 
 esp_err_t bm1370_init(int expected_chips);
 esp_err_t bm1370_set_frequency(uint16_t freq_mhz);
+int       bm1370_set_max_baud(void);
 float     bm1370_read_temperature(void);
 esp_err_t bm1370_send_work(const asic_job_t *job);
