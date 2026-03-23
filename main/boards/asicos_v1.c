@@ -40,6 +40,12 @@ static const board_config_t s_board = {
     .power_monitor_type = 0, // VR telemetry
     .power_monitor_addr = 0,
 
+    // LEDs and plug sense
+    .led1_gpio = -1,
+    .led2_gpio = -1,
+    .plug_sense_gpio = -1,
+    .has_adc_vcore = false,
+
     // No display
     .has_display = false,
     .display_data_gpio = {0},

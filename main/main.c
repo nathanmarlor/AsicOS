@@ -21,6 +21,10 @@
 #include "remote_access.h"
 #include "licence.h"
 
+#include "adc_monitor.h"
+#include "led_status.h"
+#include "plug_sense.h"
+
 #include "tasks/wifi_task.h"
 #include "tasks/mining_task.h"
 #include "tasks/result_task.h"
@@ -161,6 +165,28 @@ void app_main(void)
         ESP_LOGE(TAG, "I2C init failed: %s", esp_err_to_name(i2c_err));
     }
 
+    // 4b. LED init
+    if (board->led1_gpio >= 0) {
+        led_init(board->led1_gpio, board->led2_gpio);
+        led_set_state(LED_STATE_BOOTING);
+    }
+
+    // 4c. ADC init (VCORE readback + thermistors, if board has it)
+    if (board->has_adc_vcore) {
+        esp_err_t adc_err = adc_monitor_init();
+        if (adc_err != ESP_OK) {
+            ESP_LOGW(TAG, "ADC monitor init failed: %s", esp_err_to_name(adc_err));
+        }
+    }
+
+    // 4d. Barrel plug sense
+    if (board->plug_sense_gpio >= 0) {
+        plug_sense_init(board->plug_sense_gpio);
+        if (!plug_sense_is_connected()) {
+            ESP_LOGW(TAG, "Barrel plug not detected at boot");
+        }
+    }
+
     // 5. Serial/UART init at 115200
     serial_config_t serial_cfg = {
         .port = UART_NUM_1,
@@ -232,10 +258,20 @@ void app_main(void)
     // 13. Stratum client
     init_stratum(board);
 
+    // 13b. LED: connected
+    if (board->led1_gpio >= 0) {
+        led_set_state(LED_STATE_CONNECTED);
+    }
+
     // 14. Mining tasks
     mining_task_start();
     result_task_start();
     hashrate_task_start();
+
+    // 14b. LED: mining active
+    if (board->led1_gpio >= 0) {
+        led_set_state(LED_STATE_MINING);
+    }
 
     // 15. Power task
     power_task_start();

@@ -50,6 +50,12 @@ typedef struct {
     uint8_t power_monitor_type;  // 0 = VR_TELEMETRY (from VR PMBus), 1 = INA260
     uint8_t power_monitor_addr;  // INA260 address (0x40) or 0 for VR telemetry
 
+    // LEDs and plug sense
+    int led1_gpio;
+    int led2_gpio;
+    int plug_sense_gpio;
+    bool has_adc_vcore;
+
     // Display
     bool has_display;
     int display_data_gpio[8];

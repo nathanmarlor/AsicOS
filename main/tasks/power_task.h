@@ -10,8 +10,11 @@ typedef struct {
     float chip_temp;
     float vr_temp;
     float board_temp;
+    float therm1_temp;   // ADC thermistor ASIC 1 (if available)
+    float therm2_temp;   // ADC thermistor ASIC 2 (if available)
     float vin;
     float vout;
+    float vcore_adc_mv;  // ADC VCORE readback (if available)
     float power_w;
     uint16_t fan0_rpm;
     uint16_t fan1_rpm;

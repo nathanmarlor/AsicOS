@@ -43,6 +43,12 @@ static const board_config_t s_board = {
     .power_monitor_type = 0, // VR telemetry
     .power_monitor_addr = 0,
 
+    // LEDs and plug sense
+    .led1_gpio = -1,
+    .led2_gpio = -1,
+    .plug_sense_gpio = -1,
+    .has_adc_vcore = false,
+
     // Display: ST7789 320x170 via Intel 8080 parallel bus
     .has_display = true,
     .display_data_gpio = {39, 40, 41, 42, 45, 46, 47, 48},

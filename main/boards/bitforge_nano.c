@@ -45,6 +45,12 @@ static const board_config_t s_board = {
     .power_monitor_type = 1, // INA260
     .power_monitor_addr = 0x40,
 
+    // LEDs and plug sense
+    .led1_gpio = 9,
+    .led2_gpio = 12,
+    .plug_sense_gpio = 12,  // Shared with LED2 on Nano
+    .has_adc_vcore = true,
+
     // No display
     .has_display = false,
     .display_data_gpio = {0},

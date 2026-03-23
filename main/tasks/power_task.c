@@ -7,10 +7,12 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "adc_monitor.h"
 #include "board.h"
 #include "bm1370.h"
 #include "fan_controller.h"
 #include "ina260.h"
+#include "led_status.h"
 #include "nvs_config.h"
 #include "pid.h"
 #include "temp_sensor.h"
@@ -116,6 +118,25 @@ static void power_task(void *pvParameters)
             }
         }
 
+        /* ── Read ADC (VCORE + thermistors) if board supports it ── */
+        if (board->has_adc_vcore) {
+            adc_readings_t adc = {0};
+            if (adc_monitor_read(&adc) == ESP_OK) {
+                s_status.vcore_adc_mv = adc.vcore_mv;
+                s_status.therm1_temp = adc.therm1_temp_c;
+                s_status.therm2_temp = adc.therm2_temp_c;
+
+                /* Cross-check ADC VCORE against VR telemetry VOUT.
+                 * Log a warning if they differ by more than 50mV. */
+                float vr_vout_mv = s_status.vout * 1000.0f;
+                float delta = fabsf(adc.vcore_mv - vr_vout_mv);
+                if (vr_vout_mv > 0.0f && delta > 50.0f) {
+                    ESP_LOGW(TAG, "VCORE mismatch: ADC=%.0fmV VR=%.0fmV (delta=%.0fmV)",
+                             adc.vcore_mv, vr_vout_mv, delta);
+                }
+            }
+        }
+
         /* ── Check VR faults ─────────────────────────────────────── */
         s_status.vr_fault = vr_check_faults();
 
@@ -133,6 +154,7 @@ static void power_task(void *pvParameters)
             if (s_status.vr_fault) {
                 ESP_LOGE(TAG, "VR FAULT detected");
             }
+            led_set_state(LED_STATE_ERROR);
             emergency_shutdown();
         } else {
             /* ── Software PID fan control (EMC2302 or EMC2101_MUX) ── */
@@ -153,10 +175,12 @@ static void power_task(void *pvParameters)
         fan_get_rpm(1, &s_status.fan1_rpm);
 
         /* ── Debug log ───────────────────────────────────────────── */
-        ESP_LOGD(TAG, "chip=%.1fC vr=%.1fC board=%.1fC | vin=%.2fV vout=%.2fV pwr=%.1fW | "
+        ESP_LOGD(TAG, "chip=%.1fC vr=%.1fC board=%.1fC therm1=%.1fC therm2=%.1fC | "
+                 "vin=%.2fV vout=%.2fV vcore_adc=%.0fmV pwr=%.1fW | "
                  "fan0=%" PRIu16 " rpm fan1=%" PRIu16 " rpm | oh=%d fault=%d",
                  s_status.chip_temp, s_status.vr_temp, s_status.board_temp,
-                 s_status.vin, s_status.vout, s_status.power_w,
+                 s_status.therm1_temp, s_status.therm2_temp,
+                 s_status.vin, s_status.vout, s_status.vcore_adc_mv, s_status.power_w,
                  s_status.fan0_rpm, s_status.fan1_rpm,
                  s_status.overheat, s_status.vr_fault);
 
