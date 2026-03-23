@@ -27,7 +27,7 @@ const barColor = computed(() => {
 <template>
   <div class="flex items-center gap-3 text-xs">
     <span class="text-gray-500 font-mono w-20 shrink-0">{{ label }}</span>
-    <div class="flex-1 h-1.5 bg-[#1a1a1a] rounded-full overflow-hidden">
+    <div class="flex-1 h-1.5 bg-[var(--surface-light)] rounded-full overflow-hidden">
       <div
         class="h-full rounded-full transition-all duration-500"
         :class="barColor"

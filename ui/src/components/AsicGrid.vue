@@ -16,7 +16,7 @@ const totalHashrate = computed(() => {
 })
 
 function heatBorder(hashrate: number): string {
-  if (avgHashrate.value === 0) return 'border-[#4b4b4b]'
+  if (avgHashrate.value === 0) return 'border-[var(--text-muted)]'
   const ratio = hashrate / avgHashrate.value
   if (ratio < 0.7) return 'border-[#ef4444]'
   if (ratio < 0.9) return 'border-[#f97316]'
@@ -55,7 +55,7 @@ const distribution = computed(() => {
 
 <template>
   <div>
-    <div class="text-[10px] font-mono text-[#6b7280] uppercase tracking-wider mb-2">ASIC Hashmap</div>
+    <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-2">ASIC Hashmap</div>
 
     <!-- Chip grid -->
     <div class="grid gap-2" :class="chips.length <= 4 ? 'grid-cols-2' : 'grid-cols-4'">
@@ -67,23 +67,23 @@ const distribution = computed(() => {
         :title="`Chip ${chip.id}: ${chip.hashrate_ghs.toFixed(1)} GH/s (${chipPctOfTotal(chip.hashrate_ghs)}% of total)`"
       >
         <div class="flex items-center justify-between mb-0.5">
-          <span class="text-[9px] font-mono text-[#4b4b4b] uppercase">Chip {{ chip.id }}</span>
-          <span class="text-[9px] font-mono text-[#4b4b4b]">{{ chipPctOfTotal(chip.hashrate_ghs) }}%</span>
+          <span class="text-[9px] font-mono text-[var(--text-muted)] uppercase">Chip {{ chip.id }}</span>
+          <span class="text-[9px] font-mono text-[var(--text-muted)]">{{ chipPctOfTotal(chip.hashrate_ghs) }}%</span>
         </div>
-        <div class="font-mono font-bold text-lg text-[#e5e5e5] leading-tight">
+        <div class="font-mono font-bold text-lg text-[var(--text)] leading-tight">
           {{ chip.hashrate_ghs.toFixed(1) }}
         </div>
-        <div class="text-[9px] font-mono text-[#4b4b4b]">GH/s</div>
+        <div class="text-[9px] font-mono text-[var(--text-muted)]">GH/s</div>
       </div>
     </div>
 
     <!-- Distribution bar -->
     <div class="mt-3">
-      <div class="flex items-center justify-between text-[10px] font-mono text-[#6b7280] mb-1">
+      <div class="flex items-center justify-between text-[10px] font-mono text-[var(--text-secondary)] mb-1">
         <span>Performance Distribution</span>
         <span>{{ distribution.toFixed(0) }}% even</span>
       </div>
-      <div class="h-1.5 bg-[#1a1a1a] rounded-sm overflow-hidden flex">
+      <div class="h-1.5 bg-[var(--surface-light)] rounded-sm overflow-hidden flex">
         <div
           v-for="chip in chips"
           :key="'bar-' + chip.id"

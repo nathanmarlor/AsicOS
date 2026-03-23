@@ -19,7 +19,7 @@ const borderColor = computed(() => {
     case 'good': return 'border-l-[#22c55e]'
     case 'warn': return 'border-l-[#eab308]'
     case 'danger': return 'border-l-[#ef4444]'
-    default: return 'border-l-[#4b4b4b]'
+    default: return 'border-l-[var(--text-muted)]'
   }
 })
 
@@ -52,12 +52,12 @@ const resolvedSparkColor = computed(() => {
 
 <template>
   <div
-    class="bg-[#111111] border border-[#1e1e1e] border-l-[3px] rounded p-3 flex flex-col gap-1 min-w-0"
+    class="bg-[var(--surface)] border border-[var(--border)] border-l-[3px] rounded p-3 flex flex-col gap-1 min-w-0"
     :class="borderColor"
   >
     <!-- Value row -->
     <div class="flex items-baseline justify-between gap-2 min-w-0">
-      <span class="font-mono font-bold text-xl text-[#e5e5e5] truncate leading-tight">{{ value }}</span>
+      <span class="font-mono font-bold text-xl text-[var(--text)] truncate leading-tight">{{ value }}</span>
       <span
         v-if="trend != null"
         class="text-[10px] font-mono shrink-0 leading-tight"
@@ -66,7 +66,7 @@ const resolvedSparkColor = computed(() => {
     </div>
 
     <!-- Unit -->
-    <div v-if="unit" class="text-[11px] font-mono text-[#6b7280] leading-tight">{{ unit }}</div>
+    <div v-if="unit" class="text-[11px] font-mono text-[var(--text-secondary)] leading-tight">{{ unit }}</div>
 
     <!-- Sparkline -->
     <div v-if="history && history.length > 1" class="mt-1">
@@ -74,6 +74,6 @@ const resolvedSparkColor = computed(() => {
     </div>
 
     <!-- Label -->
-    <div class="text-[10px] font-mono text-[#6b7280] uppercase tracking-wider leading-tight mt-0.5">{{ label }}</div>
+    <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider leading-tight mt-0.5">{{ label }}</div>
   </div>
 </template>

@@ -32,7 +32,7 @@ onUnmounted(() => {
 
 <template>
   <div class="flex flex-col gap-2">
-    <div class="text-[10px] font-mono text-[#6b7280] uppercase tracking-wider">Pool Connection</div>
+    <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider">Pool Connection</div>
 
     <!-- Connection status -->
     <div class="flex items-center gap-2">
@@ -47,27 +47,27 @@ onUnmounted(() => {
     </div>
 
     <!-- URL -->
-    <div class="text-[11px] font-mono text-[#e5e5e5] break-all leading-relaxed">
+    <div class="text-[11px] font-mono text-[var(--text)] break-all leading-relaxed">
       stratum+tcp://{{ url }}
     </div>
 
     <!-- Stats -->
     <div class="space-y-1.5 text-[11px] font-mono mt-1">
       <div class="flex justify-between">
-        <span class="text-[#6b7280]">Difficulty</span>
-        <span class="text-[#e5e5e5]">{{ difficulty }}</span>
+        <span class="text-[var(--text-secondary)]">Difficulty</span>
+        <span class="text-[var(--text)]">{{ difficulty }}</span>
       </div>
       <div class="flex justify-between">
-        <span class="text-[#6b7280]">Reconnects</span>
-        <span :class="reconnects > 0 ? 'text-[#eab308]' : 'text-[#e5e5e5]'">{{ reconnects }}</span>
+        <span class="text-[var(--text-secondary)]">Reconnects</span>
+        <span :class="reconnects > 0 ? 'text-[#eab308]' : 'text-[var(--text)]'">{{ reconnects }}</span>
       </div>
       <div class="flex justify-between">
-        <span class="text-[#6b7280]">Worker</span>
-        <span class="text-[#e5e5e5] truncate ml-4 max-w-[180px]" :title="worker">{{ worker }}</span>
+        <span class="text-[var(--text-secondary)]">Worker</span>
+        <span class="text-[var(--text)] truncate ml-4 max-w-[180px]" :title="worker">{{ worker }}</span>
       </div>
       <div class="flex justify-between">
-        <span class="text-[#6b7280]">Response</span>
-        <span :class="latency > 60 ? 'text-[#eab308]' : 'text-[#e5e5e5]'">{{ latency }}ms</span>
+        <span class="text-[var(--text-secondary)]">Response</span>
+        <span :class="latency > 60 ? 'text-[#eab308]' : 'text-[var(--text)]'">{{ latency }}ms</span>
       </div>
     </div>
   </div>

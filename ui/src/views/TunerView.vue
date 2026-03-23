@@ -72,7 +72,7 @@ async function handleStart() {
         <span>Step {{ step }} / {{ totalSteps }}</span>
         <span>{{ progress.toFixed(0) }}%</span>
       </div>
-      <div class="h-2 bg-[#1a1a1a] rounded-full overflow-hidden">
+      <div class="h-2 bg-[var(--surface-light)] rounded-full overflow-hidden">
         <div
           class="h-full bg-accent rounded-full transition-all duration-500"
           :style="{ width: progress + '%' }"

@@ -31,8 +31,8 @@ function levelColor(level: string): string {
   switch (level) {
     case 'ERROR': return 'text-[#ef4444]'
     case 'WARN': return 'text-[#eab308]'
-    case 'DEBUG': return 'text-[#4b4b4b]'
-    default: return 'text-[#6b7280]'
+    case 'DEBUG': return 'text-[var(--text-muted)]'
+    default: return 'text-[var(--text-secondary)]'
   }
 }
 
@@ -59,12 +59,12 @@ function onScroll() {
       class="flex items-center justify-between mb-2 shrink-0 w-full text-left min-h-[32px] group"
     >
       <div class="flex items-center gap-2">
-        <span class="text-[10px] font-mono text-[#6b7280] uppercase tracking-wider">Log Console</span>
+        <span class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider">Log Console</span>
         <span
           class="w-1.5 h-1.5 rounded-full"
           :class="connected ? 'bg-[#22c55e]' : 'bg-[#ef4444]'"
         />
-        <span class="text-[10px] font-mono text-[#4b4b4b] transition-transform" :class="collapsed ? '' : 'rotate-90'">&#9654;</span>
+        <span class="text-[10px] font-mono text-[var(--text-muted)] transition-transform" :class="collapsed ? '' : 'rotate-90'">&#9654;</span>
       </div>
       <div v-if="!collapsed" class="flex gap-0.5">
         <button
@@ -72,7 +72,7 @@ function onScroll() {
           :key="f"
           @click.stop="filter = f"
           class="text-[10px] font-mono px-2 py-0.5 rounded transition-colors min-h-[24px]"
-          :class="filter === f ? 'bg-[#f97316]/20 text-[#f97316]' : 'text-[#4b4b4b] hover:text-[#6b7280]'"
+          :class="filter === f ? 'bg-[#f97316]/20 text-[#f97316]' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'"
         >{{ f }}</button>
       </div>
     </button>
@@ -80,7 +80,7 @@ function onScroll() {
     <!-- Collapsed preview -->
     <div
       v-if="collapsed"
-      class="text-[11px] font-mono text-[#4b4b4b] truncate px-2 py-1 bg-[#0a0a0a] border border-[#1e1e1e] rounded"
+      class="text-[11px] font-mono text-[var(--text-muted)] truncate px-2 py-1 bg-[var(--bg)] border border-[var(--border)] rounded"
     >
       {{ lastLine }}
     </div>
@@ -90,20 +90,20 @@ function onScroll() {
       v-else
       ref="logContainer"
       @scroll="onScroll"
-      class="flex-1 overflow-y-auto bg-[#0a0a0a] border border-[#1e1e1e] rounded p-2 font-mono text-[11px] leading-relaxed min-h-[120px] max-h-[300px]"
+      class="flex-1 overflow-y-auto bg-[var(--bg)] border border-[var(--border)] rounded p-2 font-mono text-[11px] leading-relaxed min-h-[120px] max-h-[300px]"
     >
-      <div v-if="filtered.length === 0" class="text-[#4b4b4b] py-4 text-center">
+      <div v-if="filtered.length === 0" class="text-[var(--text-muted)] py-4 text-center">
         {{ connected ? 'no log entries' : 'connecting...' }}
       </div>
       <div
         v-for="(entry, i) in filtered"
         :key="i"
         class="flex gap-2 whitespace-nowrap py-px"
-        :class="i % 2 === 0 ? '' : 'bg-[#111111]/30'"
+        :class="i % 2 === 0 ? '' : 'bg-[var(--surface)]/30'"
       >
-        <span class="text-[#4b4b4b]">{{ formatTs(entry.ts) }}</span>
+        <span class="text-[var(--text-muted)]">{{ formatTs(entry.ts) }}</span>
         <span class="w-10 shrink-0" :class="levelColor(entry.level)">{{ entry.level.padEnd(5) }}</span>
-        <span class="text-[#6b7280] truncate">{{ entry.msg }}</span>
+        <span class="text-[var(--text-secondary)] truncate">{{ entry.msg }}</span>
       </div>
     </div>
   </div>

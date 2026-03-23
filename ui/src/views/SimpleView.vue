@@ -102,19 +102,19 @@ const timeToBlock = computed(() => {
     <!-- Big hashrate -->
     <div class="text-center">
       <div class="relative inline-block">
-        <div class="font-mono font-bold text-5xl sm:text-6xl text-[#e5e5e5] tracking-tight">
+        <div class="font-mono font-bold text-6xl sm:text-7xl text-white tracking-tight">
           {{ hashrate.toFixed(1) }}
         </div>
-        <div class="text-sm font-mono text-[#6b7280] mt-1 tracking-widest">GH/s</div>
+        <div class="text-sm font-mono text-gray-500 mt-1 tracking-widest">GH/s</div>
         <!-- Accent underline -->
         <div class="mt-2 mx-auto h-[2px] w-16 bg-[#f97316] rounded-full" :class="{ 'animate-pulse-subtle': isMining }" />
       </div>
       <div class="flex items-center justify-center gap-1.5 mt-3">
         <span
           class="w-2 h-2 rounded-full"
-          :class="isMining ? 'bg-[#22c55e] animate-pulse-subtle' : 'bg-[#4b4b4b]'"
+          :class="isMining ? 'bg-[#22c55e] animate-pulse-subtle' : 'bg-[var(--text-muted)]'"
         />
-        <span class="text-[11px] font-mono" :class="isMining ? 'text-[#22c55e]' : 'text-[#4b4b4b]'">
+        <span class="text-[11px] font-mono" :class="isMining ? 'text-[#22c55e]' : 'text-[var(--text-muted)]'">
           {{ isMining ? 'mining' : 'idle' }}
         </span>
       </div>
@@ -126,25 +126,25 @@ const timeToBlock = computed(() => {
 
     <!-- Stats row -->
     <div class="grid grid-cols-2 gap-2">
-      <div class="bg-[#111111] border border-[#1e1e1e] rounded p-3 text-center">
-        <div class="text-[10px] font-mono text-[#6b7280] uppercase tracking-wider mb-1">Shares</div>
+      <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3 text-center">
+        <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-1">Shares</div>
         <div class="font-mono font-bold text-2xl text-[#22c55e]">{{ accepted.toLocaleString() }}</div>
       </div>
-      <div class="bg-[#111111] border border-[#1e1e1e] rounded p-3 text-center">
-        <div class="text-[10px] font-mono text-[#6b7280] uppercase tracking-wider mb-1">Best Diff</div>
+      <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3 text-center">
+        <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-1">Best Diff</div>
         <div class="font-mono font-bold text-2xl text-[#f97316]">{{ bestDiffStr }}</div>
       </div>
     </div>
 
     <!-- Time to block (lottery feel) -->
-    <div class="bg-[#111111] border border-[#1e1e1e] rounded p-3 text-center">
-      <div class="text-[10px] font-mono text-[#6b7280] uppercase tracking-wider mb-1">Est. Time to Solo Block</div>
+    <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3 text-center">
+      <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-1">Est. Time to Solo Block</div>
       <div class="font-mono text-lg text-[#eab308]">{{ timeToBlock }}</div>
-      <div class="text-[10px] font-mono text-[#4b4b4b] mt-1">but it could be the next share...</div>
+      <div class="text-[10px] font-mono text-[var(--text-muted)] mt-1">but it could be the next share...</div>
     </div>
 
     <!-- Share feed with all/submitted toggle -->
-    <div class="bg-[#111111] border border-[#1e1e1e] rounded p-3 h-[340px] flex flex-col">
+    <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3 h-[340px] flex flex-col">
       <ShareFeed
         :all-shares="mining.allShares"
         :submitted-shares="mining.submittedShares"
@@ -153,12 +153,12 @@ const timeToBlock = computed(() => {
     </div>
 
     <!-- Health Overview -->
-    <div class="bg-[#111111] border border-[#1e1e1e] rounded p-3">
-      <div class="text-[10px] font-mono text-[#6b7280] uppercase tracking-wider mb-3">System Health</div>
+    <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3">
+      <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-3">System Health</div>
       <div class="grid grid-cols-2 gap-x-4 gap-y-2.5">
         <!-- ASIC Temp -->
         <div class="flex items-center justify-between">
-          <span class="text-[11px] font-mono text-[#6b7280]">ASIC</span>
+          <span class="text-[11px] font-mono text-[var(--text-secondary)]">ASIC</span>
           <div class="flex items-center gap-1.5">
             <span class="font-mono text-sm font-medium" :style="{ color: tempColor }">{{ chipTemp.toFixed(0) }}&deg;C</span>
             <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: tempColor }" />
@@ -166,7 +166,7 @@ const timeToBlock = computed(() => {
         </div>
         <!-- VRM Temp -->
         <div class="flex items-center justify-between">
-          <span class="text-[11px] font-mono text-[#6b7280]">VRM</span>
+          <span class="text-[11px] font-mono text-[var(--text-secondary)]">VRM</span>
           <div class="flex items-center gap-1.5">
             <span class="font-mono text-sm font-medium" :style="{ color: vrmColor }">{{ vrmTemp.toFixed(0) }}&deg;C</span>
             <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: vrmColor }" />
@@ -174,40 +174,40 @@ const timeToBlock = computed(() => {
         </div>
         <!-- Fan -->
         <div class="flex items-center justify-between">
-          <span class="text-[11px] font-mono text-[#6b7280]">Fan</span>
-          <span class="font-mono text-sm text-[#e5e5e5]">{{ fanRpm.toLocaleString() }} rpm</span>
+          <span class="text-[11px] font-mono text-[var(--text-secondary)]">Fan</span>
+          <span class="font-mono text-sm text-[var(--text)]">{{ fanRpm.toLocaleString() }} rpm</span>
         </div>
         <!-- Power -->
         <div class="flex items-center justify-between">
-          <span class="text-[11px] font-mono text-[#6b7280]">Power</span>
-          <span class="font-mono text-sm text-[#e5e5e5]">{{ power.toFixed(1) }}W</span>
+          <span class="text-[11px] font-mono text-[var(--text-secondary)]">Power</span>
+          <span class="font-mono text-sm text-[var(--text)]">{{ power.toFixed(1) }}W</span>
         </div>
         <!-- Efficiency -->
         <div class="flex items-center justify-between">
-          <span class="text-[11px] font-mono text-[#6b7280]">Efficiency</span>
-          <span class="font-mono text-sm text-[#e5e5e5]">{{ efficiency.toFixed(1) }} GH/W</span>
+          <span class="text-[11px] font-mono text-[var(--text-secondary)]">Efficiency</span>
+          <span class="font-mono text-sm text-[var(--text)]">{{ efficiency.toFixed(1) }} GH/W</span>
         </div>
         <!-- Reject Rate -->
         <div class="flex items-center justify-between">
-          <span class="text-[11px] font-mono text-[#6b7280]">Reject</span>
+          <span class="text-[11px] font-mono text-[var(--text-secondary)]">Reject</span>
           <span class="font-mono text-sm" :style="{ color: rejectColor }">{{ rejectRate.toFixed(1) }}%</span>
         </div>
       </div>
       <!-- Overall status bar -->
-      <div class="mt-3 pt-2.5 border-t border-[#1e1e1e] flex items-center gap-2">
+      <div class="mt-3 pt-2.5 border-t border-[var(--border)] flex items-center gap-2">
         <span class="w-2 h-2 rounded-full" :style="{ backgroundColor: overallHealthColor }" />
         <span class="text-[11px] font-mono" :style="{ color: overallHealthColor }">{{ overallHealthLabel }}</span>
       </div>
     </div>
 
     <!-- Pool status -->
-    <div class="bg-[#111111] border border-[#1e1e1e] rounded p-3">
+    <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3">
       <div class="flex items-center gap-2 text-xs font-mono">
         <span
           class="w-2 h-2 rounded-full shrink-0"
           :class="poolConnected ? 'bg-[#22c55e]' : 'bg-[#ef4444]'"
         />
-        <span class="text-[#6b7280] truncate">stratum+tcp://{{ poolUrl }}</span>
+        <span class="text-[var(--text-secondary)] truncate">stratum+tcp://{{ poolUrl }}</span>
         <span :class="poolConnected ? 'text-[#22c55e]' : 'text-[#ef4444]'" class="shrink-0">
           {{ poolConnected ? 'connected' : 'disconnected' }}
         </span>
@@ -215,7 +215,7 @@ const timeToBlock = computed(() => {
     </div>
 
     <!-- Footer stats -->
-    <div class="flex justify-between text-[10px] font-mono text-[#4b4b4b] pt-1">
+    <div class="flex justify-between text-[10px] font-mono text-[var(--text-muted)] pt-1">
       <span>uptime: {{ uptime }}</span>
       <span>{{ power.toFixed(1) }}W</span>
     </div>

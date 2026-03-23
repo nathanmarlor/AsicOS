@@ -173,7 +173,7 @@ async function restart() {
 
     <!-- Status Banner -->
     <div
-      class="flex items-center justify-between px-3 py-1.5 bg-[#111111] border border-[#1e1e1e] rounded text-[11px] font-mono"
+      class="flex items-center justify-between px-3 py-1.5 bg-[var(--surface)] border border-[var(--border)] rounded text-[11px] font-mono"
     >
       <div class="flex items-center gap-2">
         <span
@@ -183,12 +183,12 @@ async function restart() {
         <span :class="poolConnected ? 'text-[#22c55e]' : 'text-[#ef4444]'">
           {{ poolConnected ? 'Mining' : 'Disconnected' }}
         </span>
-        <span class="text-[#4b4b4b]">|</span>
-        <span class="text-[#6b7280]">{{ system.info?.board_name ?? '--' }}</span>
-        <span class="text-[#4b4b4b]">|</span>
-        <span class="text-[#6b7280]">{{ system.info?.asic_model ?? '--' }}</span>
+        <span class="text-[var(--text-muted)]">|</span>
+        <span class="text-[var(--text-secondary)]">{{ system.info?.board_name ?? '--' }}</span>
+        <span class="text-[var(--text-muted)]">|</span>
+        <span class="text-[var(--text-secondary)]">{{ system.info?.asic_model ?? '--' }}</span>
       </div>
-      <div class="flex items-center gap-3 text-[#4b4b4b]">
+      <div class="flex items-center gap-3 text-[var(--text-muted)]">
         <span v-if="system.info">uptime: {{ formatUptime(Math.floor(system.info.uptime_ms / 1000)) }}</span>
         <span v-if="system.info">heap: {{ (system.info.free_heap / 1024).toFixed(0) }}KB</span>
       </div>
@@ -242,7 +242,7 @@ async function restart() {
 
     <!-- Charts Row -->
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-3">
-      <div class="lg:col-span-3 bg-[#111111] border border-[#1e1e1e] rounded p-3">
+      <div class="lg:col-span-3 bg-[var(--surface)] border border-[var(--border)] rounded p-3">
         <HashChart
           :data="system.hashrateHistory"
           color="#f97316"
@@ -251,7 +251,7 @@ async function restart() {
           show-grid
         />
       </div>
-      <div class="lg:col-span-2 bg-[#111111] border border-[#1e1e1e] rounded p-3">
+      <div class="lg:col-span-2 bg-[var(--surface)] border border-[var(--border)] rounded p-3">
         <HashChart
           :data="system.chipTempHistory"
           color="#ef4444"
@@ -264,10 +264,10 @@ async function restart() {
 
     <!-- Middle Row: ASIC Grid + Share Performance + Share Feed -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
-      <div class="bg-[#111111] border border-[#1e1e1e] rounded p-3">
+      <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3">
         <AsicGrid :chips="chips" />
       </div>
-      <div class="bg-[#111111] border border-[#1e1e1e] rounded p-3">
+      <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3">
         <SharePerformance
           :accepted="accepted"
           :rejected="rejected"
@@ -277,7 +277,7 @@ async function restart() {
           :share-rate="shareRate"
         />
       </div>
-      <div class="bg-[#111111] border border-[#1e1e1e] rounded p-3 flex flex-col min-h-[280px]">
+      <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3 flex flex-col min-h-[280px]">
         <ShareFeed
           :all-shares="mining.allShares"
           :submitted-shares="mining.submittedShares"
@@ -288,7 +288,7 @@ async function restart() {
 
     <!-- Bottom Row: Pool + Details + Log -->
     <div class="grid grid-cols-1 lg:grid-cols-10 gap-3">
-      <div class="lg:col-span-3 bg-[#111111] border border-[#1e1e1e] rounded p-3">
+      <div class="lg:col-span-3 bg-[var(--surface)] border border-[var(--border)] rounded p-3">
         <PoolQuality
           :connected="poolConnected"
           :url="poolUrl"
@@ -297,23 +297,23 @@ async function restart() {
           :worker="system.info?.config.pool_user ?? '--'"
         />
       </div>
-      <div class="lg:col-span-4 bg-[#111111] border border-[#1e1e1e] rounded p-3">
-        <div class="text-[10px] font-mono text-[#6b7280] uppercase tracking-wider mb-2">Mining Details</div>
+      <div class="lg:col-span-4 bg-[var(--surface)] border border-[var(--border)] rounded p-3">
+        <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-2">Mining Details</div>
         <table class="w-full text-[11px] font-mono">
           <tbody>
             <tr
               v-for="(row, i) in details"
               :key="row.label"
-              class="border-b border-[#1e1e1e]/50 last:border-0"
-              :class="i % 2 === 0 ? '' : 'bg-[#0a0a0a]/30'"
+              class="border-b border-[var(--border)]/50 last:border-0"
+              :class="i % 2 === 0 ? '' : 'bg-[var(--bg)]/30'"
             >
-              <td class="py-1 text-[#6b7280] pr-4">{{ row.label }}</td>
-              <td class="py-1 text-[#e5e5e5] text-right">{{ row.value }}</td>
+              <td class="py-1 text-[var(--text-secondary)] pr-4">{{ row.label }}</td>
+              <td class="py-1 text-[var(--text)] text-right">{{ row.value }}</td>
             </tr>
           </tbody>
         </table>
       </div>
-      <div class="lg:col-span-3 bg-[#111111] border border-[#1e1e1e] rounded p-3 flex flex-col min-h-[240px]">
+      <div class="lg:col-span-3 bg-[var(--surface)] border border-[var(--border)] rounded p-3 flex flex-col min-h-[240px]">
         <LogConsole />
       </div>
     </div>

@@ -26,7 +26,10 @@ function formatTime(ts: number): string {
 }
 
 function barWidth(diff: number): string {
-  const pct = Math.max(3, (Math.log(diff) / Math.log(maxDiff.value)) * 100)
+  // Log10 scale: diff of 10 -> ~20%, 100 -> ~40%, 1K -> ~60%, 10K -> ~80%, 100K+ -> ~100%
+  const logMax = Math.log10(Math.max(maxDiff.value, 10))
+  const logVal = Math.log10(Math.max(diff, 1))
+  const pct = Math.max(4, (logVal / logMax) * 100)
   return Math.min(100, pct) + '%'
 }
 </script>
@@ -35,17 +38,17 @@ function barWidth(diff: number): string {
   <div class="flex flex-col h-full min-h-0">
     <!-- Header with toggle -->
     <div class="flex items-center justify-between mb-2 shrink-0">
-      <div class="text-[10px] font-mono text-[#6b7280] uppercase tracking-wider">Shares</div>
-      <div class="flex gap-0.5 bg-[#0a0a0a] rounded p-0.5">
+      <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider">Shares</div>
+      <div class="flex gap-0.5 bg-[var(--bg)] rounded p-0.5">
         <button
           @click="filter = 'all'"
           class="text-[10px] font-mono px-2 py-0.5 rounded transition-colors min-h-[28px]"
-          :class="filter === 'all' ? 'bg-[#1a1a1a] text-[#f97316]' : 'text-[#6b7280] hover:text-[#e5e5e5]'"
+          :class="filter === 'all' ? 'bg-[var(--surface-light)] text-[#f97316]' : 'text-[var(--text-secondary)] hover:text-[var(--text)]'"
         >All</button>
         <button
           @click="filter = 'submitted'"
           class="text-[10px] font-mono px-2 py-0.5 rounded transition-colors min-h-[28px]"
-          :class="filter === 'submitted' ? 'bg-[#1a1a1a] text-[#f97316]' : 'text-[#6b7280] hover:text-[#e5e5e5]'"
+          :class="filter === 'submitted' ? 'bg-[var(--surface-light)] text-[#f97316]' : 'text-[var(--text-secondary)] hover:text-[var(--text)]'"
         >Submitted</button>
       </div>
     </div>
@@ -54,7 +57,7 @@ function barWidth(diff: number): string {
     <div class="flex-1 overflow-y-auto space-y-0.5 min-h-0 max-h-[300px]">
       <div
         v-if="visible.length === 0"
-        class="text-xs text-[#4b4b4b] font-mono py-4 text-center"
+        class="text-xs text-[var(--text-muted)] font-mono py-4 text-center"
       >
         waiting for shares...
       </div>
@@ -64,12 +67,12 @@ function barWidth(diff: number): string {
         class="flex items-center gap-2 py-1 px-1 text-xs font-mono rounded"
         :class="[
           i === 0 ? 'animate-slide-in' : '',
-          share.submitted ? 'bg-[#f97316]/5' : (i % 2 === 0 ? 'bg-transparent' : 'bg-[#111111]/50')
+          share.submitted ? 'bg-[#f97316]/5' : (i % 2 === 0 ? 'bg-transparent' : 'bg-[var(--surface)]/50')
         ]"
       >
-        <span class="text-[#4b4b4b] w-[60px] shrink-0 text-[11px]">{{ formatTime(share.ts) }}</span>
-        <span class="text-[#6b7280] w-[48px] text-right shrink-0">{{ share.diff_str }}</span>
-        <div class="flex-1 h-[6px] bg-[#1a1a1a] rounded-sm overflow-hidden">
+        <span class="text-[var(--text-muted)] w-[60px] shrink-0 text-[11px]">{{ formatTime(share.ts) }}</span>
+        <span class="text-[var(--text-secondary)] w-[48px] text-right shrink-0">{{ share.diff_str }}</span>
+        <div class="flex-1 h-[6px] bg-[var(--surface-light)] rounded-sm overflow-hidden">
           <div
             class="h-full rounded-sm transition-all duration-300"
             :class="share.submitted ? 'bg-[#f97316]' : 'bg-[#22c55e]/60'"
