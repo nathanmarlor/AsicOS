@@ -1,5 +1,5 @@
 #include "hashrate_task.h"
-#include "result_task.h"
+#include "asic.h"
 #include "board.h"
 
 #include "freertos/FreeRTOS.h"
@@ -15,9 +15,7 @@ static const char *TAG = "hashrate_task";
 #define POLL_INTERVAL_MS 10000
 #define WARMUP_MS        10000
 #define EMA_ALPHA        12
-
-/* ASIC internal difficulty set during init (BM1370 ticket mask = 256) */
-#define ASIC_DIFFICULTY  256.0
+#define RESPONSE_WAIT_MS 200
 
 static hashrate_info_t s_info;
 
@@ -34,46 +32,66 @@ static void hashrate_task_fn(void *param)
         s_info.chip_count = 16;
     }
 
-    ESP_LOGI(TAG, "Hashrate task started (nonce-rate method), warmup %d ms", WARMUP_MS);
+    ESP_LOGI(TAG, "Hashrate task started (HW counter method), warmup %d ms", WARMUP_MS);
     vTaskDelay(pdMS_TO_TICKS(WARMUP_MS));
 
-    uint64_t prev_nonces = result_task_get_nonce_count();
+    /* Read initial counter values */
+    for (int i = 0; i < s_info.chip_count; i++) {
+        asic_request_hash_counter((uint8_t)(i * 4));
+    }
+    vTaskDelay(pdMS_TO_TICKS(RESPONSE_WAIT_MS));
+
+    uint32_t prev_counter[16] = {0};
+    for (int i = 0; i < s_info.chip_count; i++) {
+        prev_counter[i] = asic_get_stored_hash_counter(i);
+    }
     int64_t prev_time_us = esp_timer_get_time();
 
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(POLL_INTERVAL_MS));
 
-        uint64_t nonces = result_task_get_nonce_count();
-        int64_t now_us = esp_timer_get_time();
+        /* Send read requests for all chips */
+        for (int i = 0; i < s_info.chip_count; i++) {
+            asic_request_hash_counter((uint8_t)(i * 4));
+        }
+        vTaskDelay(pdMS_TO_TICKS(RESPONSE_WAIT_MS));
 
-        uint64_t delta_nonces = nonces - prev_nonces;
+        int64_t now_us = esp_timer_get_time();
         double dt_sec = (double)(now_us - prev_time_us) / 1e6;
 
-        if (dt_sec > 0 && delta_nonces > 0) {
-            /* Each nonce represents ASIC_DIFFICULTY * 2^32 hashes on average */
-            double total_hashes = (double)delta_nonces * ASIC_DIFFICULTY * 4294967296.0;
-            double ghs = total_hashes / dt_sec / 1e9;
+        float total_ghs = 0.0f;
 
-            /* EMA smoothing */
-            if (s_info.total_hashrate_ghs == 0.0f) {
-                s_info.total_hashrate_ghs = (float)ghs;
-            } else {
-                s_info.total_hashrate_ghs =
-                    (s_info.total_hashrate_ghs * (EMA_ALPHA - 1) + (float)ghs) / EMA_ALPHA;
+        for (int i = 0; i < s_info.chip_count; i++) {
+            uint32_t counter = asic_get_stored_hash_counter(i);
+            if (counter == 0 && prev_counter[i] == 0) {
+                continue;  /* No data yet for this chip */
             }
 
-            /* Split evenly across chips (no per-chip nonce tracking) */
-            for (int i = 0; i < s_info.chip_count; i++) {
-                s_info.per_chip_hashrate_ghs[i] =
-                    s_info.total_hashrate_ghs / s_info.chip_count;
+            uint32_t delta = counter - prev_counter[i];  /* handles wrap */
+            prev_counter[i] = counter;
+
+            if (dt_sec > 0 && delta > 0) {
+                /* forge-os formula: GH/s = counter_delta / dt * 2^32 / 1e9 */
+                float ghs = (float)delta / (float)dt_sec * 4294967296.0f / 1e9f;
+                s_info.per_chip_hashrate_ghs[i] = ghs;
+                total_ghs += ghs;
             }
         }
 
-        prev_nonces = nonces;
+        /* EMA smoothing */
+        if (total_ghs > 0.0f) {
+            if (s_info.total_hashrate_ghs == 0.0f) {
+                s_info.total_hashrate_ghs = total_ghs;
+            } else {
+                s_info.total_hashrate_ghs =
+                    (s_info.total_hashrate_ghs * (EMA_ALPHA - 1) + total_ghs) / EMA_ALPHA;
+            }
+        }
+
         prev_time_us = now_us;
 
-        ESP_LOGI(TAG, "Hashrate: %.2f GH/s (%" PRIu64 " nonces in %.1fs)",
-                 s_info.total_hashrate_ghs, delta_nonces, dt_sec);
+        ESP_LOGI(TAG, "Hashrate: %.2f GH/s (%d chips, dt=%.1fs)",
+                 s_info.total_hashrate_ghs, s_info.chip_count, dt_sec);
     }
 }
 

@@ -14,6 +14,41 @@ static const char *TAG = "asic";
 static asic_state_t s_state = {0};
 
 /* ------------------------------------------------------------------ */
+/* Hash counter relay (result_task -> hashrate_task)                    */
+/* ------------------------------------------------------------------ */
+static volatile uint32_t s_last_hash_counter[16] = {0};
+static volatile bool     s_hash_counter_valid[16] = {false};
+
+void asic_store_hash_counter(int chip, uint32_t value)
+{
+    if (chip >= 0 && chip < 16) {
+        s_last_hash_counter[chip] = value;
+        s_hash_counter_valid[chip] = true;
+    }
+}
+
+uint32_t asic_get_stored_hash_counter(int chip)
+{
+    if (chip >= 0 && chip < 16 && s_hash_counter_valid[chip]) {
+        s_hash_counter_valid[chip] = false;
+        return s_last_hash_counter[chip];
+    }
+    return 0;
+}
+
+void asic_request_hash_counter(uint8_t chip_addr)
+{
+    uint8_t cmd_buf[16];
+    int cmd_len = asic_build_cmd(cmd_buf, sizeof(cmd_buf),
+                                 ASIC_CMD_READ, ASIC_GROUP_SINGLE,
+                                 chip_addr, ASIC_REG_NONCE_COUNT,
+                                 NULL, 0);
+    if (cmd_len > 0) {
+        serial_tx(cmd_buf, (size_t)cmd_len);
+    }
+}
+
+/* ------------------------------------------------------------------ */
 /* PLL calculation                                                     */
 /* ------------------------------------------------------------------ */
 pll_params_t asic_calc_pll(float target_freq_mhz)
@@ -266,45 +301,20 @@ int asic_receive_result(asic_result_t *result, uint32_t timeout_ms)
         return 1;
     }
 
-    /* Register read response */
+    /* Register read response - parse and store for hashrate_task.
+     * Response format: [AA 55] [data:4] [reg_addr:1] [chip_addr:1] [??:2] [crc:1]
+     * Extract 32-bit value from bytes 2-5, chip address from byte 7. */
+    uint32_t value = ((uint32_t)resp[2] << 24) | ((uint32_t)resp[3] << 16) |
+                     ((uint32_t)resp[4] <<  8) |  (uint32_t)resp[5];
+    int chip = resp[7] / 4;  /* chip address / interval */
+    ESP_LOGI(TAG, "Register read: chip=%d reg=0x%02x value=0x%08lx",
+             chip, resp[6], (unsigned long)value);
+    asic_store_hash_counter(chip, value);
     return 0;
 }
 
-/* ------------------------------------------------------------------ */
-/* Read hash counter                                                   */
-/* ------------------------------------------------------------------ */
-uint32_t asic_read_hash_counter(uint8_t chip_addr)
-{
-    /* Build READ command for NONCE_COUNT register targeting specific chip */
-    uint8_t cmd_buf[16];
-    int cmd_len = asic_build_cmd(cmd_buf, sizeof(cmd_buf),
-                                 ASIC_CMD_READ, ASIC_GROUP_SINGLE,
-                                 chip_addr, ASIC_REG_NONCE_COUNT,
-                                 NULL, 0);
-    if (cmd_len < 0) {
-        return 0;
-    }
-
-    serial_tx(cmd_buf, (size_t)cmd_len);
-
-    /* Read response */
-    uint8_t resp[ASIC_RESP_SIZE];
-    int n = serial_rx(resp, ASIC_RESP_SIZE, 500);
-    if (n != ASIC_RESP_SIZE) {
-        return 0;
-    }
-
-    if (resp[0] != 0xAA || resp[1] != 0x55) {
-        return 0;
-    }
-
-    /* Parse 32-bit counter from response bytes [2..5] */
-    uint32_t counter = ((uint32_t)resp[2] << 24) |
-                       ((uint32_t)resp[3] << 16) |
-                       ((uint32_t)resp[4] <<  8) |
-                       ((uint32_t)resp[5]);
-    return counter;
-}
+/* asic_read_hash_counter() removed - use asic_request_hash_counter() +
+ * asic_get_stored_hash_counter() instead (no UART contention). */
 
 /* ------------------------------------------------------------------ */
 /* State accessor                                                      */

@@ -56,8 +56,10 @@ int       asic_receive_result(asic_result_t *result, uint32_t timeout_ms);
 // State
 const asic_state_t *asic_get_state(void);
 
-// Register access
-uint32_t  asic_read_hash_counter(uint8_t chip_addr);
+// Hash counter relay (result_task stores, hashrate_task reads)
+void      asic_request_hash_counter(uint8_t chip_addr);
+void      asic_store_hash_counter(int chip, uint32_t value);
+uint32_t  asic_get_stored_hash_counter(int chip);
 
 // PLL helper
 typedef struct {
