@@ -160,6 +160,7 @@ const vrTempDetail = computed(() => {
   if (!s) return '--'
   return (s.power.vr_temp ?? s.temps.vr).toFixed(1)
 })
+const isAutoFan = computed(() => system.info ? system.info.power.fan_override < 0 : true)
 const fan0 = computed(() => system.info?.power.fan0_rpm.toLocaleString() ?? '--')
 const fan1 = computed(() => system.info?.power.fan1_rpm.toLocaleString() ?? '--')
 const fanMode = computed(() => {
@@ -372,9 +373,9 @@ async function restart() {
           <div class="text-[var(--text-muted)]">Board</div>
           <div class="text-right text-[var(--text)]">{{ boardTemp }}&deg;C</div>
           <div class="text-[var(--text-muted)]">Fan 1</div>
-          <div class="text-right text-[var(--text)]">{{ fan0 }} RPM</div>
+          <div class="text-right text-[var(--text)]">{{ fan0 }} RPM<span v-if="isAutoFan" class="text-[var(--text-muted)]"> ({{ system.info?.power.fan0_pct ?? 0 }}%)</span></div>
           <div class="text-[var(--text-muted)]">Fan 2</div>
-          <div class="text-right text-[var(--text)]">{{ fan1 }} RPM</div>
+          <div class="text-right text-[var(--text)]">{{ fan1 }} RPM<span v-if="isAutoFan" class="text-[var(--text-muted)]"> ({{ system.info?.power.fan1_pct ?? 0 }}%)</span></div>
           <div class="text-[var(--text-muted)]">Mode</div>
           <div class="text-right text-[var(--text)]">{{ fanMode }}</div>
         </div>

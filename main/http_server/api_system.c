@@ -124,6 +124,8 @@ esp_err_t api_system_info_handler(httpd_req_t *req)
         cJSON_AddNumberToObject(power, "efficiency_pct", eff_pct);
         cJSON_AddNumberToObject(power, "fan0_rpm", pw->fan0_rpm);
         cJSON_AddNumberToObject(power, "fan1_rpm", pw->fan1_rpm);
+        cJSON_AddNumberToObject(power, "fan0_pct", pw->fan0_pct);
+        cJSON_AddNumberToObject(power, "fan1_pct", pw->fan1_pct);
         int fan_ovr = power_get_fan_override();
         cJSON_AddNumberToObject(power, "fan_override", fan_ovr);
         cJSON_AddStringToObject(power, "fan_mode", fan_ovr < 0 ? "auto" : "manual");
