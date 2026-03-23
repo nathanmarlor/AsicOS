@@ -112,7 +112,7 @@ static void screen_mining(void)
     stratum_state_t stratum_state = stratum_client_get_state();
     uint32_t accepted = stratum_client_get_accepted();
 
-    char line[42];
+    char line[160];
     int y = 24;
 
     // Large hashrate display
@@ -179,7 +179,7 @@ static void screen_stats(void)
     double pool_diff = stratum_client_get_current_difficulty();
     const board_config_t *board = board_get_config();
 
-    char line[42];
+    char line[160];
     char diff_str[16];
     int y = 24;
 
@@ -245,7 +245,7 @@ static void screen_network(void)
 {
     draw_header("NETWORK");
 
-    char line[42];
+    char line[160];
     int y = 24;
 
     // WiFi SSID
