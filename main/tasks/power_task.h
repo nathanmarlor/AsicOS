@@ -27,3 +27,4 @@ const power_status_t *power_task_get_status(void);
 
 // Fan manual override: set to 0-100 for manual %, or -1 to return to PID auto
 void power_set_fan_override(int percent);
+int power_get_fan_override(void);

@@ -79,6 +79,13 @@ static void power_task(void *pvParameters)
     uint16_t overheat_temp = board->overheat_temp;
     uint32_t iteration = 0;
 
+    /* Restore fan override from NVS */
+    uint16_t saved_fan = nvs_config_get_u16("fan_override", 0xFFFF);
+    if (saved_fan != 0xFFFF && saved_fan <= 100) {
+        s_fan_override = (int)saved_fan;
+        ESP_LOGI(TAG, "Restored fan override from NVS: %d%%", s_fan_override);
+    }
+
     ESP_LOGI(TAG, "Power task started: fan_target=%" PRIu16 " overheat=%" PRIu16 " vr_target=%" PRIu16,
              board->fan_target_temp, overheat_temp, board->vr_target_temp);
 
@@ -210,8 +217,15 @@ void power_set_fan_override(int percent)
     if (percent < 0) {
         s_fan_override = -1;
         ESP_LOGI(TAG, "Fan override disabled, returning to PID auto");
+        nvs_config_set_u16("fan_override", 0xFFFF);  /* 0xFFFF = auto */
     } else {
         s_fan_override = (percent > 100) ? 100 : percent;
         ESP_LOGI(TAG, "Fan override set to %d%%", s_fan_override);
+        nvs_config_set_u16("fan_override", (uint16_t)s_fan_override);
     }
+}
+
+int power_get_fan_override(void)
+{
+    return s_fan_override;
 }

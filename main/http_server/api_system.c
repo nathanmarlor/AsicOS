@@ -111,6 +111,9 @@ esp_err_t api_system_info_handler(httpd_req_t *req)
         cJSON_AddNumberToObject(power, "watts",   pw->power_w);
         cJSON_AddNumberToObject(power, "fan0_rpm", pw->fan0_rpm);
         cJSON_AddNumberToObject(power, "fan1_rpm", pw->fan1_rpm);
+        int fan_ovr = power_get_fan_override();
+        cJSON_AddNumberToObject(power, "fan_override", fan_ovr);
+        cJSON_AddStringToObject(power, "fan_mode", fan_ovr < 0 ? "auto" : "manual");
         cJSON_AddBoolToObject(power, "overheat",  pw->overheat);
         cJSON_AddBoolToObject(power, "vr_fault",  pw->vr_fault);
     }
