@@ -70,9 +70,9 @@ onMounted(async () => {
     poolPort.value = cfg.pool_port ?? 3333
     poolUser.value = cfg.pool_user ?? ''
     poolPassword.value = ''
-    fallbackUrl.value = ''
-    fallbackPort.value = 3333
-    fallbackUser.value = ''
+    fallbackUrl.value = cfg.pool2_url ?? ''
+    fallbackPort.value = cfg.pool2_port ?? 3333
+    fallbackUser.value = cfg.pool2_user ?? ''
     frequency.value = cfg.frequency ?? 500
     voltage.value = cfg.voltage ?? 1200
     freqMin.value = cfg.freq_min ?? 100
@@ -282,7 +282,7 @@ async function uploadFirmware() {
           type="range"
           :min="freqMin"
           :max="freqMax"
-          step="25"
+          step="5"
           class="w-full accent-accent bg-transparent"
         />
         <div class="flex justify-between text-[10px] text-[var(--text-muted)] font-mono">
@@ -300,7 +300,7 @@ async function uploadFirmware() {
           type="range"
           :min="voltMin"
           :max="voltMax"
-          step="10"
+          step="5"
           class="w-full accent-accent bg-transparent"
         />
         <div class="flex justify-between text-[10px] text-[var(--text-muted)] font-mono">

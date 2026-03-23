@@ -158,6 +158,12 @@ esp_err_t api_system_info_handler(httpd_req_t *req)
         nvs_config_get_u16(NVS_KEY_POOL_PORT, DEFAULT_POOL_PORT));
     nvs_config_get_string(NVS_KEY_POOL_USER, buf, sizeof(buf), "");
     cJSON_AddStringToObject(config, "pool_user", buf);
+    nvs_config_get_string(NVS_KEY_POOL2_URL, buf, sizeof(buf), "");
+    cJSON_AddStringToObject(config, "pool2_url", buf);
+    cJSON_AddNumberToObject(config, "pool2_port",
+        nvs_config_get_u16(NVS_KEY_POOL2_PORT, DEFAULT_POOL_PORT));
+    nvs_config_get_string(NVS_KEY_POOL2_USER, buf, sizeof(buf), "");
+    cJSON_AddStringToObject(config, "pool2_user", buf);
     cJSON_AddNumberToObject(config, "frequency",
         nvs_config_get_u16(NVS_KEY_ASIC_FREQ, DEFAULT_ASIC_FREQ));
     cJSON_AddNumberToObject(config, "voltage",
