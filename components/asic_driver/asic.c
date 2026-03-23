@@ -63,8 +63,12 @@ int asic_enumerate(void)
     serial_flush_rx();
 
     /* BM1370 needs version mask writes before it responds to chip ID reads.
-     * Send version mask (reg 0xA4) three times as a wake-up sequence. */
-    uint8_t ver_data[4] = {0x00, 0x00, 0x00, 0x00};  /* version mask placeholder */
+     * Send the actual version mask value (matching forge-os _send_init). */
+    uint32_t default_mask = 0x1FFFE000;
+    uint32_t versions_to_roll = default_mask >> 13;
+    uint8_t ver_data[4] = {0x90, 0x00,
+                           (uint8_t)((versions_to_roll >> 8) & 0xFF),
+                           (uint8_t)(versions_to_roll & 0xFF)};
     uint8_t ver_buf[16];
     int ver_len = asic_build_cmd(ver_buf, sizeof(ver_buf),
                                  ASIC_CMD_WRITE, ASIC_GROUP_ALL,
@@ -248,19 +252,19 @@ int asic_receive_result(asic_result_t *result, uint32_t timeout_ms)
     }
 
     if (asic_is_nonce_response(resp)) {
-        /* Parse nonce response:
-         * [2..5] nonce (big-endian)
+        /* Parse nonce response matching forge-os packed struct layout:
+         * [2..5] nonce - stored as-is via memcpy (LE uint32 on ESP32)
          * [6]    midstate_num
          * [7]    job_id
-         * [8..9] rolled_version (big-endian)
+         * [8..9] rolled_version - stored as-is via memcpy (LE uint16 on ESP32)
+         *
+         * Forge-os uses ntohl/ntohs only when extracting specific bit fields
+         * (core_id, version_bits), but stores raw LE values in the result struct.
          */
-        result->nonce = ((uint32_t)resp[2] << 24) |
-                        ((uint32_t)resp[3] << 16) |
-                        ((uint32_t)resp[4] <<  8) |
-                        ((uint32_t)resp[5]);
+        memcpy(&result->nonce, &resp[2], 4);  /* raw bytes, LE on ESP32 */
         result->midstate_num   = resp[6];
         result->job_id         = resp[7];
-        result->rolled_version = (uint16_t)((resp[8] << 8) | resp[9]);
+        memcpy(&result->rolled_version, &resp[8], 2);  /* raw bytes, LE on ESP32 */
         return 1;
     }
 

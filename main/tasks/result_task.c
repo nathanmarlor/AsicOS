@@ -12,6 +12,7 @@
 
 #include <string.h>
 #include <math.h>
+#include <arpa/inet.h>
 
 static const char *TAG = "result_task";
 
@@ -95,16 +96,21 @@ static void result_task_fn(void *param)
             continue;
         }
 
-        /* Build block header and test nonce with version rolling */
+        /* Build block header and test nonce with version rolling.
+         * rolled_version from ASIC is stored as raw LE uint16 (via memcpy).
+         * Apply ntohs to convert to host value before shifting, matching forge-os. */
         uint8_t header[80];
-        uint32_t rolled_version = job->version | ((uint32_t)result.rolled_version << 13);
+        uint32_t version_bits = (uint32_t)ntohs(result.rolled_version) << 13;
+        uint32_t rolled_version = job->version | version_bits;
 
         mining_build_block_header(header, rolled_version, job->prev_block_hash,
                                   job->merkle_root, job->ntime, job->nbits,
                                   result.nonce);
 
         double share_diff = 0.0;
-        bool valid = mining_test_nonce(header, result.nonce, result.rolled_version, &share_diff);
+        /* Header already has rolled_version applied, pass version_bits
+         * so mining_test_nonce can re-apply consistently */
+        bool valid = mining_test_nonce(header, result.nonce, version_bits, &share_diff);
 
         if (!valid || share_diff <= 0.0) {
             ESP_LOGD(TAG, "Invalid nonce test result");
@@ -127,7 +133,7 @@ static void result_task_fn(void *param)
             char nonce_hex[9];
             char version_hex[9];
             snprintf(nonce_hex, sizeof(nonce_hex), "%08lx", (unsigned long)result.nonce);
-            snprintf(version_hex, sizeof(version_hex), "%04x", result.rolled_version);
+            snprintf(version_hex, sizeof(version_hex), "%08lx", (unsigned long)rolled_version);
 
             char ntime_hex[9];
             snprintf(ntime_hex, sizeof(ntime_hex), "%08lx", (unsigned long)job->ntime);

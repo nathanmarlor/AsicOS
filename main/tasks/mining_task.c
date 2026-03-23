@@ -96,12 +96,9 @@ static void mining_task_fn(void *param)
             continue;
         }
 
-        /* Assign rotating job ID (matches forge-os: id = (id + 24) % 128) */
-        job.job_id = s_asic_job_id;
+        /* Assign rotating job ID (matches forge-os: id incremented BEFORE assign) */
         s_asic_job_id = (s_asic_job_id + 24) % 128;
-
-        /* Set difficulty mask on ASIC */
-        asic_set_difficulty_mask((uint64_t)s_current_pool_diff);
+        job.job_id = s_asic_job_id;
 
         /* Store job at s_active_jobs[job.job_id] (original ID, mutex protected) */
         if (xSemaphoreTake(s_jobs_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {

@@ -37,17 +37,19 @@ int stratum_build_asic_job(const stratum_notify_t *notify, const char *extranonc
 
     memset(job_out, 0, sizeof(*job_out));
 
-    /* Build extranonce2 hex from counter, zero-padded to extranonce2_size bytes */
+    /* Build extranonce2 hex from counter in little-endian byte order.
+     * Matches forge-os extranonce_2_generate() which uses bin2hex on
+     * the raw (little-endian) bytes of the uint32_t counter. */
     char extranonce2_hex[64];
     memset(extranonce2_hex, '0', sizeof(extranonce2_hex));
     extranonce2_hex[extranonce2_size * 2] = '\0';
-    /* Fill from the right with counter hex digits */
-    for (int i = extranonce2_size - 1; i >= 0 && extranonce2_counter > 0; i--) {
-        uint8_t byte = extranonce2_counter & 0xFF;
-        sprintf(extranonce2_hex + i * 2, "%02x", byte);
-        extranonce2_counter >>= 8;
+    /* Write counter bytes in little-endian order (LSB first) */
+    uint32_t counter_copy = extranonce2_counter;
+    for (int i = 0; i < extranonce2_size && i < 4; i++) {
+        sprintf(extranonce2_hex + i * 2, "%02x", (uint8_t)(counter_copy & 0xFF));
+        counter_copy >>= 8;
     }
-    /* Ensure null terminator at correct position */
+    /* Ensure null terminator at correct position (sprintf may have overwritten it) */
     extranonce2_hex[extranonce2_size * 2] = '\0';
 
     /* Construct coinbase: coinbase1 + extranonce1 + extranonce2 + coinbase2 */
