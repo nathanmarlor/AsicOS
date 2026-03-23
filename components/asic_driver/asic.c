@@ -82,42 +82,17 @@ int asic_enumerate(void)
         return 0;
     }
 
-    /* Debug: log the exact bytes being sent */
-    {
-        char hex[64] = {0};
-        for (int i = 0; i < cmd_len && i < 20; i++) {
-            sprintf(hex + i * 3, "%02X ", cmd_buf[i]);
-        }
-        ESP_LOGI(TAG, "Enumerate TX (%d bytes): %s", cmd_len, hex);
-    }
-
     serial_tx(cmd_buf, (size_t)cmd_len);
 
-    /* Read responses – each chip replies with ASIC_RESP_SIZE bytes */
+    /* Wait a moment for all chips to respond */
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    /* Read responses – each chip replies with ASIC_RESP_SIZE (11) bytes */
     int chip_count = 0;
     uint8_t resp[ASIC_RESP_SIZE];
 
-    /* Try reading any available data first for debug */
-    int debug_n = serial_rx(resp, ASIC_RESP_SIZE, 1000);
-    if (debug_n > 0) {
-        char hex[64] = {0};
-        for (int i = 0; i < debug_n && i < 20; i++) {
-            sprintf(hex + i * 3, "%02X ", resp[i]);
-        }
-        ESP_LOGI(TAG, "Enumerate RX (%d bytes): %s", debug_n, hex);
-
-        /* Check first response */
-        if (debug_n == ASIC_RESP_SIZE &&
-            resp[0] == 0xAA && resp[1] == 0x55 &&
-            resp[2] == 0x13 && resp[3] == 0x70) {
-            chip_count++;
-        }
-    } else {
-        ESP_LOGW(TAG, "Enumerate RX: no response (timeout)");
-    }
-
     while (1) {
-        int n = serial_rx(resp, ASIC_RESP_SIZE, 500);
+        int n = serial_rx(resp, ASIC_RESP_SIZE, 1000);
         if (n != ASIC_RESP_SIZE) {
             break;
         }
