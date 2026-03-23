@@ -79,8 +79,15 @@ static void hashrate_task_fn(void *param)
             if (dt_sec > 0 && delta > 0) {
                 /* GH/s = counter_delta / dt * 2^32 / 1e9 */
                 float ghs = (float)delta / (float)dt_sec * 4294967296.0f / 1e9f;
-                s_info.per_chip_hashrate_ghs[i] = ghs;
-                total_ghs += ghs;
+                /* Sanity check: reject values > 10x expected per-chip rate.
+                 * At 800MHz with 2040 cores, max ~1600 GH/s per chip. */
+                if (ghs < 20000.0f) {
+                    s_info.per_chip_hashrate_ghs[i] = ghs;
+                    total_ghs += ghs;
+                } else {
+                    ESP_LOGW(TAG, "Chip %d: rejected insane hashrate %.0f GH/s", i, ghs);
+                    total_ghs += s_info.per_chip_hashrate_ghs[i]; /* keep previous */
+                }
             }
 
             /* Per-domain hashrate */
@@ -92,8 +99,11 @@ static void hashrate_task_fn(void *param)
                 uint32_t d_delta = d_counter - prev_domain_counter[i][d];
                 prev_domain_counter[i][d] = d_counter;
                 if (dt_sec > 0 && d_delta > 0) {
-                    s_info.per_domain_hashrate_ghs[i][d] =
-                        (float)d_delta / (float)dt_sec * 4294967296.0f / 1e9f;
+                    float d_ghs = (float)d_delta / (float)dt_sec * 4294967296.0f / 1e9f;
+                    /* Sanity: max ~500 GH/s per domain */
+                    if (d_ghs < 5000.0f) {
+                        s_info.per_domain_hashrate_ghs[i][d] = d_ghs;
+                    }
                 }
             }
         }

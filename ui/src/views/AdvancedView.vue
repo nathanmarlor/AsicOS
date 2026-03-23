@@ -160,25 +160,28 @@ const details = computed((): DetailRow[] => {
     { label: 'Session Best', value: mining.formatDiff(m.best_diff) },
     { label: 'All-Time Best', value: mining.formatDiff(m.alltime_best_diff ?? 0) },
     { label: 'Accepted / Rejected', value: `${m.accepted} / ${m.rejected}` },
-    { label: 'HARDWARE', value: '', header: true },
-    { label: 'Frequency', value: `${s.config.frequency} MHz` },
-    { label: 'Core Voltage', value: `${s.config.voltage} mV` },
-    { label: 'Input Voltage (VIN)', value: `${s.power.vin.toFixed(2)} V` },
-    { label: 'Output Voltage (VOUT)', value: `${s.power.vout.toFixed(3)} V` },
-    { label: 'Output Current (IOUT)', value: `${s.power.iout.toFixed(1)} A` },
+    { label: 'ASIC', value: '', header: true },
+    { label: 'ASIC Frequency', value: `${s.config.frequency} MHz` },
+    { label: 'ASIC Voltage', value: `${s.config.voltage} mV` },
+    { label: 'POWER', value: '', header: true },
+    { label: 'Input Voltage', value: `${s.power.vin.toFixed(2)} V` },
+    { label: 'VRM Voltage', value: `${(s.power.vout * 1000).toFixed(0)} mV` },
+    { label: 'VRM Current', value: `${s.power.iout.toFixed(1)} A` },
+    { label: 'Power Draw', value: `${s.power.watts.toFixed(1)} W` },
   ]
   if (s.has_adc_vcore && s.power.vcore_adc_mv > 0) {
-    rows.push({ label: 'VCORE ADC', value: `${s.power.vcore_adc_mv.toFixed(0)} mV` })
+    rows.push({ label: 'ASIC Core Voltage (ADC)', value: `${s.power.vcore_adc_mv.toFixed(0)} mV` })
   }
   rows.push(
-    { label: 'THERMAL', value: '', header: true },
-    { label: 'VR Temp', value: `${(s.power.vr_temp ?? s.temps.vr).toFixed(1)}\u00B0C` },
-    { label: 'Board Temp', value: `${s.temps.board.toFixed(1)}\u00B0C` },
-    { label: 'Fan 0', value: `${s.power.fan0_rpm} RPM` },
-    { label: 'Fan 1', value: `${s.power.fan1_rpm} RPM` },
+    { label: 'COOLING', value: '', header: true },
+    { label: 'VRM Temperature', value: `${(s.power.vr_temp ?? s.temps.vr).toFixed(1)}\u00B0C` },
+    { label: 'Board Temperature', value: `${s.temps.board.toFixed(1)}\u00B0C` },
+    { label: 'Fan 1', value: `${s.power.fan0_rpm.toLocaleString()} RPM` },
+    { label: 'Fan 2', value: `${s.power.fan1_rpm.toLocaleString()} RPM` },
     { label: 'SYSTEM', value: '', header: true },
-    { label: 'Free Heap', value: `${(s.free_heap / 1024).toFixed(0)} KB` },
+    { label: 'Free Memory', value: `${(s.free_heap / 1024).toFixed(0)} KB` },
     { label: 'Uptime', value: formatUptime(Math.floor(s.uptime_ms / 1000)) },
+    { label: 'Last Reset', value: s.reset_reason ?? 'unknown' },
   )
   return rows
 })

@@ -18,6 +18,7 @@ export interface SystemInfo {
   config: { pool_url: string; pool_port: number; pool_user: string; frequency: number; voltage: number; wifi_ssid: string; ui_mode: string }
   uptime_ms: number
   free_heap: number
+  reset_reason?: string
 }
 
 const HISTORY_SIZE = 120

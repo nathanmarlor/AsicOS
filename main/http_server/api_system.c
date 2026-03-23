@@ -179,6 +179,24 @@ esp_err_t api_system_info_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(root, "uptime_ms", (double)(esp_timer_get_time() / 1000));
     cJSON_AddNumberToObject(root, "free_heap", (double)esp_get_free_heap_size());
 
+    /* Reset reason */
+    esp_reset_reason_t reason = esp_reset_reason();
+    const char *reason_str = "unknown";
+    switch (reason) {
+        case ESP_RST_POWERON:  reason_str = "Power on"; break;
+        case ESP_RST_SW:       reason_str = "Software restart"; break;
+        case ESP_RST_PANIC:    reason_str = "Crash (panic)"; break;
+        case ESP_RST_INT_WDT:  reason_str = "Watchdog (interrupt)"; break;
+        case ESP_RST_TASK_WDT: reason_str = "Watchdog (task)"; break;
+        case ESP_RST_WDT:      reason_str = "Watchdog"; break;
+        case ESP_RST_DEEPSLEEP: reason_str = "Deep sleep"; break;
+        case ESP_RST_BROWNOUT: reason_str = "Brownout"; break;
+        case ESP_RST_SDIO:     reason_str = "SDIO"; break;
+        case ESP_RST_USB:      reason_str = "USB"; break;
+        default: break;
+    }
+    cJSON_AddStringToObject(root, "reset_reason", reason_str);
+
     send_json(req, root);
     return ESP_OK;
 }
