@@ -40,23 +40,26 @@ esp_err_t api_mining_info_handler(httpd_req_t *req)
     /* Hashrate */
     if (hr) {
         cJSON_AddNumberToObject(root, "hashrate_ghs", hr->total_hashrate_ghs);
-        cJSON *chips = cJSON_AddArrayToObject(root, "per_chip_hashrate_ghs");
+        cJSON *chips = cJSON_AddArrayToObject(root, "chips");
         for (int i = 0; i < hr->chip_count; i++) {
-            cJSON_AddItemToArray(chips, cJSON_CreateNumber(hr->per_chip_hashrate_ghs[i]));
+            cJSON *chip = cJSON_CreateObject();
+            cJSON_AddNumberToObject(chip, "id", i);
+            cJSON_AddNumberToObject(chip, "hashrate_ghs", hr->per_chip_hashrate_ghs[i]);
+            cJSON_AddItemToArray(chips, chip);
         }
-        cJSON_AddNumberToObject(root, "chip_count", hr->chip_count);
     }
 
-    /* Shares */
+    /* Shares -- field names match UI store interface */
     if (stats) {
-        cJSON_AddNumberToObject(root, "best_difficulty",        stats->best_difficulty);
-        cJSON_AddNumberToObject(root, "total_shares_submitted", (double)stats->total_shares_submitted);
+        cJSON_AddNumberToObject(root, "best_diff",    stats->best_difficulty);
+        cJSON_AddNumberToObject(root, "total_shares",  (double)stats->total_shares_submitted);
+        cJSON_AddNumberToObject(root, "duplicates",    (double)stats->duplicate_nonces);
     }
 
     /* Pool */
-    cJSON_AddNumberToObject(root, "pool_difficulty", stratum_client_get_current_difficulty());
-    cJSON_AddNumberToObject(root, "accepted",        stratum_client_get_accepted());
-    cJSON_AddNumberToObject(root, "rejected",        stratum_client_get_rejected());
+    cJSON_AddNumberToObject(root, "pool_diff",  stratum_client_get_current_difficulty());
+    cJSON_AddNumberToObject(root, "accepted",   stratum_client_get_accepted());
+    cJSON_AddNumberToObject(root, "rejected",   stratum_client_get_rejected());
 
     send_json(req, root);
     return ESP_OK;
