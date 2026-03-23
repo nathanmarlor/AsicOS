@@ -93,7 +93,7 @@ int stratum_build_asic_job(const stratum_notify_t *notify, const char *extranonc
             return -1;
     }
 
-    /* Compute merkle root */
+    /* Compute merkle root (result is in standard byte order) */
     uint8_t merkle_root[32];
     mining_compute_merkle_root(coinbase_hash, branches,
                                notify->merkle_branch_count, merkle_root);
@@ -111,7 +111,8 @@ int stratum_build_asic_job(const stratum_notify_t *notify, const char *extranonc
         hex_to_bytes(notify->prev_block_hash, prev_hash, sizeof(prev_hash));
     }
 
-    /* Fill the asic_job_t */
+    /* Fill the asic_job_t with standard byte order.
+     * The ASIC-specific endian transformations are applied in bm1370_send_work(). */
     job_out->version = version;
     job_out->nbits   = nbits;
     job_out->ntime   = ntime;

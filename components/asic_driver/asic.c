@@ -231,12 +231,19 @@ int asic_receive_result(asic_result_t *result, uint32_t timeout_ms)
 
     uint8_t resp[ASIC_RESP_SIZE];
     int n = serial_rx(resp, ASIC_RESP_SIZE, timeout_ms);
+    if (n > 0) {
+        ESP_LOG_BUFFER_HEX_LEVEL(TAG, resp, n, ESP_LOG_INFO);
+    }
     if (n != ASIC_RESP_SIZE) {
+        if (n > 0) {
+            ESP_LOGW(TAG, "Partial ASIC response: got %d bytes, expected %d", n, ASIC_RESP_SIZE);
+        }
         return -1;
     }
 
     /* Validate preamble */
     if (resp[0] != 0xAA || resp[1] != 0x55) {
+        ESP_LOGW(TAG, "Bad preamble: %02x %02x", resp[0], resp[1]);
         return -1;
     }
 

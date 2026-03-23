@@ -279,13 +279,25 @@ int bm1370_set_max_baud(void)
 /* Send work                                                           */
 /* ------------------------------------------------------------------ */
 
-/* Helper: write a big-endian uint32 into buffer */
-static void put_be32(uint8_t *buf, uint32_t val)
+/* Reverse all bytes in a buffer (in-place) */
+static void reverse_bytes(uint8_t *data, size_t len)
 {
-    buf[0] = (uint8_t)((val >> 24) & 0xFF);
-    buf[1] = (uint8_t)((val >> 16) & 0xFF);
-    buf[2] = (uint8_t)((val >>  8) & 0xFF);
-    buf[3] = (uint8_t)((val >>  0) & 0xFF);
+    for (size_t i = 0; i < len / 2; i++) {
+        uint8_t tmp = data[i];
+        data[i] = data[len - 1 - i];
+        data[len - 1 - i] = tmp;
+    }
+}
+
+/* Swap byte order within each 4-byte word (in-place).
+ * Matches forge-os swap_endian_words() applied to binary data. */
+static void swap_endian_words_bin(uint8_t *data, size_t len)
+{
+    for (size_t i = 0; i + 3 < len; i += 4) {
+        uint8_t tmp;
+        tmp = data[i + 0]; data[i + 0] = data[i + 3]; data[i + 3] = tmp;
+        tmp = data[i + 1]; data[i + 1] = data[i + 2]; data[i + 2] = tmp;
+    }
 }
 
 esp_err_t bm1370_send_work(const asic_job_t *job)
@@ -297,12 +309,18 @@ esp_err_t bm1370_send_work(const asic_job_t *job)
     /* Build 82-byte job data (matches forge-os BM1370_job packed struct):
      * [0]      asic job_id (mapped)
      * [1]      num_midstates
-     * [2..5]   starting_nonce (4 bytes)
-     * [6..9]   nbits (4 bytes)
-     * [10..13] ntime (4 bytes)
-     * [14..45] merkle_root (32 bytes)
-     * [46..77] prev_block_hash (32 bytes)
-     * [78..81] version (4 bytes)
+     * [2..5]   starting_nonce (4 bytes, native/little-endian)
+     * [6..9]   nbits (4 bytes, native/little-endian)
+     * [10..13] ntime (4 bytes, native/little-endian)
+     * [14..45] merkle_root (32 bytes, ASIC byte order)
+     * [46..77] prev_block_hash (32 bytes, ASIC byte order)
+     * [78..81] version (4 bytes, native/little-endian)
+     *
+     * Forge-os uses memcpy from uint32_t fields into uint8_t[] arrays,
+     * which copies in native (little-endian on ESP32) byte order.
+     *
+     * For merkle_root, forge-os applies: swap_endian_words + reverse_bytes(32)
+     * For prev_block_hash, forge-os applies: reverse_bytes(32) (from hex2bin)
      */
     uint8_t job_data[82];
     memset(job_data, 0, sizeof(job_data));
@@ -310,14 +328,21 @@ esp_err_t bm1370_send_work(const asic_job_t *job)
     job_data[0] = bm1370_job_to_asic_id(job->job_id);
     job_data[1] = job->midstate_count;
 
-    put_be32(&job_data[2],  job->starting_nonce);
-    put_be32(&job_data[6],  job->nbits);
-    put_be32(&job_data[10], job->ntime);
+    /* Copy uint32 fields in native byte order (little-endian), matching forge-os */
+    memcpy(&job_data[2],  &job->starting_nonce, 4);
+    memcpy(&job_data[6],  &job->nbits, 4);
+    memcpy(&job_data[10], &job->ntime, 4);
 
+    /* merkle_root: apply swap_endian_words then reverse_bytes to match forge-os _be format */
     memcpy(&job_data[14], job->merkle_root, 32);
-    memcpy(&job_data[46], job->prev_block_hash, 32);
+    swap_endian_words_bin(&job_data[14], 32);
+    reverse_bytes(&job_data[14], 32);
 
-    put_be32(&job_data[78], job->version);
+    /* prev_block_hash: apply reverse_bytes to match forge-os _be format */
+    memcpy(&job_data[46], job->prev_block_hash, 32);
+    reverse_bytes(&job_data[46], 32);
+
+    memcpy(&job_data[78], &job->version, 4);
 
     /* Wrap in job packet (adds preamble, header, CRC16) */
     uint8_t pkt_buf[128];
@@ -326,6 +351,8 @@ esp_err_t bm1370_send_work(const asic_job_t *job)
     if (pkt_len < 0) {
         return ESP_ERR_INVALID_ARG;
     }
+
+    ESP_LOG_BUFFER_HEX_LEVEL(TAG, pkt_buf, (pkt_len > 24 ? 24 : pkt_len), ESP_LOG_INFO);
 
     serial_tx(pkt_buf, (size_t)pkt_len);
     return ESP_OK;
