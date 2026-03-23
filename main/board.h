@@ -32,6 +32,22 @@ typedef struct {
 
     uint8_t expected_chip_count;
     uint16_t small_core_count;
+
+    // Voltage regulator type and address
+    uint8_t vr_type;        // 0 = TPS53647, 1 = TPS546D24A
+    uint8_t vr_i2c_addr;    // I2C address
+
+    // Fan controller type
+    uint8_t fan_type;       // 0 = EMC2302, 1 = EMC2101_MUX (2x via PAC9544)
+    uint8_t fan_i2c_addr;   // EMC2302 addr or PAC9544 mux addr
+
+    // Temperature sensor type
+    uint8_t temp_type;      // 0 = TMP1075, 1 = EMC2101 (integrated)
+    uint8_t temp_sensor_count;
+
+    // Power monitor
+    uint8_t power_monitor_type;  // 0 = VR_TELEMETRY (from VR PMBus), 1 = INA260
+    uint8_t power_monitor_addr;  // INA260 address (0x40) or 0 for VR telemetry
 } board_config_t;
 
 const board_config_t *board_get_config(void);

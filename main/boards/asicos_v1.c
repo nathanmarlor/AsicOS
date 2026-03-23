@@ -30,6 +30,15 @@ static const board_config_t s_board = {
 
     .expected_chip_count = 4,
     .small_core_count = 2040,
+
+    .vr_type = 0,            // TPS53647
+    .vr_i2c_addr = 0x71,
+    .fan_type = 0,           // EMC2302
+    .fan_i2c_addr = 0x2E,
+    .temp_type = 0,          // TMP1075
+    .temp_sensor_count = 3,
+    .power_monitor_type = 0, // VR telemetry
+    .power_monitor_addr = 0,
 };
 
 const board_config_t *board_get_config(void)
