@@ -1,0 +1,23 @@
+[0;33mW (296332) remote_access: No valid licence, retrying in 10s...[0m
+[0;32mI (297412) result_task: Nonces: 38 in last 10s (latest diff=2588.3673 pool_diff=16384.0000)[0m
+[0;32mI (301892) hashrate_task: Hashrate: 2174.47 GH/s (2 chips, dt=10.2s)[0m
+[0;33mW (306332) remote_access: No valid licence, retrying in 10s...[0m
+[0;32mI (308702) result_task: Nonces: 27 in last 10s (latest diff=1000.5631 pool_diff=16384.0000)[0m
+[0;32mI (312092) hashrate_task: Hashrate: 2249.28 GH/s (2 chips, dt=10.2s)[0m
+[0;32mI (315472) mining_task: Jobs sent: 600 (latest id=88 diff=16384.00)[0m
+[0;33mW (316332) remote_access: No valid licence, retrying in 10s...[0m
+[0;32mI (319082) result_task: Nonces: 27 in last 10s (latest diff=370.9747 pool_diff=16384.0000)[0m
+[0;32mI (322292) hashrate_task: Hashrate: 150708304.00 GH/s (2 chips, dt=10.2s)[0m
+[0;33mW (326332) remote_access: No valid licence, retrying in 10s...[0m
+[0;32mI (329122) result_task: Nonces: 26 in last 10s (latest diff=1336.1837 pool_diff=16384.0000)[0m
+[0;32mI (330492) result_task: Share submitted: diff=149052.5272 pool_diff=16384.0000 nonce=0xc98f0c42[0m
+[0;32mI (330522) stratum_client: Share accepted (total: 14)[0m
+[0;33mW (332292) result_task: No ASIC nonce in 180 reads (540s)[0m
+[0;32mI (332492) hashrate_task: Hashrate: 138152304.00 GH/s (2 chips, dt=10.2s)[0m
+[0;32mI (332652) mining_task: New stratum notify: job_id=2ac8 clean=0[0m
+[0;33mW (336332) remote_access: No valid licence, retrying in 10s...[0m
+[0;32mI (339332) result_task: Nonces: 36 in last 10s (latest diff=261.0511 pool_diff=16384.0000)[0m
+[0;32mI (342692) hashrate_task: Hashrate: 126639872.00 GH/s (2 chips, dt=10.2s)[0m
+[0;33mW (346332) remote_access: No valid licence, retrying in 10s...[0m
+[0;32mI (349982) result_task: Nonces: 30 in last 10s (latest diff=605.3309 pool_diff=16384.0000)[0m
+[0;32mI (352892) hashrate_task: Hashrate: 116086808.00 GH/s (2 chips, dt=10.2s)[0m

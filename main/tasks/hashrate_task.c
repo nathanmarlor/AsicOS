@@ -43,12 +43,8 @@ static void hashrate_task_fn(void *param)
     vTaskDelay(pdMS_TO_TICKS(RESPONSE_WAIT_MS));
 
     uint32_t prev_counter[16] = {0};
-    uint32_t prev_domain_counter[16][HASHRATE_NUM_DOMAINS] = {{0}};
     for (int i = 0; i < s_info.chip_count; i++) {
         prev_counter[i] = asic_get_stored_hash_counter(i);
-        for (int d = 0; d < HASHRATE_NUM_DOMAINS; d++) {
-            prev_domain_counter[i][d] = asic_get_stored_domain_counter(i, d);
-        }
     }
     int64_t prev_time_us = esp_timer_get_time();
 
@@ -90,20 +86,23 @@ static void hashrate_task_fn(void *param)
                 }
             }
 
-            /* Per-domain hashrate */
+            /* Per-domain hashrate.
+             * Domain registers (0x88-0x8B) are INSTANTANEOUS hashrate values,
+             * NOT delta counters like 0x8C. Format:
+             * - Bit 31: flag (if set, ignore the value)
+             * - Bits 30-0: hashrate in units of 2^20 hashes/sec
+             * - Value 0x007FFFFF = invalid/no data
+             * Formula: GH/s = (value & 0x7FFFFFFF) * 2^20 / 1e9 */
             for (int d = 0; d < HASHRATE_NUM_DOMAINS; d++) {
-                uint32_t d_counter = asic_get_stored_domain_counter(i, d);
-                if (d_counter == 0 && prev_domain_counter[i][d] == 0) {
-                    continue;
-                }
-                uint32_t d_delta = d_counter - prev_domain_counter[i][d];
-                prev_domain_counter[i][d] = d_counter;
-                if (dt_sec > 0 && d_delta > 0) {
-                    float d_ghs = (float)d_delta / (float)dt_sec * 4294967296.0f / 1e9f;
-                    /* Sanity: max ~500 GH/s per domain */
-                    if (d_ghs < 5000.0f) {
-                        s_info.per_domain_hashrate_ghs[i][d] = d_ghs;
-                    }
+                uint32_t raw = asic_get_stored_domain_counter(i, d);
+                if (raw == 0) continue;
+
+                uint8_t flag = (raw >> 31) & 1;
+                uint32_t hr_val = raw & 0x7FFFFFFF;
+
+                if (!flag && hr_val != 0x007FFFFF && hr_val > 0) {
+                    float d_ghs = (float)hr_val * 1048576.0f / 1e9f;  /* 2^20 = 1048576 */
+                    s_info.per_domain_hashrate_ghs[i][d] = d_ghs;
                 }
             }
         }
