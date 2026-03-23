@@ -13,15 +13,31 @@ export interface TunerResult {
   score: number
 }
 
+export interface TunerProfile {
+  freq: number
+  voltage: number
+  hashrate: number
+  power: number
+  efficiency: number
+  temp: number
+  stable: boolean
+}
+
+export interface TunerProfiles {
+  eco: TunerProfile | null
+  balanced: TunerProfile | null
+  power: TunerProfile | null
+}
+
 export interface TunerStatus {
   running: boolean
   progress: number
   step: number
   total_steps: number
-  mode: string
   results: TunerResult[]
   best_index: number
   complete: boolean
+  profiles: TunerProfiles
 }
 
 export const useTunerStore = defineStore('tuner', () => {
@@ -46,9 +62,9 @@ export const useTunerStore = defineStore('tuner', () => {
     }
   }
 
-  async function start(mode: string) {
+  async function start() {
     try {
-      await post('/api/tuner/start', { mode })
+      await post('/api/tuner/start')
       error.value = null
       poll()
       if (!timer) {
@@ -69,9 +85,9 @@ export const useTunerStore = defineStore('tuner', () => {
     }
   }
 
-  async function applyBest() {
+  async function applyProfile(mode: string) {
     try {
-      await post('/api/tuner/apply')
+      await post('/api/tuner/apply', { profile: mode })
       error.value = null
     } catch (e: any) {
       error.value = e.message
@@ -85,5 +101,5 @@ export const useTunerStore = defineStore('tuner', () => {
     }
   }
 
-  return { status, error, poll, start, abort, applyBest, stopPolling }
+  return { status, error, poll, start, abort, applyProfile, stopPolling }
 })

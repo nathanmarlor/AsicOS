@@ -37,7 +37,6 @@ static const char *TAG = "tuner_task";
 
 static EventGroupHandle_t s_event_group;
 
-static tuner_mode_t s_mode;
 static uint16_t s_freq_min;
 static uint16_t s_freq_max;
 static uint16_t s_volt_min;
@@ -98,6 +97,68 @@ static tuner_result_t *sample_point(int step, uint16_t freq, uint16_t voltage)
     return slot;
 }
 
+/**
+ * After the sweep completes, score all results with each mode and pick the
+ * best for eco, balanced, and power profiles.
+ */
+static void compute_profiles(void)
+{
+    const tuner_status_t *st = tuner_get_status();
+    tuner_profiles_t profiles;
+    memset(&profiles, 0, sizeof(profiles));
+
+    double best_eco_score = -1.0;
+    double best_bal_score = -1.0;
+    double best_pwr_score = -1.0;
+
+    for (int i = 0; i < st->result_count; i++) {
+        const tuner_result_t *r = &st->results[i];
+
+        double eco_score = tuner_score(r, TUNER_MODE_ECO);
+        double bal_score = tuner_score(r, TUNER_MODE_BALANCED);
+        double pwr_score = tuner_score(r, TUNER_MODE_POWER);
+
+        if (eco_score > best_eco_score) {
+            best_eco_score = eco_score;
+            profiles.eco = *r;
+        }
+        if (bal_score > best_bal_score) {
+            best_bal_score = bal_score;
+            profiles.balanced = *r;
+        }
+        if (pwr_score > best_pwr_score) {
+            best_pwr_score = pwr_score;
+            profiles.power = *r;
+        }
+    }
+
+    profiles.eco_valid = best_eco_score > 0.0;
+    profiles.balanced_valid = best_bal_score > 0.0;
+    profiles.power_valid = best_pwr_score > 0.0;
+
+    tuner_set_profiles(&profiles);
+
+    ESP_LOGI(TAG, "Profiles computed:");
+    if (profiles.eco_valid) {
+        ESP_LOGI(TAG, "  Eco:      %uMHz @ %umV (%.2f GH/s, %.1fW, %.3f GH/s/W)",
+                 profiles.eco.freq, profiles.eco.voltage,
+                 profiles.eco.hashrate_ghs, profiles.eco.power_w,
+                 profiles.eco.efficiency_ghs_per_w);
+    }
+    if (profiles.balanced_valid) {
+        ESP_LOGI(TAG, "  Balanced: %uMHz @ %umV (%.2f GH/s, %.1fW, %.3f GH/s/W)",
+                 profiles.balanced.freq, profiles.balanced.voltage,
+                 profiles.balanced.hashrate_ghs, profiles.balanced.power_w,
+                 profiles.balanced.efficiency_ghs_per_w);
+    }
+    if (profiles.power_valid) {
+        ESP_LOGI(TAG, "  Power:    %uMHz @ %umV (%.2f GH/s, %.1fW, %.3f GH/s/W)",
+                 profiles.power.freq, profiles.power.voltage,
+                 profiles.power.hashrate_ghs, profiles.power.power_w,
+                 profiles.power.efficiency_ghs_per_w);
+    }
+}
+
 /* ---------- main task ---------- */
 
 static void tuner_task_fn(void *arg)
@@ -115,15 +176,15 @@ static void tuner_task_fn(void *arg)
 
         /* Reset status and start */
         tuner_reset_status();
-        tuner_set_mode(s_mode);
 
         int total_est = estimate_total_steps();
         tuner_set_step(0, total_est);
         tuner_set_state(TUNER_STATE_RUNNING);
 
-        ESP_LOGI(TAG, "Starting adaptive 2-phase sweep: freq %u-%u, volt %u-%u, mode %d (~%d steps)",
-                 s_freq_min, s_freq_max, s_volt_min, s_volt_max, (int)s_mode, total_est);
+        ESP_LOGI(TAG, "Starting adaptive 2-phase sweep: freq %u-%u, volt %u-%u (~%d steps)",
+                 s_freq_min, s_freq_max, s_volt_min, s_volt_max, total_est);
 
+        /* Use balanced mode for coarse scoring (fine phase uses it too) */
         double best_score = -1.0;
         double best_eff = -1.0;
         int best_idx = -1;
@@ -131,7 +192,7 @@ static void tuner_task_fn(void *arg)
         int step = 0;
         bool aborted = false;
 
-        /* ── Phase 1: Coarse sweep ──────────────────────────────────── */
+        /* -- Phase 1: Coarse sweep ---------------------------------------- */
         ESP_LOGI(TAG, "Phase 1: Coarse sweep (step %u/%u/%u)",
                  COARSE_FREQ_STEP, COARSE_VOLT_STEP, COARSE_SETTLE_MS);
 
@@ -167,7 +228,7 @@ static void tuner_task_fn(void *arg)
                 tuner_result_t *slot = sample_point(step, f, v);
                 if (!slot) { break; }
 
-                double score = tuner_score(slot, s_mode);
+                double score = tuner_score(slot, TUNER_MODE_BALANCED);
 
                 /* Early exit: if score is 0 (unstable/overheat), skip higher freqs at this voltage */
                 if (score <= 0.0) {
@@ -207,7 +268,7 @@ static void tuner_task_fn(void *arg)
             goto sweep_done;
         }
 
-        /* ── Phase 2: Fine sweep around best coarse result ──────────── */
+        /* -- Phase 2: Fine sweep around best coarse result ---------------- */
         ESP_LOGI(TAG, "Phase 2: Fine sweep around %uMHz @ %umV (coarse score=%.2f)",
                  coarse_best_freq, coarse_best_volt, coarse_best_score);
 
@@ -259,7 +320,7 @@ static void tuner_task_fn(void *arg)
                 tuner_result_t *slot = sample_point(step, f, v);
                 if (!slot) { break; }
 
-                double score = tuner_score(slot, s_mode);
+                double score = tuner_score(slot, TUNER_MODE_BALANCED);
 
                 /* Skip clearly worse combos */
                 if (score < skip_threshold) {
@@ -303,6 +364,10 @@ sweep_done:
         } else {
             /* Update final total to actual step count */
             tuner_set_step(step, step);
+
+            /* Compute eco/balanced/power profiles from all results */
+            compute_profiles();
+
             tuner_set_state(TUNER_STATE_COMPLETE);
             ESP_LOGI(TAG, "Sweep complete. %d results collected.", step);
             if (best_idx >= 0) {
@@ -333,11 +398,9 @@ void tuner_task_start(void)
                 TUNER_TASK_PRIORITY, NULL);
 }
 
-void tuner_start(tuner_mode_t mode,
-                 uint16_t freq_min, uint16_t freq_max,
+void tuner_start(uint16_t freq_min, uint16_t freq_max,
                  uint16_t volt_min, uint16_t volt_max)
 {
-    s_mode = mode;
     s_freq_min = freq_min;
     s_freq_max = freq_max;
     s_volt_min = volt_min;
@@ -351,22 +414,38 @@ void tuner_abort(void)
     xEventGroupSetBits(s_event_group, BIT_ABORT);
 }
 
-void tuner_apply_best(void)
+void tuner_apply_profile(tuner_mode_t mode)
 {
-    const tuner_status_t *st = tuner_get_status();
-    if (st->state != TUNER_STATE_COMPLETE || st->best_index < 0) {
-        ESP_LOGW(TAG, "No best result to apply");
+    const tuner_profiles_t *p = tuner_get_profiles();
+    const tuner_result_t *target = NULL;
+    bool valid = false;
+
+    switch (mode) {
+    case TUNER_MODE_ECO:
+        target = &p->eco;
+        valid = p->eco_valid;
+        break;
+    case TUNER_MODE_BALANCED:
+        target = &p->balanced;
+        valid = p->balanced_valid;
+        break;
+    case TUNER_MODE_POWER:
+        target = &p->power;
+        valid = p->power_valid;
+        break;
+    }
+
+    if (!valid || !target) {
+        ESP_LOGW(TAG, "No valid profile for mode %d", (int)mode);
         return;
     }
 
-    const tuner_result_t *best = &st->results[st->best_index];
+    ESP_LOGI(TAG, "Applying profile (mode %d): %uMHz @ %umV", (int)mode, target->freq, target->voltage);
 
-    ESP_LOGI(TAG, "Applying best: %uMHz @ %umV", best->freq, best->voltage);
-
-    vr_set_voltage(best->voltage);
-    bm1370_set_frequency(best->freq);
+    vr_set_voltage(target->voltage);
+    bm1370_set_frequency(target->freq);
 
     /* Persist to NVS */
-    nvs_config_set_u16(NVS_KEY_ASIC_FREQ, best->freq);
-    nvs_config_set_u16(NVS_KEY_ASIC_VOLTAGE, best->voltage);
+    nvs_config_set_u16(NVS_KEY_ASIC_FREQ, target->freq);
+    nvs_config_set_u16(NVS_KEY_ASIC_VOLTAGE, target->voltage);
 }

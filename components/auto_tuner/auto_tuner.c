@@ -46,21 +46,20 @@ const tuner_status_t *tuner_get_status(void)
     return &s_status;
 }
 
+const tuner_profiles_t *tuner_get_profiles(void)
+{
+    return &s_status.profiles;
+}
+
 void tuner_set_state(tuner_state_t state)
 {
     s_status.state = state;
-}
-
-void tuner_set_mode(tuner_mode_t mode)
-{
-    s_status.mode = mode;
 }
 
 void tuner_reset_status(void)
 {
     memset(&s_status, 0, sizeof(s_status));
     s_status.state = TUNER_STATE_IDLE;
-    s_status.mode = TUNER_MODE_BALANCED;
     s_status.best_index = -1;
     s_status.best_eff_index = -1;
 }
@@ -88,4 +87,11 @@ void tuner_set_best(int best_idx, int best_eff_idx)
 {
     s_status.best_index = best_idx;
     s_status.best_eff_index = best_eff_idx;
+}
+
+void tuner_set_profiles(const tuner_profiles_t *p)
+{
+    if (p) {
+        s_status.profiles = *p;
+    }
 }

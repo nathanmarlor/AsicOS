@@ -35,11 +35,43 @@ const MOCK_MINING_INFO = {
 
 const MOCK_TUNER_STATUS = {
   state: "idle",
-  mode: "balanced",
   progress: 0,
   best_index: -1,
   best_eff_index: -1,
-  results: [],
+  results: [] as unknown[],
+  profiles: {
+    eco: null,
+    balanced: null,
+    power: null,
+  },
+}
+
+const MOCK_TUNER_STATUS_COMPLETE = {
+  state: "complete",
+  progress: 100,
+  current_step: 12,
+  total_steps: 12,
+  best_index: 5,
+  best_eff_index: 2,
+  results: [
+    { freq: 400, voltage: 1100, hashrate: 320.5, power: 10.2, temp: 48, efficiency: 31.42, stable: true },
+    { freq: 500, voltage: 1100, hashrate: 405.2, power: 12.8, temp: 51, efficiency: 31.66, stable: true },
+    { freq: 400, voltage: 1150, hashrate: 325.1, power: 10.8, temp: 49, efficiency: 30.10, stable: true },
+    { freq: 500, voltage: 1150, hashrate: 410.8, power: 13.5, temp: 52, efficiency: 30.43, stable: true },
+    { freq: 600, voltage: 1150, hashrate: 487.3, power: 15.8, temp: 55, efficiency: 30.84, stable: true },
+    { freq: 600, voltage: 1200, hashrate: 495.1, power: 17.2, temp: 57, efficiency: 28.78, stable: true },
+    { freq: 700, voltage: 1200, hashrate: 560.2, power: 21.5, temp: 62, efficiency: 26.06, stable: true },
+    { freq: 700, voltage: 1250, hashrate: 572.8, power: 23.1, temp: 64, efficiency: 24.80, stable: true },
+    { freq: 525, voltage: 1125, hashrate: 430.5, power: 13.1, temp: 50, efficiency: 32.86, stable: true },
+    { freq: 550, voltage: 1125, hashrate: 452.1, power: 13.9, temp: 51, efficiency: 32.53, stable: true },
+    { freq: 575, voltage: 1150, hashrate: 468.9, power: 14.8, temp: 53, efficiency: 31.68, stable: true },
+    { freq: 625, voltage: 1175, hashrate: 502.4, power: 16.5, temp: 56, efficiency: 30.45, stable: true },
+  ],
+  profiles: {
+    eco: { freq: 525, voltage: 1125, hashrate: 430.5, power: 13.1, temp: 50, efficiency: 32.86, stable: true },
+    balanced: { freq: 600, voltage: 1150, hashrate: 487.3, power: 15.8, temp: 55, efficiency: 30.84, stable: true },
+    power: { freq: 700, voltage: 1250, hashrate: 572.8, power: 23.1, temp: 64, efficiency: 24.80, stable: true },
+  },
 }
 
 const MOCK_REMOTE_STATUS = {
