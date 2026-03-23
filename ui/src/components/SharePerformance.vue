@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import Sparkline from './Sparkline.vue'
 
 const props = defineProps<{
   accepted: number
@@ -12,80 +11,45 @@ const props = defineProps<{
   poolConnected?: boolean
   duplicates: number
   shareRate: number
-  shareRateHistory?: number[]
 }>()
 
 const total = computed(() => props.accepted + props.rejected)
 const acceptPct = computed(() => total.value === 0 ? 100 : (props.accepted / total.value) * 100)
-const rejectPct = computed(() => total.value === 0 ? 0 : (props.rejected / total.value) * 100)
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
+  <div class="flex flex-col gap-2.5">
     <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider">Pool & Shares</div>
 
     <!-- Pool connection -->
-    <div v-if="poolUrl" class="flex items-center gap-2 text-[11px] font-mono pb-1 border-b border-[var(--border)]/50">
+    <div v-if="poolUrl" class="flex items-center gap-2 text-[11px] font-mono">
       <span class="w-2 h-2 rounded-full shrink-0" :class="poolConnected ? 'bg-[#22c55e]' : 'bg-[#ef4444]'" />
       <span class="text-[var(--text-muted)] truncate">{{ poolUrl }}</span>
     </div>
 
-    <!-- Accepted / Rejected bars -->
-    <div class="space-y-2">
-      <div class="flex items-center gap-2">
-        <span class="text-[11px] font-mono text-[var(--text-secondary)] w-[68px] shrink-0">Accepted</span>
-        <span class="text-[11px] font-mono text-[var(--text)] w-[56px] text-right shrink-0">{{ accepted.toLocaleString() }}</span>
-        <div class="flex-1 h-[8px] bg-[var(--surface-light)] rounded-sm overflow-hidden">
-          <div
-            class="h-full bg-[#22c55e] rounded-sm transition-all duration-500"
-            :style="{ width: acceptPct + '%' }"
-          />
-        </div>
+    <!-- Accept/Reject ratio bar -->
+    <div>
+      <div class="flex items-center justify-between text-[11px] font-mono mb-1">
+        <span class="text-[#22c55e]">{{ accepted.toLocaleString() }} accepted</span>
+        <span class="text-[var(--text)]">{{ acceptPct.toFixed(1) }}%</span>
+        <span :class="rejected > 0 ? 'text-[#ef4444]' : 'text-[var(--text-muted)]'">{{ rejected }} rejected</span>
       </div>
-      <div class="flex items-center gap-2">
-        <span class="text-[11px] font-mono text-[var(--text-secondary)] w-[68px] shrink-0">Rejected</span>
-        <span class="text-[11px] font-mono text-[var(--text)] w-[56px] text-right shrink-0">{{ rejected.toLocaleString() }}</span>
-        <div class="flex-1 h-[8px] bg-[var(--surface-light)] rounded-sm overflow-hidden">
-          <div
-            class="h-full bg-[#ef4444] rounded-sm transition-all duration-500"
-            :style="{ width: rejectPct + '%' }"
-          />
-        </div>
-      </div>
-      <div class="text-right">
-        <span class="font-mono font-bold text-lg text-[var(--text)]">{{ acceptPct.toFixed(1) }}%</span>
+      <div class="h-[6px] bg-[var(--surface-light)] rounded-sm overflow-hidden flex">
+        <div class="h-full bg-[#22c55e] transition-all duration-500" :style="{ width: acceptPct + '%' }" />
+        <div v-if="rejected > 0" class="h-full bg-[#ef4444] transition-all duration-500" :style="{ width: (100 - acceptPct) + '%' }" />
       </div>
     </div>
 
-    <!-- Stats grid -->
-    <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px] font-mono">
-      <div class="flex items-center justify-between">
-        <span class="text-[var(--text-secondary)]">Share Rate</span>
-        <div class="flex items-center gap-1.5">
-          <span class="text-[var(--text)]">{{ shareRate.toFixed(1) }} /min</span>
-        </div>
-      </div>
-      <div class="flex items-center justify-between">
-        <span class="text-[var(--text-secondary)]">Session Best</span>
-        <span class="text-[#f97316]">{{ bestDiff }}</span>
-      </div>
-      <div class="flex items-center justify-between">
-        <span class="text-[var(--text-secondary)]">All-Time Best</span>
-        <span class="text-[#eab308]">{{ alltimeBestDiff ?? '--' }}</span>
-      </div>
-      <div class="flex items-center justify-between">
-        <span class="text-[var(--text-secondary)]">Pool Diff</span>
-        <span class="text-[var(--text)]">{{ poolDiff }}</span>
-      </div>
-      <div class="flex items-center justify-between">
-        <span class="text-[var(--text-secondary)]">Duplicates</span>
-        <span :class="duplicates > 0 ? 'text-[#eab308]' : 'text-[var(--text)]'">{{ duplicates }}</span>
-      </div>
-    </div>
-
-    <!-- Share rate sparkline -->
-    <div v-if="shareRateHistory && shareRateHistory.length > 1">
-      <Sparkline :data="shareRateHistory" color="#3b82f6" :width="200" :height="20" />
+    <!-- Key stats in clean rows -->
+    <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] font-mono">
+      <div class="text-[var(--text-muted)]">Pool Diff</div>
+      <div class="text-right text-[var(--text)]">{{ poolDiff }}</div>
+      <div class="text-[var(--text-muted)]">Session Best</div>
+      <div class="text-right text-[#f97316]">{{ bestDiff }}</div>
+      <div class="text-[var(--text-muted)]">All-Time Best</div>
+      <div class="text-right text-[#eab308]">{{ alltimeBestDiff ?? '--' }}</div>
+      <div class="text-[var(--text-muted)]">Share Rate</div>
+      <div class="text-right text-[var(--text)]">{{ shareRate.toFixed(1) }} /min</div>
     </div>
   </div>
 </template>
