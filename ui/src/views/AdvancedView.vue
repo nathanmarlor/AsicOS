@@ -26,6 +26,7 @@ const efficiency = computed(() => {
 })
 const power = computed(() => system.info?.power.watts ?? 0)
 const chipTemp = computed(() => system.info?.temps.chip ?? 0)
+const vrTemp = computed(() => system.info?.temps.vr ?? 0)
 const accepted = computed(() => mining.info?.accepted ?? 0)
 const rejected = computed(() => mining.info?.rejected ?? 0)
 const rejectPct = computed(() => {
@@ -48,10 +49,17 @@ const hashrateTrend = computed(() => {
 })
 
 // Statuses
-const chipTempStatus = computed(() => {
+const asicTempStatus = computed(() => {
   const t = chipTemp.value
   if (t < 60) return 'good' as const
-  if (t < 80) return 'warn' as const
+  if (t <= 75) return 'warn' as const
+  return 'danger' as const
+})
+
+const vrmTempStatus = computed(() => {
+  const t = vrTemp.value
+  if (t < 70) return 'good' as const
+  if (t <= 90) return 'warn' as const
   return 'danger' as const
 })
 
@@ -60,6 +68,40 @@ const rejectStatus = computed(() => {
   if (p < 1) return 'good' as const
   if (p < 5) return 'warn' as const
   return 'danger' as const
+})
+
+// Health overview KPI
+const healthStatus = computed(() => {
+  const asicOk = chipTemp.value < 75
+  const vrmOk = vrTemp.value < 90
+  const asicOverheat = chipTemp.value > 75
+  const vrmOverheat = vrTemp.value > 90
+  const overheat = system.info?.power.overheat ?? false
+  const connected = poolConnected.value
+  const rp = rejectPct.value
+  const hr = system.hashrateHistory
+  // Check hashrate stability (last 10 vs prior 10)
+  let hashrateDrop = false
+  if (hr.length >= 20) {
+    const recent = hr.slice(-10).reduce((a, b) => a + b, 0) / 10
+    const older = hr.slice(-20, -10).reduce((a, b) => a + b, 0) / 10
+    if (older > 0 && (recent / older) < 0.85) hashrateDrop = true
+  }
+
+  // Critical
+  if (overheat || asicOverheat || vrmOverheat || !connected || rp > 3) return 'danger' as const
+  // Warning
+  if (!asicOk || !vrmOk || (rp >= 1 && rp <= 3) || hashrateDrop) return 'warn' as const
+  // Good
+  return 'good' as const
+})
+
+const healthLabel = computed(() => {
+  switch (healthStatus.value) {
+    case 'good': return 'Good'
+    case 'warn': return 'Warning'
+    default: return 'Critical'
+  }
 })
 
 // Chip data
@@ -177,21 +219,23 @@ async function restart() {
         spark-color="#3b82f6"
       />
       <KpiCard
-        label="Chip Temp"
+        label="ASIC Temp"
         :value="chipTemp.toFixed(0) + '\u00B0'"
         unit="Celsius"
         :history="system.chipTempHistory"
-        :status="chipTempStatus"
+        :status="asicTempStatus"
       />
       <KpiCard
-        label="Accepted"
-        :value="accepted.toLocaleString()"
-        status="good"
+        label="VRM Temp"
+        :value="vrTemp.toFixed(0) + '\u00B0'"
+        unit="Celsius"
+        :history="system.vrTempHistory"
+        :status="vrmTempStatus"
       />
       <KpiCard
-        label="Reject %"
-        :value="rejectPct.toFixed(2) + '%'"
-        :status="rejectStatus"
+        label="Health"
+        :value="healthLabel"
+        :status="healthStatus"
       />
     </div>
 

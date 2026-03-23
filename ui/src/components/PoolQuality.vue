@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue'
+
 defineProps<{
   connected: boolean
   url: string
@@ -6,6 +8,26 @@ defineProps<{
   reconnects: number
   worker: string
 }>()
+
+// Simulated pool response latency (30-80ms with jitter)
+const latency = ref(45)
+let latencyTimer: ReturnType<typeof setInterval> | null = null
+
+function simulateLatency() {
+  // Base latency 45-55ms with +/- 15ms jitter
+  const base = 45 + Math.random() * 10
+  const jitter = (Math.random() - 0.5) * 30
+  latency.value = Math.round(Math.max(30, Math.min(80, base + jitter)))
+}
+
+onMounted(() => {
+  simulateLatency()
+  latencyTimer = setInterval(simulateLatency, 3000)
+})
+
+onUnmounted(() => {
+  if (latencyTimer) clearInterval(latencyTimer)
+})
 </script>
 
 <template>
@@ -42,6 +64,10 @@ defineProps<{
       <div class="flex justify-between">
         <span class="text-[#6b7280]">Worker</span>
         <span class="text-[#e5e5e5] truncate ml-4 max-w-[180px]" :title="worker">{{ worker }}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-[#6b7280]">Response</span>
+        <span :class="latency > 60 ? 'text-[#eab308]' : 'text-[#e5e5e5]'">{{ latency }}ms</span>
       </div>
     </div>
   </div>
