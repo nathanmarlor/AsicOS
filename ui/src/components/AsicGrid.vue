@@ -15,6 +15,10 @@ const totalHashrate = computed(() => {
   return props.chips.reduce((s, c) => s + c.hashrate_ghs, 0)
 })
 
+const hasDomains = computed(() => {
+  return props.chips.some(c => c.domains && c.domains.length > 0)
+})
+
 function heatBorder(hashrate: number): string {
   if (avgHashrate.value === 0) return 'border-[var(--text-muted)]'
   const ratio = hashrate / avgHashrate.value
@@ -70,10 +74,30 @@ const distribution = computed(() => {
           <span class="text-[9px] font-mono text-[var(--text-muted)] uppercase">Chip {{ chip.id }}</span>
           <span class="text-[9px] font-mono text-[var(--text-muted)]">{{ chipPctOfTotal(chip.hashrate_ghs) }}%</span>
         </div>
-        <div class="font-mono font-bold text-lg text-[var(--text)] leading-tight">
-          {{ chip.hashrate_ghs.toFixed(1) }}
-        </div>
-        <div class="text-[9px] font-mono text-[var(--text-muted)]">GH/s</div>
+
+        <!-- Domain-level hashrate -->
+        <template v-if="hasDomains && chip.domains && chip.domains.length > 0">
+          <div
+            v-for="(dhr, di) in chip.domains"
+            :key="'d' + di"
+            class="flex items-center justify-between text-[10px] font-mono leading-snug"
+          >
+            <span class="text-[var(--text-muted)]">D{{ di }}:</span>
+            <span class="text-[var(--text)]">{{ dhr.toFixed(0) }} <span class="text-[var(--text-muted)]">GH/s</span></span>
+          </div>
+          <div class="flex items-center justify-between mt-0.5 pt-0.5 border-t border-[var(--border)]/50">
+            <span class="text-[10px] font-mono font-medium text-[var(--text-secondary)]">Total:</span>
+            <span class="font-mono font-bold text-sm text-[var(--text)]">{{ chip.hashrate_ghs.toFixed(0) }} <span class="text-[9px] text-[var(--text-muted)]">GH/s</span></span>
+          </div>
+        </template>
+
+        <!-- Fallback: chip-level only (no domain data) -->
+        <template v-else>
+          <div class="font-mono font-bold text-lg text-[var(--text)] leading-tight">
+            {{ chip.hashrate_ghs.toFixed(1) }}
+          </div>
+          <div class="text-[9px] font-mono text-[var(--text-muted)]">GH/s</div>
+        </template>
       </div>
     </div>
 

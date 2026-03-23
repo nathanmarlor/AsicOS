@@ -9,8 +9,10 @@ export interface SystemInfo {
   hashrate_ghs: number
   per_chip_hashrate_ghs: number[]
   chip_count: number
+  has_adc_vcore: boolean
+  firmware_version: string
   temps: { chip: number; vr: number; board: number }
-  power: { vin: number; vout: number; watts: number; fan0_rpm: number; fan1_rpm: number; overheat: boolean; vr_fault: boolean }
+  power: { vin: number; vout: number; iout: number; watts: number; input_watts: number; efficiency_pct: number; fan0_rpm: number; fan1_rpm: number; fan_override: number; fan_mode: string; overheat: boolean; vr_fault: boolean; vr_temp: number; vcore_adc_mv: number }
   mining: { best_difficulty: number; total_shares_submitted: number; duplicate_nonces: number }
   pool: { state: string; accepted: number; rejected: number; difficulty: number }
   config: { pool_url: string; pool_port: number; pool_user: string; frequency: number; voltage: number; wifi_ssid: string; ui_mode: string }

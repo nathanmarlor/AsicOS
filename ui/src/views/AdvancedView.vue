@@ -148,21 +148,26 @@ const details = computed(() => {
   const m = mining.info
   const s = system.info
   if (!m || !s) return []
-  return [
+  const rows = [
     { label: 'Pool Difficulty', value: mining.formatDiff(m.pool_diff) },
     { label: 'Best Difficulty', value: mining.formatDiff(m.best_diff) },
     { label: 'Accepted / Rejected', value: `${m.accepted} / ${m.rejected}` },
     { label: 'Frequency', value: `${s.config.frequency} MHz` },
     { label: 'Core Voltage', value: `${s.config.voltage} mV` },
-    { label: 'Input Voltage', value: `${s.power.vin.toFixed(1)} V` },
-    { label: 'Output Voltage', value: `${s.power.vout.toFixed(2)} V` },
-    { label: 'VR Temp', value: `${s.temps.vr.toFixed(1)}\u00B0C` },
+    { label: 'Input Voltage (VIN)', value: `${s.power.vin.toFixed(2)} V` },
+    { label: 'Output Voltage (VOUT)', value: `${s.power.vout.toFixed(3)} V` },
+    { label: 'Output Current (IOUT)', value: `${s.power.iout.toFixed(1)} A` },
+    { label: 'VR Temp', value: `${(s.power.vr_temp ?? s.temps.vr).toFixed(1)}\u00B0C` },
     { label: 'Board Temp', value: `${s.temps.board.toFixed(1)}\u00B0C` },
     { label: 'Fan 0', value: `${s.power.fan0_rpm} RPM` },
     { label: 'Fan 1', value: `${s.power.fan1_rpm} RPM` },
     { label: 'Free Heap', value: `${(s.free_heap / 1024).toFixed(0)} KB` },
     { label: 'Uptime', value: formatUptime(Math.floor(s.uptime_ms / 1000)) },
   ]
+  if (s.has_adc_vcore && s.power.vcore_adc_mv > 0) {
+    rows.splice(8, 0, { label: 'VCORE ADC', value: `${s.power.vcore_adc_mv.toFixed(0)} mV` })
+  }
+  return rows
 })
 
 function formatUptime(s: number): string {

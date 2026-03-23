@@ -366,9 +366,6 @@ int asic_receive_result(asic_result_t *result, uint32_t timeout_ms)
     return 0;
 }
 
-/* asic_read_hash_counter() removed - use asic_request_hash_counter() +
- * asic_get_stored_hash_counter() instead (no UART contention). */
-
 /* ------------------------------------------------------------------ */
 /* State accessor                                                      */
 /* ------------------------------------------------------------------ */
