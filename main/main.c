@@ -28,6 +28,7 @@
 #include "tasks/remote_task.h"
 #include "tasks/loki_task.h"
 #include "display.h"
+#include "http_server/ws_handler.h"
 
 // Defined in display_screens.c
 extern void display_render_screen(display_screen_t screen);
@@ -133,7 +134,7 @@ void app_main(void)
         ESP_LOGE(TAG, "I2C init failed: %s", esp_err_to_name(i2c_err));
     }
 
-    // 5. Serial/UART (must be before self-test and ASIC init)
+    // 5. Serial/UART init at 115200
     serial_config_t serial_cfg = {
         .port = UART_NUM_1,
         .tx_pin = board->uart_tx_pin,
@@ -142,25 +143,23 @@ void app_main(void)
     };
     serial_init(&serial_cfg);
 
-    // 6. Self-test (POST) - runs after serial/I2C so ASIC and sensor tests work
-    selftest_report_t report = selftest_run();
-    for (int i = 0; i < report.check_count; i++) {
-        selftest_check_t check = report.checks[i];
-        const char *result_str = (check.result == SELFTEST_PASS) ? "PASS" :
-                                 (check.result == SELFTEST_FAIL) ? "FAIL" :
-                                 (check.result == SELFTEST_WARN) ? "WARN" : "SKIP";
-        ESP_LOGI(TAG, "POST [%s] %s: %s", result_str, check.name, check.detail);
-    }
-    if (!report.all_pass) {
-        ESP_LOGW(TAG, "POST: some checks failed, continuing boot");
-    }
+    // 6. Power subsystem init (VR MUST be initialized BEFORE ASIC reset)
+    init_power(board);
 
-    // 7. ASIC power-on sequence and init
-    // Enable buck converter (powers the ASICs)
-    gpio_reset_pin(board->buck_enable_pin);
-    gpio_set_direction(board->buck_enable_pin, GPIO_MODE_OUTPUT);
-    gpio_set_level(board->buck_enable_pin, 1);
-    vTaskDelay(pdMS_TO_TICKS(100));
+    // 7. Wait for voltage to stabilize after VR enable
+    ESP_LOGI(TAG, "Waiting for voltage stabilization...");
+    vTaskDelay(pdMS_TO_TICKS(500));
+
+    // 8. GPIO power-on sequence
+    // Only toggle buck_enable GPIO on boards that use GPIO-controlled power
+    // (e.g. NerdQAxe with separate buck + LDO). On Nano (TPS546D24A),
+    // power is controlled via PMBus OPERATION register, not GPIO.
+    if (board->vr_type != 1 && board->ldo_enable_pin >= 0) {
+        gpio_reset_pin(board->buck_enable_pin);
+        gpio_set_direction(board->buck_enable_pin, GPIO_MODE_OUTPUT);
+        gpio_set_level(board->buck_enable_pin, 1);
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
 
     // Enable LDO if present (some boards like NerdQAxe have separate LDO)
     if (board->ldo_enable_pin >= 0) {
@@ -178,38 +177,52 @@ void app_main(void)
     gpio_set_level(board->asic_reset_pin, 1);  // Release reset
     vTaskDelay(pdMS_TO_TICKS(100));
 
+    // 9. ASIC init (enumerate, configure registers)
     uint16_t freq = nvs_config_get_u16(NVS_KEY_ASIC_FREQ, board->freq_default);
     bm1370_init(board->expected_chip_count);
     bm1370_set_frequency(freq);
+
+    // 10. Ramp UART to 1MHz for mining
     serial_set_baud(1000000);
 
-    // 8. Power subsystem init (voltage regulator, temp sensors, fan)
-    init_power(board);
+    // 11. Self-test (POST) - runs AFTER everything is initialized
+    selftest_report_t report = selftest_run();
+    for (int i = 0; i < report.check_count; i++) {
+        selftest_check_t check = report.checks[i];
+        const char *result_str = (check.result == SELFTEST_PASS) ? "PASS" :
+                                 (check.result == SELFTEST_FAIL) ? "FAIL" :
+                                 (check.result == SELFTEST_WARN) ? "WARN" : "SKIP";
+        ESP_LOGI(TAG, "POST [%s] %s: %s", result_str, check.name, check.detail);
+    }
+    if (!report.all_pass) {
+        ESP_LOGW(TAG, "POST: some checks failed, continuing boot");
+    }
 
-    // 9. HTTP server
+    // 12. HTTP server
     http_server_start();
+    ws_log_init();
 
-    // 10. Stratum client
+    // 13. Stratum client
     init_stratum(board);
 
-    // 11. Mining tasks
+    // 14. Mining tasks
     mining_task_start();
     result_task_start();
     hashrate_task_start();
 
-    // 12. Power task
+    // 15. Power task
     power_task_start();
 
-    // 13. Tuner task (idle until triggered)
+    // 16. Tuner task (idle until triggered)
     tuner_task_start();
 
-    // 14. Remote access
+    // 17. Remote access
     init_remote();
 
-    // 15. Loki task
+    // 18. Loki task
     loki_task_start();
 
-    // 16. Display (if board has one)
+    // 19. Display (if board has one)
     if (board->has_display) {
         display_config_t disp_cfg = {
             .data_gpio = {
@@ -238,7 +251,7 @@ void app_main(void)
         }
     }
 
-    // 17. Log completion
+    // 20. Log completion
     ESP_LOGI(TAG, "Free heap: %lu bytes", esp_get_free_heap_size());
     ESP_LOGI(TAG, "All systems started");
 }

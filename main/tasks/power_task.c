@@ -114,17 +114,22 @@ static void power_task(void *pvParameters)
                 ESP_LOGE(TAG, "VR FAULT detected");
             }
             emergency_shutdown();
-        } else if (s_fan_override >= 0) {
-            /* ── Manual fan override ────────────────────────────── */
-            fan_set_speed(0, (uint8_t)s_fan_override);
-            fan_set_speed(1, (uint8_t)s_fan_override);
-        } else {
-            /* ── Normal operation: PID fan control ───────────────── */
-            float fan0_pct = pid_compute(&s_fan_pid[0], s_status.chip_temp, dt);
-            float fan1_pct = pid_compute(&s_fan_pid[1], s_status.vr_temp, dt);
+        } else if (board->fan_type == 0) {
+            /* ── EMC2302: software PID fan control ──────────────── */
+            if (s_fan_override >= 0) {
+                fan_set_speed(0, (uint8_t)s_fan_override);
+                fan_set_speed(1, (uint8_t)s_fan_override);
+            } else {
+                float fan0_pct = pid_compute(&s_fan_pid[0], s_status.chip_temp, dt);
+                float fan1_pct = pid_compute(&s_fan_pid[1], s_status.vr_temp, dt);
 
-            fan_set_speed(0, (uint8_t)fan0_pct);
-            fan_set_speed(1, (uint8_t)fan1_pct);
+                fan_set_speed(0, (uint8_t)fan0_pct);
+                fan_set_speed(1, (uint8_t)fan1_pct);
+            }
+        } else {
+            /* ── EMC2101 or other: hardware controls fan speed ──── */
+            /* Don't try to set speed (wrong protocol / device).    */
+            /* Fan is running under hardware control (EMC2101).     */
         }
 
         /* ── Read fan RPM ────────────────────────────────────────── */

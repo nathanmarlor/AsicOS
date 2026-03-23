@@ -96,9 +96,11 @@ export const useMiningStore = defineStore('mining', () => {
       error.value = null
 
       // Detect new pool-submitted shares from accepted count changes
+      // Only generate share entries when prevAccepted > 0 (not on first poll)
+      // and the delta is reasonable (< 10) to prevent fake bursts from stale NVS data
       if (prev && info.value) {
         const newAccepted = info.value.accepted - prevAccepted
-        if (newAccepted > 0 && prevAccepted > 0) {
+        if (newAccepted > 0 && prevAccepted > 0 && newAccepted < 10) {
           for (let i = 0; i < newAccepted; i++) {
             const diff = info.value.pool_diff * (1 + Math.random() * 3)
             addShare({

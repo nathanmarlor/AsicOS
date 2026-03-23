@@ -1,5 +1,6 @@
 #include "ws_handler.h"
 
+#include <stdarg.h>
 #include <string.h>
 
 #include "esp_http_server.h"
@@ -76,7 +77,36 @@ void ws_send_log(const char *msg)
 
     esp_err_t ret = httpd_ws_send_frame_async(s_server, s_ws_fd, &frame);
     if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "ws_send_log async failed (%d), clearing fd", ret);
+        /* Don't use ESP_LOGW here to avoid recursion */
         s_ws_fd = -1;
     }
+}
+
+/* ── ESP log hook: forward all log output to WebSocket ─────────────── */
+
+static vprintf_like_t s_original_vprintf = NULL;
+
+static int ws_log_vprintf(const char *fmt, va_list args)
+{
+    /* Copy args before original handler consumes them */
+    va_list args_copy;
+    va_copy(args_copy, args);
+
+    /* Original UART output */
+    int ret = s_original_vprintf(fmt, args);
+
+    /* Forward to WebSocket if connected */
+    if (s_ws_fd >= 0 && s_server) {
+        char buf[256];
+        vsnprintf(buf, sizeof(buf), fmt, args_copy);
+        ws_send_log(buf);
+    }
+    va_end(args_copy);
+
+    return ret;
+}
+
+void ws_log_init(void)
+{
+    s_original_vprintf = esp_log_set_vprintf(ws_log_vprintf);
 }
