@@ -96,20 +96,18 @@ int asic_enumerate(void)
 
     serial_tx(cmd_buf, (size_t)cmd_len);
 
-    /* Wait for all chips to respond (each sends 11 bytes back-to-back) */
-    vTaskDelay(pdMS_TO_TICKS(200));
-
-    /* Read all available data in one bulk read, then scan for BM1370 signatures.
-     * Each response is 11 bytes starting with AA 55 13 70. */
+    /* Read all chip responses. At 115200 baud, each 11-byte response takes ~1ms.
+     * Read byte-by-byte with short timeouts to catch all responses without missing
+     * any that arrive back-to-back. */
     uint8_t bulk[128];
     int total_read = 0;
-    int chunk;
 
-    /* Read whatever is in the UART buffer */
+    /* Keep reading until we get no data for 500ms */
     while (total_read < (int)sizeof(bulk)) {
-        chunk = serial_rx(bulk + total_read, sizeof(bulk) - total_read, 100);
-        if (chunk <= 0) break;
-        total_read += chunk;
+        uint8_t byte;
+        int n = serial_rx(&byte, 1, 500);
+        if (n != 1) break;
+        bulk[total_read++] = byte;
     }
 
     ESP_LOGI(TAG, "Enumerate: read %d bytes from UART", total_read);
