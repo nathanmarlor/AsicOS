@@ -17,7 +17,13 @@ export default defineConfig({
     outDir: '../build/www',
     emptyOutDir: true,
     rollupOptions: {
-      output: { manualChunks: undefined }
+      output: {
+        manualChunks: undefined,
+        // Short filenames for SPIFFS (32 char limit)
+        entryFileNames: 'a/[hash:8].js',
+        chunkFileNames: 'a/[hash:8].js',
+        assetFileNames: 'a/[hash:8][extname]',
+      }
     }
   },
   server: {
