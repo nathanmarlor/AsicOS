@@ -80,11 +80,10 @@ static void hashrate_task_fn(void *param)
             uint32_t delta   = counter - prev_counter[i];
             prev_counter[i]  = counter;
 
-            /* GH/s = (delta * 2^32) / dt_us / 1e9
+            /* GH/s = (delta * 2^32) / dt_us / 1000
              * Simplify: GH/s = delta * 4.294967296 / (dt_us / 1e6)
-             *                 = delta * 4294.967296 / dt_us * 1000
-             * More directly: (delta * 2^32) / dt_us / 1000  */
-            float raw_ghs = (float)((double)delta * 4294.967296 / ((double)dt_us / 1000000.0));
+             *                 = delta * 4294967.296 / dt_us              */
+            float raw_ghs = (float)((double)delta * 4.294967296 / ((double)dt_us / 1000000.0));
 
             /* Store in history ring for median filter */
             int tap = sample_idx % MEDIAN_TAPS;

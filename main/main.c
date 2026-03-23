@@ -255,7 +255,9 @@ void app_main(void)
 
     // 12. HTTP server
     http_server_start();
-    ws_log_init();
+    // ws_log_init() disabled: overriding esp_log_set_vprintf silences the
+    // serial console, making UART0 debugging impossible.  WebSocket log
+    // forwarding can be re-enabled once a non-intrusive hook is available.
 
     // 13. Stratum client
     init_stratum(board);

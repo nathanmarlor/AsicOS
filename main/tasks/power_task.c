@@ -89,12 +89,15 @@ static void power_task(void *pvParameters)
             s_status.board_temp = board_temp;
         }
 
-        /* ── Read ASIC temp every ~30 s (slow serial) ───────────── */
-        if (iteration % ASIC_TEMP_INTERVAL == 0) {
-            float chip_temp = bm1370_read_temperature();
-            if (chip_temp > 0.0f) {
-                s_status.chip_temp = chip_temp;
-            }
+        /* ── Chip temp: use EMC2101 external diode (same as board_temp) ─ */
+        /* Reading the BM1370 temp register over UART conflicts with
+         * job sends / nonce reads at 1 Mbaud, causing garbage results.
+         * The EMC2101 external temperature channel reads the ASIC's
+         * thermal diode via I2C instead, which is conflict-free.
+         * On EMC2101-based boards sensor 0 IS the ASIC diode, so
+         * chip_temp == board_temp.  Avoids a redundant I2C transaction. */
+        if (board_temp > 0.0f) {
+            s_status.chip_temp = board_temp;
         }
 
         /* ── Read VR telemetry ───────────────────────────────────── */

@@ -127,24 +127,38 @@ esp_err_t emc2101_get_fan_rpm(const emc2101_config_t *config, uint16_t *rpm)
     }
 
     esp_err_t err = i2c_mux_select(config->port, config->mux_addr, config->mux_channel);
-    if (err != ESP_OK) return err;
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "RPM: mux select failed (mux=0x%02X ch=%d): %s",
+                 config->mux_addr, config->mux_channel, esp_err_to_name(err));
+        *rpm = 0;
+        return err;
+    }
 
     uint8_t lsb = 0, msb = 0;
 
     err = emc2101_read_reg(config, REG_TACH_LSB, &lsb);
     if (err != ESP_OK) {
+        ESP_LOGW(TAG, "RPM: TACH_LSB read failed (dev=0x%02X): %s",
+                 config->dev_addr, esp_err_to_name(err));
         *rpm = 0;
         return err;
     }
 
     err = emc2101_read_reg(config, REG_TACH_MSB, &msb);
     if (err != ESP_OK) {
+        ESP_LOGW(TAG, "RPM: TACH_MSB read failed (dev=0x%02X): %s",
+                 config->dev_addr, esp_err_to_name(err));
         *rpm = 0;
         return err;
     }
 
     uint16_t tach_count = ((uint16_t)msb << 8) | lsb;
+    ESP_LOGD(TAG, "RPM: ch=%d tach_count=0x%04X (MSB=0x%02X LSB=0x%02X)",
+             config->mux_channel, tach_count, msb, lsb);
+
     if (tach_count == 0 || tach_count == 0xFFFF) {
+        ESP_LOGD(TAG, "RPM: ch=%d tach_count invalid (0x%04X), reporting 0",
+                 config->mux_channel, tach_count);
         *rpm = 0;
         return ESP_OK;
     }

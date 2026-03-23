@@ -103,7 +103,18 @@ static void result_task_fn(void *param)
         uint32_t version_bits = (uint32_t)ntohs(result.rolled_version) << 13;
         uint32_t rolled_version = job->version | version_bits;
 
-        mining_build_block_header(header, rolled_version, job->prev_block_hash,
+        /* Stratum sends prev_block_hash with each 4-byte word in reverse byte
+         * order compared to internal (block header) format.  Swap bytes within
+         * each 32-bit word so the header hash matches what the ASIC computed. */
+        uint8_t prev_hash_internal[32];
+        memcpy(prev_hash_internal, job->prev_block_hash, 32);
+        for (int b = 0; b < 32; b += 4) {
+            uint8_t tmp;
+            tmp = prev_hash_internal[b + 0]; prev_hash_internal[b + 0] = prev_hash_internal[b + 3]; prev_hash_internal[b + 3] = tmp;
+            tmp = prev_hash_internal[b + 1]; prev_hash_internal[b + 1] = prev_hash_internal[b + 2]; prev_hash_internal[b + 2] = tmp;
+        }
+
+        mining_build_block_header(header, rolled_version, prev_hash_internal,
                                   job->merkle_root, job->ntime, job->nbits,
                                   result.nonce);
 
