@@ -112,7 +112,7 @@ static void hashrate_task_fn(void *param)
 
         prev_time_us = now_us;
 
-        ESP_LOGI(TAG, "Hashrate: %.2f GH/s (%d chips, dt=%.1fs)",
+        ESP_LOGI(TAG, "Hashrate: %.2f GH/s (%d chips, measured over %.1f seconds)",
                  s_info.total_hashrate_ghs, s_info.chip_count, dt_sec);
     }
 }

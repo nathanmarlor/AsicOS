@@ -5,6 +5,7 @@
 
 #include "cJSON.h"
 #include "esp_app_desc.h"
+#include "esp_crt_bundle.h"
 #include "esp_http_client.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
@@ -451,6 +452,7 @@ esp_err_t api_system_ota_check_handler(httpd_req_t *req)
         .event_handler  = ota_check_http_event,
         .user_data      = &ctx,
         .timeout_ms     = 10000,
+        .crt_bundle_attach = esp_crt_bundle_attach,
     };
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
@@ -555,6 +557,7 @@ esp_err_t api_system_ota_github_handler(httpd_req_t *req)
         .url           = download_url,
         .timeout_ms    = 30000,
         .buffer_size   = 4096,
+        .crt_bundle_attach = esp_crt_bundle_attach,
     };
 
     esp_http_client_handle_t client = esp_http_client_init(&config);

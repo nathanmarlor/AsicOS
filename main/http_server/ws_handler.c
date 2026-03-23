@@ -95,11 +95,32 @@ static int ws_log_vprintf(const char *fmt, va_list args)
     /* Original UART output */
     int ret = s_original_vprintf(fmt, args);
 
-    /* Forward to WebSocket if connected */
+    /* Forward to WebSocket if connected, stripping ANSI escape codes */
     if (s_ws_fd >= 0 && s_server) {
-        char buf[256];
-        vsnprintf(buf, sizeof(buf), fmt, args_copy);
-        ws_send_log(buf);
+        char raw[256];
+        vsnprintf(raw, sizeof(raw), fmt, args_copy);
+
+        /* Strip ANSI escape sequences: \033[...m or \e[...m */
+        char clean[256];
+        int ci = 0;
+        for (int ri = 0; raw[ri] && ci < (int)sizeof(clean) - 1; ri++) {
+            if (raw[ri] == '\033' || (raw[ri] == '[' && ri > 0 && raw[ri-1] == '\033')) {
+                /* Skip until 'm' */
+                if (raw[ri] == '\033') {
+                    while (raw[ri] && raw[ri] != 'm') ri++;
+                    continue;
+                }
+            }
+            /* Skip standalone [0m etc that weren't caught */
+            if (raw[ri] == '[' && ri + 1 < (int)sizeof(raw) && raw[ri+1] >= '0' && raw[ri+1] <= '9') {
+                int peek = ri + 1;
+                while (raw[peek] && raw[peek] != 'm' && peek - ri < 8) peek++;
+                if (raw[peek] == 'm') { ri = peek; continue; }
+            }
+            clean[ci++] = raw[ri];
+        }
+        clean[ci] = '\0';
+        if (ci > 0) ws_send_log(clean);
     }
     va_end(args_copy);
 
