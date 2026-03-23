@@ -9,7 +9,8 @@ static int s_led1_gpio = -1;
 static int s_led2_gpio = -1;
 static led_state_t s_state = LED_STATE_OFF;
 static esp_timer_handle_t s_timer;
-static uint32_t s_tick = 0;  /* Increments every 100ms */
+static uint32_t s_tick = 0;         /* Increments every 100ms */
+static volatile int s_flash_ticks = 0;  /* Countdown for share flash */
 
 /* LEDs are active-LOW on the BitForge Nano */
 #define LED_ON   0
@@ -52,8 +53,13 @@ static void led_timer_cb(void *arg)
         break;
 
     case LED_STATE_MINING:
-        /* Heartbeat: on for 100ms, off for 900ms (1 tick on, 9 ticks off) */
-        led_set(s_led1_gpio, (s_tick % 10 == 0) ? LED_ON : LED_OFF);
+        /* LED off normally, flashes on share submission via led_flash() */
+        if (s_flash_ticks > 0) {
+            led_set(s_led1_gpio, LED_ON);
+            s_flash_ticks--;
+        } else {
+            led_set(s_led1_gpio, LED_OFF);
+        }
         led_set(s_led2_gpio, LED_OFF);
         break;
 
@@ -107,4 +113,10 @@ void led_set_state(led_state_t state)
 {
     s_state = state;
     s_tick = 0;  /* Reset tick counter on state change for clean pattern start */
+}
+
+void led_flash(void)
+{
+    /* Brief flash: 2 ticks = 200ms on. Called from result_task on share submission. */
+    s_flash_ticks = 2;
 }

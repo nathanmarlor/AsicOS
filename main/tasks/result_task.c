@@ -5,6 +5,7 @@
 #include "bm1370.h"
 #include "mining.h"
 #include "nvs_config.h"
+#include "led_status.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -173,6 +174,7 @@ static void result_task_fn(void *param)
 
             if (err == ESP_OK) {
                 s_stats.total_shares_submitted++;
+                led_flash();  /* Brief LED flash on share submission */
                 ESP_LOGI(TAG, "Share submitted: diff=%.4f pool_diff=%.4f nonce=0x%s",
                          share_diff, job->pool_diff, nonce_hex);
             } else {
