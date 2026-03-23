@@ -3,27 +3,19 @@ import { ref, onUnmounted } from 'vue'
 import { useApi } from '../composables/useApi'
 
 export interface SystemInfo {
-  hostname: string
-  version: string
-  board: string
-  asic_count: number
-  freq_min: number
-  freq_max: number
-  frequency: number
-  core_voltage: number
-  vr_temp: number
-  board_temp: number
-  chip_temp: number
-  fan_speed_0: number
-  fan_speed_1: number
-  fan_target_temp: number
-  overheat_temp: number
-  power_watts: number
+  board_name: string
+  asic_model: string
+  expected_chips: number
+  hashrate_ghs: number
+  per_chip_hashrate_ghs: number[]
+  chip_count: number
+  temps: { chip: number; vr: number; board: number }
+  power: { vin: number; vout: number; watts: number; fan0_rpm: number; fan1_rpm: number; overheat: boolean; vr_fault: boolean }
+  mining: { best_difficulty: number; total_shares_submitted: number; duplicate_nonces: number }
+  pool: { state: string; accepted: number; rejected: number; difficulty: number }
+  config: { pool_url: string; pool_port: number; pool_user: string; frequency: number; voltage: number; wifi_ssid: string; ui_mode: string }
+  uptime_ms: number
   free_heap: number
-  uptime_seconds: number
-  wifi_ssid: string
-  wifi_status: string
-  ip_address: string
 }
 
 export const useSystemStore = defineStore('system', () => {

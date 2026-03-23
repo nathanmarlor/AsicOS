@@ -11,23 +11,24 @@ const system = useSystemStore()
 const mining = useMiningStore()
 
 const hashrate = computed(() => mining.info?.hashrate_ghs ?? 0)
-const isMining = computed(() => mining.info?.is_mining ?? false)
-const accepted = computed(() => mining.info?.shares_accepted ?? 0)
+const isMining = computed(() => system.info?.pool.state === 'mining')
+const accepted = computed(() => mining.info?.accepted ?? 0)
 const bestDiff = computed(() => mining.info?.best_diff ?? 0)
-const bestDiffStr = computed(() => mining.info?.best_diff_str ?? mining.formatDiff(bestDiff.value))
-const chipTemp = computed(() => system.info?.chip_temp ?? 0)
+const bestDiffStr = computed(() => mining.formatDiff(bestDiff.value))
+const chipTemp = computed(() => system.info?.temps.chip ?? 0)
 const poolUrl = computed(() => {
-  if (!mining.info) return '--'
-  return `${mining.info.pool_url}:${mining.info.pool_port}`
+  if (!system.info) return '--'
+  return `${system.info.config.pool_url}:${system.info.config.pool_port}`
 })
-const poolConnected = computed(() => mining.info?.pool_connected ?? false)
+const poolConnected = computed(() => system.info?.pool.state === 'mining')
 const uptime = computed(() => {
-  const s = system.info?.uptime_seconds ?? 0
+  const ms = system.info?.uptime_ms ?? 0
+  const s = Math.floor(ms / 1000)
   const h = Math.floor(s / 3600)
   const m = Math.floor((s % 3600) / 60)
   return `${h}h ${m}m`
 })
-const power = computed(() => system.info?.power_watts ?? 0)
+const power = computed(() => system.info?.power.watts ?? 0)
 </script>
 
 <template>

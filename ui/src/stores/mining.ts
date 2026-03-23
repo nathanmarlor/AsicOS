@@ -4,26 +4,18 @@ import { useApi } from '../composables/useApi'
 
 export interface ChipInfo {
   id: number
-  hashrate: number
-  frequency: number
-  voltage: number
-  temp: number
+  hashrate_ghs: number
 }
 
 export interface MiningInfo {
-  is_mining: boolean
   hashrate_ghs: number
-  shares_accepted: number
-  shares_rejected: number
+  accepted: number
+  rejected: number
   best_diff: number
-  best_diff_str: string
-  pool_url: string
-  pool_port: number
-  pool_user: string
-  pool_connected: boolean
-  pool_difficulty: number
+  pool_diff: number
+  total_shares: number
+  duplicates: number
   chips: ChipInfo[]
-  efficiency: number
 }
 
 export interface ShareEntry {
@@ -51,12 +43,12 @@ export const useMiningStore = defineStore('mining', () => {
 
       // Detect new shares
       if (prev && info.value) {
-        const newAccepted = info.value.shares_accepted - prevAccepted
+        const newAccepted = info.value.accepted - prevAccepted
         if (newAccepted > 0 && prevAccepted > 0) {
           shares.value.unshift({
             ts: Date.now(),
-            diff: info.value.pool_difficulty,
-            diff_str: formatDiff(info.value.pool_difficulty),
+            diff: info.value.pool_diff,
+            diff_str: formatDiff(info.value.pool_diff),
             accepted: true
           })
           if (shares.value.length > 50) {
@@ -65,7 +57,7 @@ export const useMiningStore = defineStore('mining', () => {
         }
       }
       if (info.value) {
-        prevAccepted = info.value.shares_accepted
+        prevAccepted = info.value.accepted
       }
     } catch (e: any) {
       error.value = e.message

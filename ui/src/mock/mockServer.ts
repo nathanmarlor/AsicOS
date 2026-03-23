@@ -2,30 +2,19 @@ import type { Plugin, ViteDevServer } from 'vite'
 import { WebSocketServer, WebSocket } from 'ws'
 
 const MOCK_SYSTEM_INFO = {
-  board: "NerdQAxe++",
+  board_name: "NerdQAxe++",
   asic_model: "BM1370",
-  firmware: "AsicOS 1.0.0-dev",
-  uptime_s: 86432,
-  free_heap: 183240,
+  expected_chips: 4,
   hashrate_ghs: 487.3,
-  chip_hashrate: [123.1, 121.8, 119.7, 122.7],
-  chip_temp: 54.2,
-  vr_temp: 43.8,
-  board_temp: 37.1,
-  power_w: 15.8,
-  voltage_mv: 1150,
-  fan0_rpm: 3240,
-  fan1_rpm: 2890,
-  overheat: false,
-  accepted: 1847,
-  rejected: 3,
-  best_diff: 2.41e9,
-  pool_diff: 512,
-  pool_state: "mining",
-  pool_url: "public-pool.io:3333",
-  pool_user: "bc1qexampleaddress.asicos-worker",
-  frequency: 600,
-  voltage: 1150,
+  per_chip_hashrate_ghs: [123.1, 121.8, 119.7, 122.7],
+  chip_count: 4,
+  temps: { chip: 54.2, vr: 43.8, board: 37.1 },
+  power: { vin: 12.1, vout: 1.15, watts: 15.8, fan0_rpm: 3240, fan1_rpm: 2890, overheat: false, vr_fault: false },
+  mining: { best_difficulty: 2.41e9, total_shares_submitted: 1850, duplicate_nonces: 0 },
+  pool: { state: "mining", accepted: 1847, rejected: 3, difficulty: 512 },
+  config: { pool_url: "public-pool.io", pool_port: 3333, pool_user: "bc1qexampleaddress.asicos-worker", frequency: 600, voltage: 1150, wifi_ssid: "MyWiFi", ui_mode: "simple" },
+  uptime_ms: 86432000,
+  free_heap: 183240,
 }
 
 const MOCK_MINING_INFO = {
@@ -69,16 +58,24 @@ function getMockSystemInfo() {
   mockAccepted += Math.random() > 0.5 ? 1 : 0
   return {
     ...MOCK_SYSTEM_INFO,
-    uptime_s: Math.floor(Date.now() / 1000) - 1711100000,
+    uptime_ms: (Math.floor(Date.now() / 1000) - 1711100000) * 1000,
     hashrate_ghs: jitter(487.3),
-    chip_hashrate: MOCK_SYSTEM_INFO.chip_hashrate.map(h => jitter(h)),
-    chip_temp: jitter(54.2, 0.01),
-    vr_temp: jitter(43.8, 0.01),
-    board_temp: jitter(37.1, 0.01),
-    power_w: jitter(15.8),
-    fan0_rpm: Math.round(jitter(3240, 0.03)),
-    fan1_rpm: Math.round(jitter(2890, 0.03)),
-    accepted: mockAccepted,
+    per_chip_hashrate_ghs: MOCK_SYSTEM_INFO.per_chip_hashrate_ghs.map(h => jitter(h)),
+    temps: {
+      chip: jitter(54.2, 0.01),
+      vr: jitter(43.8, 0.01),
+      board: jitter(37.1, 0.01),
+    },
+    power: {
+      ...MOCK_SYSTEM_INFO.power,
+      watts: jitter(15.8),
+      fan0_rpm: Math.round(jitter(3240, 0.03)),
+      fan1_rpm: Math.round(jitter(2890, 0.03)),
+    },
+    pool: {
+      ...MOCK_SYSTEM_INFO.pool,
+      accepted: mockAccepted,
+    },
     free_heap: Math.round(jitter(183240, 0.05)),
   }
 }
@@ -107,8 +104,27 @@ function generateShareEvent() {
   })
 }
 
+const MOCK_SYSTEM_CONFIG = {
+  wifi_ssid: "MyWiFi",
+  wifi_password: "",
+  pool_url: "public-pool.io",
+  pool_port: 3333,
+  pool_user: "bc1qexampleaddress.asicos-worker",
+  pool_password: "x",
+  fallback_url: "",
+  fallback_port: 3333,
+  fallback_user: "",
+  frequency: 600,
+  core_voltage: 1150,
+  fan_target_temp: 65,
+  overheat_temp: 95,
+  loki_url: "",
+  default_mode: "simple",
+}
+
 const API_ROUTES: Record<string, () => unknown> = {
   '/api/system/info': getMockSystemInfo,
+  '/api/system/config': () => MOCK_SYSTEM_CONFIG,
   '/api/mining/info': getMockMiningInfo,
   '/api/tuner/status': () => MOCK_TUNER_STATUS,
   '/api/remote/status': () => MOCK_REMOTE_STATUS,
@@ -116,6 +132,7 @@ const API_ROUTES: Record<string, () => unknown> = {
 
 const POST_ROUTES: Record<string, (body: string) => unknown> = {
   '/api/system': () => ({ status: "ok" }),
+  '/api/system/config': () => ({ status: "ok" }),
   '/api/system/restart': () => ({ status: "restarting" }),
   '/api/tuner/start': () => ({ status: "started" }),
   '/api/tuner/abort': () => ({ status: "aborting" }),

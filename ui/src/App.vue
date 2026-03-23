@@ -26,7 +26,7 @@ onUnmounted(() => {
     <header class="h-10 flex items-center justify-between px-4 border-b border-border bg-surface select-none">
       <router-link to="/" class="flex items-center gap-2 text-sm font-mono font-medium text-gray-300 hover:text-white transition-colors">
         <span class="text-accent font-bold">Asic</span><span>OS</span>
-        <span v-if="system.info" class="text-[10px] text-gray-600 ml-1">v{{ system.info.version }}</span>
+        <span v-if="system.info" class="text-[10px] text-gray-600 ml-1">{{ system.info.board_name }}</span>
       </router-link>
 
       <div class="flex items-center gap-3">

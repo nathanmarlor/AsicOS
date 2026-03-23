@@ -15,13 +15,13 @@ const { post } = useApi()
 
 const hashrate = computed(() => mining.info?.hashrate_ghs ?? 0)
 const efficiency = computed(() => {
-  const p = system.info?.power_watts ?? 0
+  const p = system.info?.power.watts ?? 0
   if (p === 0) return 0
   return hashrate.value / p
 })
-const power = computed(() => system.info?.power_watts ?? 0)
-const chipTemp = computed(() => system.info?.chip_temp ?? 0)
-const vrTemp = computed(() => system.info?.vr_temp ?? 0)
+const power = computed(() => system.info?.power.watts ?? 0)
+const chipTemp = computed(() => system.info?.temps.chip ?? 0)
+const vrTemp = computed(() => system.info?.temps.vr ?? 0)
 const chips = computed(() => mining.info?.chips ?? [])
 
 const details = computed(() => {
@@ -29,17 +29,17 @@ const details = computed(() => {
   const s = system.info
   if (!m || !s) return []
   return [
-    { label: 'Pool Difficulty', value: mining.formatDiff(m.pool_difficulty) },
-    { label: 'Best Difficulty', value: m.best_diff_str || mining.formatDiff(m.best_diff) },
-    { label: 'Accepted / Rejected', value: `${m.shares_accepted} / ${m.shares_rejected}` },
-    { label: 'Frequency', value: `${s.frequency} MHz` },
-    { label: 'Core Voltage', value: `${s.core_voltage} mV` },
-    { label: 'VR Temp', value: `${s.vr_temp.toFixed(1)} C` },
-    { label: 'Board Temp', value: `${s.board_temp.toFixed(1)} C` },
-    { label: 'Fan 0', value: `${s.fan_speed_0} RPM` },
-    { label: 'Fan 1', value: `${s.fan_speed_1} RPM` },
+    { label: 'Pool Difficulty', value: mining.formatDiff(m.pool_diff) },
+    { label: 'Best Difficulty', value: mining.formatDiff(m.best_diff) },
+    { label: 'Accepted / Rejected', value: `${m.accepted} / ${m.rejected}` },
+    { label: 'Frequency', value: `${s.config.frequency} MHz` },
+    { label: 'Core Voltage', value: `${s.config.voltage} mV` },
+    { label: 'VR Temp', value: `${s.temps.vr.toFixed(1)} C` },
+    { label: 'Board Temp', value: `${s.temps.board.toFixed(1)} C` },
+    { label: 'Fan 0', value: `${s.power.fan0_rpm} RPM` },
+    { label: 'Fan 1', value: `${s.power.fan1_rpm} RPM` },
     { label: 'Free Heap', value: `${(s.free_heap / 1024).toFixed(0)} KB` },
-    { label: 'Uptime', value: formatUptime(s.uptime_seconds) },
+    { label: 'Uptime', value: formatUptime(Math.floor(s.uptime_ms / 1000)) },
   ]
 })
 
@@ -51,11 +51,11 @@ function formatUptime(s: number): string {
 }
 
 const poolUrl = computed(() => {
-  if (!mining.info) return '--'
-  return `${mining.info.pool_url}:${mining.info.pool_port}`
+  if (!system.info) return '--'
+  return `${system.info.config.pool_url}:${system.info.config.pool_port}`
 })
 
-const poolConnected = computed(() => mining.info?.pool_connected ?? false)
+const poolConnected = computed(() => system.info?.pool.state === 'mining')
 
 let confirmRestart = false
 async function restart() {

@@ -33,8 +33,8 @@ const overheatTemp = ref(95)
 const lokiUrl = ref('')
 const defaultMode = ref('simple')
 
-const freqMin = computed(() => system.info?.freq_min ?? 100)
-const freqMax = computed(() => system.info?.freq_max ?? 800)
+const freqMin = computed(() => 100)
+const freqMax = computed(() => 800)
 
 let confirmRestart = false
 

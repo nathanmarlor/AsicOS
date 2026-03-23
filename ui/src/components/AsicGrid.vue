@@ -8,11 +8,11 @@ const props = defineProps<{
 
 const avgHashrate = computed(() => {
   if (props.chips.length === 0) return 0
-  return props.chips.reduce((s, c) => s + c.hashrate, 0) / props.chips.length
+  return props.chips.reduce((s, c) => s + c.hashrate_ghs, 0) / props.chips.length
 })
 
 const totalHashrate = computed(() => {
-  return props.chips.reduce((s, c) => s + c.hashrate, 0)
+  return props.chips.reduce((s, c) => s + c.hashrate_ghs, 0)
 })
 
 function heatColor(hashrate: number): string {
@@ -33,7 +33,7 @@ const distribution = computed(() => {
   if (props.chips.length === 0) return 0
   const avg = avgHashrate.value
   if (avg === 0) return 0
-  const variance = props.chips.reduce((s, c) => s + Math.pow(c.hashrate - avg, 2), 0) / props.chips.length
+  const variance = props.chips.reduce((s, c) => s + Math.pow(c.hashrate_ghs - avg, 2), 0) / props.chips.length
   const cv = Math.sqrt(variance) / avg
   return Math.max(0, Math.min(100, (1 - cv) * 100))
 })
@@ -49,19 +49,15 @@ const distribution = computed(() => {
         v-for="chip in chips"
         :key="chip.id"
         class="border rounded-lg p-3 transition-colors"
-        :class="heatColor(chip.hashrate)"
+        :class="heatColor(chip.hashrate_ghs)"
       >
         <div class="flex items-center justify-between mb-1">
           <span class="text-[10px] font-mono text-gray-600">CHIP {{ chip.id }}</span>
-          <span class="text-[10px] font-mono text-gray-600">{{ chip.temp.toFixed(0) }}&deg;C</span>
         </div>
         <div class="font-mono font-bold text-lg text-white">
-          {{ chip.hashrate.toFixed(1) }}
+          {{ chip.hashrate_ghs.toFixed(1) }}
         </div>
         <div class="text-[10px] font-mono text-gray-500">GH/s</div>
-        <div class="text-[10px] font-mono text-gray-600 mt-1">
-          {{ chip.frequency }}MHz / {{ chip.voltage }}mV
-        </div>
       </div>
     </div>
 
@@ -76,8 +72,8 @@ const distribution = computed(() => {
           v-for="chip in chips"
           :key="'bar-' + chip.id"
           class="h-full transition-all duration-500"
-          :class="chip.hashrate / avgHashrate < 0.8 ? 'bg-red-500' : 'bg-accent'"
-          :style="{ width: perfPct(chip.hashrate) }"
+          :class="chip.hashrate_ghs / avgHashrate < 0.8 ? 'bg-red-500' : 'bg-accent'"
+          :style="{ width: perfPct(chip.hashrate_ghs) }"
         />
       </div>
     </div>
