@@ -26,7 +26,7 @@ watch(() => props.hashrate, (newVal) => {
   <div class="text-center">
     <div class="relative inline-block">
       <div
-        class="font-mono font-bold text-5xl sm:text-6xl text-white tracking-tight transition-transform duration-300"
+        class="font-mono font-bold text-5xl sm:text-6xl text-[var(--text)] tracking-tight transition-transform duration-300"
         :class="{ 'scale-[1.02]': isUpdating }"
       >
         {{ displayValue }}

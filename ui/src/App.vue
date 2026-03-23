@@ -26,7 +26,7 @@ onUnmounted(() => {
   <div class="min-h-screen font-sans" style="background-color: var(--bg); color: var(--text);">
     <!-- Top bar -->
     <header class="h-10 flex items-center justify-between px-4 border-b select-none" style="border-color: var(--border); background-color: var(--surface);">
-      <router-link to="/" class="flex items-center gap-2 text-sm font-mono font-medium hover:text-white transition-colors" style="color: var(--text);">
+      <router-link to="/" class="flex items-center gap-2 text-sm font-mono font-medium hover:text-[var(--text)] transition-colors" style="color: var(--text);">
         <Logo />
         <span v-if="system.info" class="text-[10px] ml-1" style="color: var(--text-muted);">{{ system.info.board_name }}</span>
       </router-link>

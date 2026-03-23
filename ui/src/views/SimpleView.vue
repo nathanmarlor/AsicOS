@@ -102,7 +102,7 @@ const timeToBlock = computed(() => {
     <!-- Big hashrate -->
     <div class="text-center">
       <div class="relative inline-block">
-        <div class="font-mono font-bold text-6xl sm:text-7xl text-white tracking-tight">
+        <div class="font-mono font-bold text-6xl sm:text-7xl text-[var(--text)] tracking-tight">
           {{ hashrate.toFixed(1) }}
         </div>
         <div class="text-sm font-mono text-[var(--text-secondary)] mt-1 tracking-widest">GH/s</div>

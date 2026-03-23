@@ -6,9 +6,9 @@ export default {
     extend: {
       colors: {
         accent: '#f97316',
-        surface: '#111111',
-        'surface-light': '#1a1a1a',
-        border: '#1e1e1e'
+        surface: 'var(--surface)',
+        'surface-light': 'var(--surface-light)',
+        border: 'var(--border)'
       },
       fontFamily: {
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
