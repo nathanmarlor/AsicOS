@@ -15,6 +15,7 @@
 #include "temp_sensor.h"
 #include "fan_controller.h"
 #include "nvs_config.h"
+#include "sha256.h"
 
 static const char *TAG = "POST";
 
@@ -65,7 +66,18 @@ selftest_report_t selftest_run(void)
     nvs_config_get_string("_post_test", nvs_buf, sizeof(nvs_buf), "ok");
     add_check(&report, "NVS", SELFTEST_PASS, "accessible");
 
-    /* 4. ASIC Chain */
+    /* 4. SHA-256 Hash */
+    {
+        uint8_t hash[32];
+        sha256_hash((const uint8_t *)"", 0, hash);
+        if (hash[0] == 0xe3 && hash[1] == 0xb0 && hash[2] == 0xc4) {
+            add_check(&report, "SHA-256", SELFTEST_PASS, "SHA-256 verified");
+        } else {
+            add_check(&report, "SHA-256", SELFTEST_FAIL, "SHA-256 mismatch");
+        }
+    }
+
+    /* 5. ASIC Chain */
     int chips = asic_enumerate();
     if (chips > 0) {
         snprintf(buf, sizeof(buf), "%d chip(s) found", chips);
@@ -74,7 +86,7 @@ selftest_report_t selftest_run(void)
         add_check(&report, "ASIC Chain", SELFTEST_FAIL, "no chips found");
     }
 
-    /* 5. Temp Sensor */
+    /* 6. Temp Sensor */
     float temp = 0.0f;
     esp_err_t err = temp_sensor_read(0, &temp);
     if (err == ESP_OK && temp >= -40.0f && temp <= 125.0f) {
@@ -85,7 +97,7 @@ selftest_report_t selftest_run(void)
         add_check(&report, "Temp Sensor", SELFTEST_FAIL, buf);
     }
 
-    /* 6. Voltage Regulator */
+    /* 7. Voltage Regulator */
     vr_telemetry_t telem;
     err = vr_read_telemetry(&telem);
     if (err == ESP_OK && telem.vout > 0.5f) {
@@ -97,7 +109,7 @@ selftest_report_t selftest_run(void)
         add_check(&report, "VR", SELFTEST_WARN, buf);
     }
 
-    /* 7. Fan */
+    /* 8. Fan */
     fan_set_speed(0, 50);
     vTaskDelay(pdMS_TO_TICKS(2000));
     uint16_t rpm = 0;
