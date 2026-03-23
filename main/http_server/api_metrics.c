@@ -84,8 +84,24 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
         "# HELP asicos_power_watts Power consumption\n"
         "# TYPE asicos_power_watts gauge\n"
-        "asicos_power_watts %.1f\n\n",
-        pw ? pw->power_w : 0.0f);
+        "asicos_power_watts %.1f\n\n"
+        "# HELP asicos_input_voltage_volts Input voltage\n"
+        "# TYPE asicos_input_voltage_volts gauge\n"
+        "asicos_input_voltage_volts %.3f\n\n"
+        "# HELP asicos_input_current_amps Input current\n"
+        "# TYPE asicos_input_current_amps gauge\n"
+        "asicos_input_current_amps %.3f\n\n"
+        "# HELP asicos_vr_voltage_volts VR output voltage\n"
+        "# TYPE asicos_vr_voltage_volts gauge\n"
+        "asicos_vr_voltage_volts %.4f\n\n"
+        "# HELP asicos_vr_current_amps VR output current\n"
+        "# TYPE asicos_vr_current_amps gauge\n"
+        "asicos_vr_current_amps %.1f\n\n",
+        pw ? pw->power_w : 0.0f,
+        pw ? pw->vin : 0.0f,
+        pw ? pw->iin : 0.0f,
+        pw ? pw->vout : 0.0f,
+        pw ? pw->iout : 0.0f);
 
     /* Voltage & frequency */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,

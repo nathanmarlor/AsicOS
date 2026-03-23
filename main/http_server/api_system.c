@@ -114,6 +114,7 @@ esp_err_t api_system_info_handler(httpd_req_t *req)
 
         cJSON *power = cJSON_AddObjectToObject(root, "power");
         cJSON_AddNumberToObject(power, "vin",     pw->vin);
+        cJSON_AddNumberToObject(power, "iin",     pw->iin);
         cJSON_AddNumberToObject(power, "vout",    pw->vout);
         cJSON_AddNumberToObject(power, "iout",    pw->iout);
         cJSON_AddNumberToObject(power, "watts",   pw->power_w);

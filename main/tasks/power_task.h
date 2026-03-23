@@ -17,6 +17,7 @@ typedef struct {
     float iout;          // Output current from VR telemetry (A)
     float vcore_adc_mv;  // ADC VCORE readback (if available)
     float power_w;
+    float iin;           // Input current (A) - from INA260 or VR telemetry
     float input_w;       // Input power: vin * iin (W)
     uint16_t fan0_rpm;
     uint16_t fan1_rpm;

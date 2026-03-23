@@ -166,7 +166,7 @@ const timeToBlock = computed(() => {
     </div>
 
     <!-- Share feed with all/submitted toggle -->
-    <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3 h-[340px] flex flex-col">
+    <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3 h-[240px] flex flex-col">
       <ShareFeed
         :all-shares="mining.allShares"
         :submitted-shares="mining.submittedShares"

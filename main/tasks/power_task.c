@@ -116,6 +116,7 @@ static void power_task(void *pvParameters)
             if (board->power_monitor_type == 0) {
                 /* VR telemetry is the only power source */
                 s_status.vin     = telem.vin;
+                s_status.iin     = telem.iin;
                 s_status.power_w = telem.pout;
             }
         }
@@ -125,6 +126,7 @@ static void power_task(void *pvParameters)
             ina260_reading_t ina_reading = {0};
             if (ina260_read(&s_ina260_config, &ina_reading) == ESP_OK) {
                 s_status.vin     = ina_reading.voltage_mv / 1000.0f;
+                s_status.iin     = ina_reading.current_ma / 1000.0f;
                 s_status.power_w = ina_reading.power_mw / 1000.0f;
             }
         }

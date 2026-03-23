@@ -144,6 +144,7 @@ const shareRate = computed(() => {
 
 // Power & Pool computed values
 const vin = computed(() => system.info?.power.vin.toFixed(2) ?? '--')
+const iin = computed(() => system.info?.power.iin?.toFixed(1) ?? '--')
 const vout = computed(() => (system.info ? (system.info.power.vout * 1000).toFixed(0) : '--'))
 const iout = computed(() => system.info?.power.iout.toFixed(1) ?? '--')
 const watts = computed(() => system.info?.power.watts.toFixed(1) ?? '--')
@@ -348,10 +349,10 @@ async function restart() {
         <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-2">Power</div>
         <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] font-mono">
           <div class="text-[var(--text-muted)]">Input</div>
-          <div class="text-right text-[var(--text)]">{{ vin }} V</div>
+          <div class="text-right text-[var(--text)]">{{ vin }} V / {{ iin }} A</div>
           <div class="text-[var(--text-muted)]">VRM</div>
           <div class="text-right text-[var(--text)]">{{ vout }} mV / {{ iout }} A</div>
-          <div class="text-[var(--text-muted)]">Draw</div>
+          <div class="text-[var(--text-muted)]">Power</div>
           <div class="text-right text-[var(--text)]">{{ watts }} W</div>
           <template v-if="hasAdcVcore">
             <div class="text-[var(--text-muted)]">Core ADC</div>
