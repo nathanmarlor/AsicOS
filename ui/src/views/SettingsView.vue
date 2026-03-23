@@ -77,17 +77,18 @@ async function save() {
   saved.value = false
   error.value = ''
   try {
-    await post('/api/system', {
-      wifi_ssid: wifiSsid.value,
-      wifi_pass: wifiPassword.value,
-      pool_url: poolUrl.value,
-      pool_port: poolPort.value,
-      pool_user: poolUser.value,
-      pool_pass: poolPassword.value,
-      frequency: frequency.value,
-      voltage: voltage.value,
-      ui_mode: defaultMode.value
-    })
+    // Only send fields that have non-empty values to avoid overwriting with blanks
+    const payload: Record<string, any> = {}
+    if (wifiSsid.value) payload.wifi_ssid = wifiSsid.value
+    if (wifiPassword.value) payload.wifi_pass = wifiPassword.value
+    if (poolUrl.value) payload.pool_url = poolUrl.value
+    if (poolPort.value) payload.pool_port = poolPort.value
+    if (poolUser.value) payload.pool_user = poolUser.value
+    if (poolPassword.value) payload.pool_pass = poolPassword.value
+    if (frequency.value) payload.frequency = frequency.value
+    if (voltage.value) payload.voltage = voltage.value
+    if (defaultMode.value) payload.ui_mode = defaultMode.value
+    await post('/api/system', payload)
     saved.value = true
     setTimeout(() => { saved.value = false }, 3000)
   } catch (e: any) {
