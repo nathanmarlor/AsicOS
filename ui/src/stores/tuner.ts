@@ -3,14 +3,13 @@ import { ref } from 'vue'
 import { useApi } from '../composables/useApi'
 
 export interface TunerResult {
-  frequency: number
+  freq: number
   voltage: number
   hashrate: number
   power: number
   efficiency: number
   temp: number
   stable: boolean
-  score: number
 }
 
 export interface TunerProfile {
@@ -30,13 +29,13 @@ export interface TunerProfiles {
 }
 
 export interface TunerStatus {
-  running: boolean
-  progress: number
-  step: number
+  state: string  // "idle", "running", "complete", "aborted"
+  progress_pct: number
+  current_step: number
   total_steps: number
   results: TunerResult[]
   best_index: number
-  complete: boolean
+  best_eff_index: number
   profiles: TunerProfiles
 }
 
@@ -51,9 +50,10 @@ export const useTunerStore = defineStore('tuner', () => {
       status.value = await get<TunerStatus>('/api/tuner/status')
       error.value = null
 
-      if (status.value?.running && !timer) {
+      const running = status.value?.state === 'running'
+      if (running && !timer) {
         timer = setInterval(poll, 2000)
-      } else if (!status.value?.running && timer) {
+      } else if (!running && timer) {
         clearInterval(timer)
         timer = null
       }
