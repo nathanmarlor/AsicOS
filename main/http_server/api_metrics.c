@@ -7,17 +7,20 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "esp_system.h"
+#include "esp_heap_caps.h"
+#include "esp_wifi.h"
 
 #include "hashrate_task.h"
 #include "power_task.h"
 #include "result_task.h"
 #include "stratum_client.h"
+#include "wifi_task.h"
 #include "nvs_config.h"
 #include "board.h"
 
 static const char *TAG = "api_metrics";
 
-#define METRICS_BUF_SIZE 4096
+#define METRICS_BUF_SIZE 8192
 
 esp_err_t api_metrics_handler(httpd_req_t *req)
 {
@@ -43,7 +46,6 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
     uint16_t voltage = nvs_config_get_u16(NVS_KEY_ASIC_VOLTAGE, DEFAULT_ASIC_VOLTAGE);
 
     int64_t uptime_us = esp_timer_get_time();
-    uint32_t free_heap = esp_get_free_heap_size();
 
     /* Total hashrate */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
@@ -51,6 +53,13 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
         "# TYPE asicos_hashrate_ghs gauge\n"
         "asicos_hashrate_ghs %.1f\n\n",
         hr ? hr->total_hashrate_ghs : 0.0f);
+
+    /* Expected hashrate */
+    off += snprintf(buf + off, METRICS_BUF_SIZE - off,
+        "# HELP asicos_hashrate_expected_ghs Expected hashrate in GH/s\n"
+        "# TYPE asicos_hashrate_expected_ghs gauge\n"
+        "asicos_hashrate_expected_ghs %.1f\n\n",
+        (float)freq * board->expected_chip_count * board->small_core_count / 1000.0f);
 
     /* Per-chip hashrate */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
@@ -65,12 +74,27 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
     }
     off += snprintf(buf + off, METRICS_BUF_SIZE - off, "\n");
 
+    /* Per-domain hashrate */
+    off += snprintf(buf + off, METRICS_BUF_SIZE - off,
+        "# HELP asicos_domain_hashrate_ghs Per-chip per-domain hashrate in GH/s\n"
+        "# TYPE asicos_domain_hashrate_ghs gauge\n");
+    if (hr) {
+        for (int i = 0; i < hr->chip_count; i++) {
+            for (int d = 0; d < HASHRATE_NUM_DOMAINS; d++) {
+                off += snprintf(buf + off, METRICS_BUF_SIZE - off,
+                    "asicos_domain_hashrate_ghs{chip=\"%d\",domain=\"%d\"} %.1f\n",
+                    i, d, hr->per_domain_hashrate_ghs[i][d]);
+            }
+        }
+    }
+    off += snprintf(buf + off, METRICS_BUF_SIZE - off, "\n");
+
     /* Temperatures */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
-        "# HELP asicos_chip_temp_celsius Chip temperature\n"
+        "# HELP asicos_chip_temp_celsius ASIC chip temperature\n"
         "# TYPE asicos_chip_temp_celsius gauge\n"
         "asicos_chip_temp_celsius %.1f\n\n"
-        "# HELP asicos_vr_temp_celsius VR temperature\n"
+        "# HELP asicos_vr_temp_celsius Voltage regulator temperature\n"
         "# TYPE asicos_vr_temp_celsius gauge\n"
         "asicos_vr_temp_celsius %.1f\n\n"
         "# HELP asicos_board_temp_celsius Board temperature\n"
@@ -82,9 +106,12 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
 
     /* Power */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
-        "# HELP asicos_power_watts Power consumption\n"
+        "# HELP asicos_power_watts Output power consumption in watts\n"
         "# TYPE asicos_power_watts gauge\n"
         "asicos_power_watts %.1f\n\n"
+        "# HELP asicos_input_watts Input power in watts\n"
+        "# TYPE asicos_input_watts gauge\n"
+        "asicos_input_watts %.1f\n\n"
         "# HELP asicos_input_voltage_volts Input voltage\n"
         "# TYPE asicos_input_voltage_volts gauge\n"
         "asicos_input_voltage_volts %.3f\n\n"
@@ -98,6 +125,7 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
         "# TYPE asicos_vr_current_amps gauge\n"
         "asicos_vr_current_amps %.1f\n\n",
         pw ? pw->power_w : 0.0f,
+        pw ? pw->input_w : 0.0f,
         pw ? pw->vin : 0.0f,
         pw ? pw->iin : 0.0f,
         pw ? pw->vout : 0.0f,
@@ -123,10 +151,25 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
         "asicos_shares_accepted_total %u\n\n"
         "# HELP asicos_shares_rejected_total Rejected shares\n"
         "# TYPE asicos_shares_rejected_total counter\n"
-        "asicos_shares_rejected_total %u\n\n",
+        "asicos_shares_rejected_total %u\n\n"
+        "# HELP asicos_duplicate_nonces_total Duplicate nonces detected\n"
+        "# TYPE asicos_duplicate_nonces_total counter\n"
+        "asicos_duplicate_nonces_total %llu\n\n",
         stats ? (unsigned long long)stats->total_shares_submitted : 0ULL,
         (unsigned)accepted,
-        (unsigned)rejected);
+        (unsigned)rejected,
+        stats ? (unsigned long long)stats->duplicate_nonces : 0ULL);
+
+    /* Error rate (rejected / (accepted + rejected)) */
+    float error_pct = 0.0f;
+    if (accepted + rejected > 0) {
+        error_pct = (float)rejected / (float)(accepted + rejected) * 100.0f;
+    }
+    off += snprintf(buf + off, METRICS_BUF_SIZE - off,
+        "# HELP asicos_error_percentage Share error/rejection rate\n"
+        "# TYPE asicos_error_percentage gauge\n"
+        "asicos_error_percentage %.2f\n\n",
+        error_pct);
 
     /* Difficulty */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
@@ -145,12 +188,47 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
 
     /* Fans */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
-        "# HELP asicos_fan_rpm Fan speed\n"
+        "# HELP asicos_fan_rpm Fan speed in RPM\n"
         "# TYPE asicos_fan_rpm gauge\n"
         "asicos_fan_rpm{fan=\"0\"} %u\n"
-        "asicos_fan_rpm{fan=\"1\"} %u\n\n",
+        "asicos_fan_rpm{fan=\"1\"} %u\n\n"
+        "# HELP asicos_fan_speed_percent Fan speed as percentage\n"
+        "# TYPE asicos_fan_speed_percent gauge\n"
+        "asicos_fan_speed_percent{fan=\"0\"} %u\n"
+        "asicos_fan_speed_percent{fan=\"1\"} %u\n\n",
         pw ? (unsigned)pw->fan0_rpm : 0,
-        pw ? (unsigned)pw->fan1_rpm : 0);
+        pw ? (unsigned)pw->fan1_rpm : 0,
+        pw ? (unsigned)pw->fan0_pct : 0,
+        pw ? (unsigned)pw->fan1_pct : 0);
+
+    /* Overheat & power fault */
+    off += snprintf(buf + off, METRICS_BUF_SIZE - off,
+        "# HELP asicos_overheat_mode Overheat protection active (1=yes)\n"
+        "# TYPE asicos_overheat_mode gauge\n"
+        "asicos_overheat_mode %d\n\n"
+        "# HELP asicos_power_fault VR power fault active (1=yes)\n"
+        "# TYPE asicos_power_fault gauge\n"
+        "asicos_power_fault %d\n\n",
+        pw ? (int)pw->overheat : 0,
+        pw ? (int)pw->vr_fault : 0);
+
+    /* Stratum connection state (numeric enum) */
+    off += snprintf(buf + off, METRICS_BUF_SIZE - off,
+        "# HELP asicos_stratum_state Stratum connection state (0=disconnected,1=connecting,2=subscribing,3=authorizing,4=configuring,5=mining,6=error)\n"
+        "# TYPE asicos_stratum_state gauge\n"
+        "asicos_stratum_state %d\n\n"
+        "# HELP asicos_pool_connected Pool connection status (1=mining)\n"
+        "# TYPE asicos_pool_connected gauge\n"
+        "asicos_pool_connected %d\n\n",
+        (int)state,
+        (state == STRATUM_STATE_MINING) ? 1 : 0);
+
+    /* WiFi RSSI */
+    off += snprintf(buf + off, METRICS_BUF_SIZE - off,
+        "# HELP asicos_wifi_rssi_dbm WiFi signal strength in dBm\n"
+        "# TYPE asicos_wifi_rssi_dbm gauge\n"
+        "asicos_wifi_rssi_dbm %d\n\n",
+        (int)wifi_get_rssi());
 
     /* Uptime */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
@@ -159,30 +237,31 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
         "asicos_uptime_seconds %lld\n\n",
         (long long)(uptime_us / 1000000));
 
-    /* Free heap */
+    /* Heap breakdown */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
         "# HELP asicos_free_heap_bytes Free heap memory\n"
         "# TYPE asicos_free_heap_bytes gauge\n"
-        "asicos_free_heap_bytes %u\n\n",
-        (unsigned)free_heap);
+        "asicos_free_heap_bytes{type=\"total\"} %u\n"
+        "asicos_free_heap_bytes{type=\"internal\"} %u\n"
+        "asicos_free_heap_bytes{type=\"spiram\"} %u\n\n"
+        "# HELP asicos_min_free_heap_bytes Minimum free heap since boot\n"
+        "# TYPE asicos_min_free_heap_bytes gauge\n"
+        "asicos_min_free_heap_bytes %u\n\n",
+        (unsigned)esp_get_free_heap_size(),
+        (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+        (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
+        (unsigned)esp_get_minimum_free_heap_size());
 
-    /* Pool connected */
-    off += snprintf(buf + off, METRICS_BUF_SIZE - off,
-        "# HELP asicos_pool_connected Pool connection status (1=connected)\n"
-        "# TYPE asicos_pool_connected gauge\n"
-        "asicos_pool_connected %d\n\n",
-        (state == STRATUM_STATE_MINING) ? 1 : 0);
-
-    /* Efficiency */
-    float efficiency = 0.0f;
-    if (hr && pw && pw->power_w > 0.0f) {
-        efficiency = hr->total_hashrate_ghs / pw->power_w;
+    /* Efficiency (J/TH) */
+    float jth = 0.0f;
+    if (hr && pw && hr->total_hashrate_ghs > 0.0f && pw->power_w > 0.0f) {
+        jth = pw->power_w / (hr->total_hashrate_ghs / 1000.0f);
     }
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
-        "# HELP asicos_efficiency_ghs_per_w Mining efficiency\n"
-        "# TYPE asicos_efficiency_ghs_per_w gauge\n"
-        "asicos_efficiency_ghs_per_w %.1f\n",
-        efficiency);
+        "# HELP asicos_efficiency_jth Mining efficiency in J/TH\n"
+        "# TYPE asicos_efficiency_jth gauge\n"
+        "asicos_efficiency_jth %.1f\n",
+        jth);
 
     httpd_resp_set_type(req, "text/plain; version=0.0.4; charset=utf-8");
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");

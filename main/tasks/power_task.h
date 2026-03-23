@@ -21,6 +21,8 @@ typedef struct {
     float input_w;       // Input power: vin * iin (W)
     uint16_t fan0_rpm;
     uint16_t fan1_rpm;
+    uint8_t  fan0_pct;
+    uint8_t  fan1_pct;
     bool  overheat;
     bool  vr_fault;
 } power_status_t;

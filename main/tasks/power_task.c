@@ -168,12 +168,16 @@ static void power_task(void *pvParameters)
             if (s_fan_override >= 0) {
                 fan_set_speed(0, (uint8_t)s_fan_override);
                 fan_set_speed(1, (uint8_t)s_fan_override);
+                s_status.fan0_pct = (uint8_t)s_fan_override;
+                s_status.fan1_pct = (uint8_t)s_fan_override;
             } else {
                 float fan0_pct = pid_compute(&s_fan_pid[0], s_status.chip_temp, dt);
                 float fan1_pct = pid_compute(&s_fan_pid[1], s_status.vr_temp, dt);
 
                 fan_set_speed(0, (uint8_t)fan0_pct);
                 fan_set_speed(1, (uint8_t)fan1_pct);
+                s_status.fan0_pct = (uint8_t)fan0_pct;
+                s_status.fan1_pct = (uint8_t)fan1_pct;
             }
         }
 

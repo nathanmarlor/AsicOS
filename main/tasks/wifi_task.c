@@ -299,3 +299,13 @@ bool wifi_is_connected(void)
 {
     return s_connected;
 }
+
+int8_t wifi_get_rssi(void)
+{
+    if (!s_connected) return 0;
+    wifi_ap_record_t ap;
+    if (esp_wifi_sta_get_ap_info(&ap) == ESP_OK) {
+        return ap.rssi;
+    }
+    return 0;
+}
