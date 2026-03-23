@@ -157,7 +157,8 @@ const details = computed((): DetailRow[] => {
   const rows: DetailRow[] = [
     { label: 'MINING', value: '', header: true },
     { label: 'Pool Difficulty', value: mining.formatDiff(m.pool_diff) },
-    { label: 'Best Difficulty', value: mining.formatDiff(m.best_diff) },
+    { label: 'Session Best', value: mining.formatDiff(m.best_diff) },
+    { label: 'All-Time Best', value: mining.formatDiff(m.alltime_best_diff ?? 0) },
     { label: 'Accepted / Rejected', value: `${m.accepted} / ${m.rejected}` },
     { label: 'HARDWARE', value: '', header: true },
     { label: 'Frequency', value: `${s.config.frequency} MHz` },
