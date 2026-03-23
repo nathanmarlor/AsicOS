@@ -3,20 +3,22 @@
 
 uint8_t asic_crc5(const uint8_t *data, size_t len)
 {
-    uint8_t crc = 0x1F;
+    /* CRC-5/USB: polynomial x^5 + x^2 + 1, init 0x1F
+     * Matches BM1370 ASIC protocol (verified against forge-os) */
+    uint8_t crc[5] = {1, 1, 1, 1, 1};
+    size_t bits = len * 8;
 
-    for (size_t i = 0; i < len; i++) {
-        for (int bit = 7; bit >= 0; bit--) {
-            uint8_t old_bit4 = (crc >> 4) & 1;
-            uint8_t data_bit = (data[i] >> bit) & 1;
-            crc = ((crc << 1) | data_bit) & 0x1F;
-            if (old_bit4 != data_bit) {
-                crc ^= 0x05;
-            }
-        }
+    for (size_t i = 0; i < bits; i++) {
+        uint8_t din = (data[i >> 3] >> (7 - (i & 7))) & 1;
+        uint8_t d0 = crc[4] ^ din;
+        crc[4] = crc[3];
+        crc[3] = crc[2];
+        crc[2] = crc[1] ^ d0;
+        crc[1] = crc[0];
+        crc[0] = d0;
     }
 
-    return crc;
+    return (uint8_t)((crc[4] << 4) | (crc[3] << 3) | (crc[2] << 2) | (crc[1] << 1) | crc[0]);
 }
 
 uint16_t asic_crc16(const uint8_t *data, size_t len)
