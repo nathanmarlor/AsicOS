@@ -116,7 +116,7 @@ const gradientId = computed(() => `grad-${props.label?.replace(/\s/g, '') || 'ha
           :y1="g.y"
           :x2="PAD.left + chartW"
           :y2="g.y"
-          stroke="#1e1e1e"
+          :stroke="'var(--border)'"
           stroke-width="1"
         />
         <text
@@ -125,7 +125,7 @@ const gradientId = computed(() => `grad-${props.label?.replace(/\s/g, '') || 'ha
           :x="PAD.left - 6"
           :y="g.y + 3"
           text-anchor="end"
-          fill="#4b4b4b"
+          :fill="'var(--text-muted)'"
           font-size="10"
           font-family="monospace"
         >{{ g.label }}</text>
@@ -171,7 +171,7 @@ const gradientId = computed(() => `grad-${props.label?.replace(/\s/g, '') || 'ha
         :x="PAD.left + chartW"
         :y="height - 4"
         text-anchor="end"
-        fill="#4b4b4b"
+        :fill="'var(--text-muted)'"
         font-size="10"
         font-family="monospace"
       >Last 6 min</text>
@@ -182,7 +182,7 @@ const gradientId = computed(() => `grad-${props.label?.replace(/\s/g, '') || 'ha
         :x="PAD.left"
         :y="height - 4"
         text-anchor="start"
-        fill="#6b7280"
+        :fill="'var(--text-secondary)'"
         font-size="10"
         font-family="monospace"
         text-transform="uppercase"

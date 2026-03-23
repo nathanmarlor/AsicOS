@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <inttypes.h>
 
 static int s_msg_id = 1;
 
@@ -56,7 +57,7 @@ int stratum_build_configure(char *buf, size_t buf_len, uint32_t version_mask)
     int n = snprintf(buf, buf_len,
         "{\"id\":%d,\"method\":\"mining.configure\","
         "\"params\":[[\"version-rolling\"],"
-        "{\"version-rolling.mask\":\"%08x\",\"version-rolling.min-bit-count\":2}]}\n",
+        "{\"version-rolling.mask\":\"%08" PRIx32 "\",\"version-rolling.min-bit-count\":2}]}\n",
         id, version_mask);
     return (n > 0 && (size_t)n < buf_len) ? n : -1;
 }
