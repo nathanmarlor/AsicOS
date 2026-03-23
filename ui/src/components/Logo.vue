@@ -29,7 +29,7 @@ defineProps<{ class?: string }>()
     </svg>
     <!-- Text -->
     <span class="font-mono text-base font-bold tracking-tight">
-      <span style="color: var(--text)">Asic</span><span class="text-gray-500">OS</span>
+      <span style="color: var(--text)">Asic</span><span class="text-[var(--text-secondary)]">OS</span>
     </span>
   </div>
 </template>

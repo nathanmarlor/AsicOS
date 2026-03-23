@@ -19,11 +19,11 @@ function toggle() {
   >
     <span
       class="px-2 py-0.5 transition-colors"
-      :class="!isAdvanced ? 'text-accent bg-accent/10' : 'text-gray-500 hover:text-gray-400'"
+      :class="!isAdvanced ? 'text-accent bg-accent/10' : 'text-[var(--text-secondary)] hover:text-[var(--text)]'"
     >simple</span>
     <span
       class="px-2 py-0.5 transition-colors"
-      :class="isAdvanced ? 'text-accent bg-accent/10' : 'text-gray-500 hover:text-gray-400'"
+      :class="isAdvanced ? 'text-accent bg-accent/10' : 'text-[var(--text-secondary)] hover:text-[var(--text)]'"
     >advanced</span>
   </button>
 </template>

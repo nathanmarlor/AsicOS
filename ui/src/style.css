@@ -46,12 +46,12 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #333;
+    background: var(--text-muted);
     border-radius: 3px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #555;
+    background: var(--text-secondary);
   }
 
   input, select, textarea {
@@ -85,7 +85,9 @@
   }
 
   .btn-secondary {
-    @apply bg-surface-light text-gray-300 border border-border hover:border-gray-500;
+    @apply bg-surface-light border border-border;
+    color: var(--text);
+    &:hover { border-color: var(--text-secondary); }
   }
 
   .btn-danger {

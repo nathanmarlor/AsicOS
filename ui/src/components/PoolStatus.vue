@@ -11,8 +11,8 @@ defineProps<{
       class="w-1.5 h-1.5 rounded-full shrink-0"
       :class="connected ? 'bg-green-500' : 'bg-red-500'"
     />
-    <span class="text-gray-500 truncate">{{ url }}</span>
-    <span :class="connected ? 'text-green-600' : 'text-red-600'">
+    <span class="text-[var(--text-secondary)] truncate">{{ url }}</span>
+    <span :class="connected ? 'text-[#22c55e]' : 'text-[#ef4444]'"
       {{ connected ? 'connected' : 'disconnected' }}
     </span>
   </div>

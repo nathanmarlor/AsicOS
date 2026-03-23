@@ -31,16 +31,16 @@ watch(() => props.hashrate, (newVal) => {
       >
         {{ displayValue }}
       </div>
-      <div class="text-sm font-mono text-gray-500 mt-1 tracking-widest">GH/s</div>
+      <div class="text-sm font-mono text-[var(--text-secondary)] mt-1 tracking-widest">GH/s</div>
       <!-- Accent underline -->
       <div class="mt-2 mx-auto h-[2px] w-16 bg-accent rounded-full" :class="{ 'animate-pulse-subtle': isMining }" />
     </div>
     <div class="flex items-center justify-center gap-1.5 mt-3">
       <span
         class="w-1.5 h-1.5 rounded-full"
-        :class="isMining ? 'bg-green-500 animate-pulse-subtle' : 'bg-gray-600'"
+        :class="isMining ? 'bg-green-500 animate-pulse-subtle' : 'bg-[var(--text-muted)]'"
       />
-      <span class="text-[11px] font-mono" :class="isMining ? 'text-green-500' : 'text-gray-600'">
+      <span class="text-[11px] font-mono" :class="isMining ? 'text-green-500' : 'text-[var(--text-muted)]'"
         {{ isMining ? 'mining' : 'idle' }}
       </span>
     </div>

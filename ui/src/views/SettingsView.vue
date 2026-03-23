@@ -106,40 +106,40 @@ async function restart() {
 
 <template>
   <div class="max-w-xl mx-auto px-4 py-6 space-y-6">
-    <div class="text-sm font-mono text-gray-500">Settings</div>
+    <div class="text-sm font-mono text-[var(--text-secondary)]">Settings</div>
 
     <!-- WiFi -->
     <section class="card space-y-3">
-      <div class="text-[10px] font-mono text-gray-600 uppercase tracking-wider">WiFi</div>
+      <div class="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider">WiFi</div>
       <div>
-        <label class="text-xs text-gray-500 block mb-1">SSID</label>
+        <label class="text-xs text-[var(--text-secondary)] block mb-1">SSID</label>
         <input v-model="wifiSsid" type="text" class="w-full" />
       </div>
       <div>
-        <label class="text-xs text-gray-500 block mb-1">Password</label>
+        <label class="text-xs text-[var(--text-secondary)] block mb-1">Password</label>
         <input v-model="wifiPassword" type="password" class="w-full" />
       </div>
     </section>
 
     <!-- Primary Pool -->
     <section class="card space-y-3">
-      <div class="text-[10px] font-mono text-gray-600 uppercase tracking-wider">Primary Pool</div>
+      <div class="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider">Primary Pool</div>
       <div class="grid grid-cols-3 gap-2">
         <div class="col-span-2">
-          <label class="text-xs text-gray-500 block mb-1">URL</label>
+          <label class="text-xs text-[var(--text-secondary)] block mb-1">URL</label>
           <input v-model="poolUrl" type="text" class="w-full" placeholder="stratum+tcp://..." />
         </div>
         <div>
-          <label class="text-xs text-gray-500 block mb-1">Port</label>
+          <label class="text-xs text-[var(--text-secondary)] block mb-1">Port</label>
           <input v-model.number="poolPort" type="number" class="w-full" />
         </div>
       </div>
       <div>
-        <label class="text-xs text-gray-500 block mb-1">Username</label>
+        <label class="text-xs text-[var(--text-secondary)] block mb-1">Username</label>
         <input v-model="poolUser" type="text" class="w-full" />
       </div>
       <div>
-        <label class="text-xs text-gray-500 block mb-1">Password</label>
+        <label class="text-xs text-[var(--text-secondary)] block mb-1">Password</label>
         <input v-model="poolPassword" type="password" class="w-full" placeholder="x" />
       </div>
     </section>
@@ -148,7 +148,7 @@ async function restart() {
     <section class="card space-y-3">
       <button
         @click="showFallback = !showFallback"
-        class="text-[10px] font-mono text-gray-600 uppercase tracking-wider flex items-center gap-1"
+        class="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider flex items-center gap-1"
       >
         <span class="transition-transform" :class="{ 'rotate-90': showFallback }">&#9654;</span>
         Fallback Pool
@@ -156,16 +156,16 @@ async function restart() {
       <template v-if="showFallback">
         <div class="grid grid-cols-3 gap-2">
           <div class="col-span-2">
-            <label class="text-xs text-gray-500 block mb-1">URL</label>
+            <label class="text-xs text-[var(--text-secondary)] block mb-1">URL</label>
             <input v-model="fallbackUrl" type="text" class="w-full" />
           </div>
           <div>
-            <label class="text-xs text-gray-500 block mb-1">Port</label>
+            <label class="text-xs text-[var(--text-secondary)] block mb-1">Port</label>
             <input v-model.number="fallbackPort" type="number" class="w-full" />
           </div>
         </div>
         <div>
-          <label class="text-xs text-gray-500 block mb-1">Username</label>
+          <label class="text-xs text-[var(--text-secondary)] block mb-1">Username</label>
           <input v-model="fallbackUser" type="text" class="w-full" />
         </div>
       </template>
@@ -173,11 +173,11 @@ async function restart() {
 
     <!-- ASIC -->
     <section class="card space-y-3">
-      <div class="text-[10px] font-mono text-gray-600 uppercase tracking-wider">ASIC</div>
+      <div class="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider">ASIC</div>
       <div>
         <div class="flex justify-between text-xs mb-1">
-          <label class="text-gray-500">Frequency</label>
-          <span class="font-mono text-gray-300">{{ frequency }} MHz</span>
+          <label class="text-[var(--text-secondary)]">Frequency</label>
+          <span class="font-mono text-[var(--text)]">{{ frequency }} MHz</span>
         </div>
         <input
           v-model.number="frequency"
@@ -187,15 +187,15 @@ async function restart() {
           step="25"
           class="w-full accent-accent bg-transparent"
         />
-        <div class="flex justify-between text-[10px] text-gray-700 font-mono">
+        <div class="flex justify-between text-[10px] text-[var(--text-muted)] font-mono">
           <span>{{ freqMin }}</span>
           <span>{{ freqMax }}</span>
         </div>
       </div>
       <div>
         <div class="flex justify-between text-xs mb-1">
-          <label class="text-gray-500">Core Voltage</label>
-          <span class="font-mono text-gray-300">{{ voltage }} mV</span>
+          <label class="text-[var(--text-secondary)]">Core Voltage</label>
+          <span class="font-mono text-[var(--text)]">{{ voltage }} mV</span>
         </div>
         <input
           v-model.number="voltage"
@@ -205,7 +205,7 @@ async function restart() {
           step="10"
           class="w-full accent-accent bg-transparent"
         />
-        <div class="flex justify-between text-[10px] text-gray-700 font-mono">
+        <div class="flex justify-between text-[10px] text-[var(--text-muted)] font-mono">
           <span>800</span>
           <span>1500</span>
         </div>
@@ -214,18 +214,18 @@ async function restart() {
 
     <!-- Thermal -->
     <section class="card space-y-3">
-      <div class="text-[10px] font-mono text-gray-600 uppercase tracking-wider">Thermal</div>
+      <div class="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider">Thermal</div>
       <div>
         <div class="flex justify-between text-xs mb-1">
-          <label class="text-gray-500">Fan Target Temp</label>
-          <span class="font-mono text-gray-300">{{ fanTargetTemp }}&deg;C</span>
+          <label class="text-[var(--text-secondary)]">Fan Target Temp</label>
+          <span class="font-mono text-[var(--text)]">{{ fanTargetTemp }}&deg;C</span>
         </div>
         <input v-model.number="fanTargetTemp" type="range" min="40" max="85" class="w-full accent-accent bg-transparent" />
       </div>
       <div>
         <div class="flex justify-between text-xs mb-1">
-          <label class="text-gray-500">Overheat Temp</label>
-          <span class="font-mono text-gray-300">{{ overheatTemp }}&deg;C</span>
+          <label class="text-[var(--text-secondary)]">Overheat Temp</label>
+          <span class="font-mono text-[var(--text)]">{{ overheatTemp }}&deg;C</span>
         </div>
         <input v-model.number="overheatTemp" type="range" min="70" max="120" class="w-full accent-accent bg-transparent" />
       </div>
@@ -233,18 +233,18 @@ async function restart() {
 
     <!-- Monitoring -->
     <section class="card space-y-3">
-      <div class="text-[10px] font-mono text-gray-600 uppercase tracking-wider">Monitoring</div>
+      <div class="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider">Monitoring</div>
       <div>
-        <label class="text-xs text-gray-500 block mb-1">Loki URL</label>
+        <label class="text-xs text-[var(--text-secondary)] block mb-1">Loki URL</label>
         <input v-model="lokiUrl" type="text" class="w-full" placeholder="http://loki:3100" />
       </div>
     </section>
 
     <!-- UI -->
     <section class="card space-y-3">
-      <div class="text-[10px] font-mono text-gray-600 uppercase tracking-wider">UI</div>
+      <div class="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider">UI</div>
       <div>
-        <label class="text-xs text-gray-500 block mb-1">Default Mode</label>
+        <label class="text-xs text-[var(--text-secondary)] block mb-1">Default Mode</label>
         <select v-model="defaultMode" class="w-full">
           <option value="simple">Simple</option>
           <option value="advanced">Advanced</option>

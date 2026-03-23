@@ -34,40 +34,40 @@ async function activate() {
 
 <template>
   <div class="max-w-lg mx-auto px-4 py-6 space-y-6">
-    <div class="text-sm font-mono text-gray-500">Remote Access</div>
+    <div class="text-sm font-mono text-[var(--text-secondary)]">Remote Access</div>
 
     <!-- Status card -->
     <div class="card space-y-3">
-      <div class="text-[10px] font-mono text-gray-600 uppercase tracking-wider">Status</div>
+      <div class="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider">Status</div>
 
       <div v-if="status" class="space-y-2 text-xs font-mono">
         <div class="flex justify-between">
-          <span class="text-gray-500">Connection</span>
+          <span class="text-[var(--text-secondary)]">Connection</span>
           <span class="flex items-center gap-1.5">
-            <span class="w-1.5 h-1.5 rounded-full" :class="status.connected ? 'bg-green-500' : 'bg-gray-600'" />
-            <span :class="status.connected ? 'text-green-500' : 'text-gray-500'">
+            <span class="w-1.5 h-1.5 rounded-full" :class="status.connected ? 'bg-green-500' : 'bg-[var(--text-muted)]'" />
+            <span :class="status.connected ? 'text-green-500' : 'text-[var(--text-secondary)]'">
               {{ status.connected ? 'connected' : 'disconnected' }}
             </span>
           </span>
         </div>
         <div class="flex justify-between">
-          <span class="text-gray-500">Device ID</span>
-          <span class="text-gray-300">{{ status.device_id || '--' }}</span>
+          <span class="text-[var(--text-secondary)]">Device ID</span>
+          <span class="text-[var(--text)]">{{ status.device_id || '--' }}</span>
         </div>
         <div class="flex justify-between">
-          <span class="text-gray-500">Licensed</span>
-          <span :class="status.licensed ? 'text-green-500' : 'text-gray-500'">
+          <span class="text-[var(--text-secondary)]">Licensed</span>
+          <span :class="status.licensed ? 'text-green-500' : 'text-[var(--text-secondary)]'">
             {{ status.licensed ? 'yes' : 'no' }}
           </span>
         </div>
       </div>
 
-      <div v-else-if="!error" class="text-xs font-mono text-gray-600">Loading...</div>
+      <div v-else-if="!error" class="text-xs font-mono text-[var(--text-muted)]">Loading...</div>
     </div>
 
     <!-- Licence activation -->
     <div v-if="status && !status.licensed" class="card space-y-3">
-      <div class="text-[10px] font-mono text-gray-600 uppercase tracking-wider">Activate Licence</div>
+      <div class="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider">Activate Licence</div>
       <div class="flex gap-2">
         <input
           v-model="licenceKey"
@@ -82,7 +82,7 @@ async function activate() {
     </div>
 
     <!-- Info -->
-    <div class="text-xs text-gray-600 leading-relaxed">
+    <div class="text-xs text-[var(--text-muted)] leading-relaxed">
       Remote access allows you to monitor and control this device from anywhere via
       the AsicOS cloud relay. A valid licence key is required. Your device connects
       outbound to the relay server -- no port forwarding needed.

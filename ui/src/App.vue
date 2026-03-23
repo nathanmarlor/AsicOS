@@ -34,7 +34,7 @@ onUnmounted(() => {
       <div class="flex items-center gap-3">
         <ModeToggle />
         <ThemeToggle />
-        <router-link to="/settings" class="hover:text-gray-300 transition-colors text-xs font-mono" style="color: var(--text-secondary);">
+        <router-link to="/settings" class="hover:text-[var(--text)] transition-colors text-xs font-mono" style="color: var(--text-secondary);">
           settings
         </router-link>
       </div>

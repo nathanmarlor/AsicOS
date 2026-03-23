@@ -105,7 +105,7 @@ const timeToBlock = computed(() => {
         <div class="font-mono font-bold text-6xl sm:text-7xl text-white tracking-tight">
           {{ hashrate.toFixed(1) }}
         </div>
-        <div class="text-sm font-mono text-gray-500 mt-1 tracking-widest">GH/s</div>
+        <div class="text-sm font-mono text-[var(--text-secondary)] mt-1 tracking-widest">GH/s</div>
         <!-- Accent underline -->
         <div class="mt-2 mx-auto h-[2px] w-16 bg-[#f97316] rounded-full" :class="{ 'animate-pulse-subtle': isMining }" />
       </div>
