@@ -338,8 +338,13 @@ esp_err_t bm1370_send_work(const asic_job_t *job)
     swap_endian_words_bin(&job_data[14], 32);
     reverse_bytes(&job_data[14], 32);
 
-    /* prev_block_hash: apply reverse_bytes to match forge-os _be format */
+    /* prev_block_hash: undo swap_endian_words then reverse_bytes to match
+     * forge-os _be format.  Our prev_block_hash is in internal LE order
+     * (already swap_endian_words'd from stratum wire format).  The ASIC
+     * expects: hex2bin(stratum) + reverse_bytes, which equals
+     * swap_endian_words_bin(internal_LE) + reverse_bytes(32). */
     memcpy(&job_data[46], job->prev_block_hash, 32);
+    swap_endian_words_bin(&job_data[46], 32);
     reverse_bytes(&job_data[46], 32);
 
     memcpy(&job_data[78], &job->version, 4);

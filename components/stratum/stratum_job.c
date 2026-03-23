@@ -105,12 +105,23 @@ int stratum_build_asic_job(const stratum_notify_t *notify, const char *extranonc
     uint32_t nbits   = (uint32_t)strtoul(notify->nbits, NULL, 16);
     uint32_t ntime   = (uint32_t)strtoul(notify->ntime, NULL, 16);
 
-    /* Parse prev_block_hash from hex */
+    /* Parse prev_block_hash from hex.
+     * Stratum sends prev_block_hash with each 4-byte word byte-swapped
+     * relative to the internal byte order used in block header hashing.
+     * We must reverse each 4-byte word to get the correct format.
+     * This matches forge-os swap_endian_words(params->prev_block_hash, ...). */
+    uint8_t prev_hash_raw[32];
     uint8_t prev_hash[32];
-    if (hex_to_bytes(notify->prev_block_hash, prev_hash, 32) != 32) {
-        /* Some pools send 64-char hex (32 bytes), others may differ */
-        memset(prev_hash, 0, sizeof(prev_hash));
-        hex_to_bytes(notify->prev_block_hash, prev_hash, sizeof(prev_hash));
+    if (hex_to_bytes(notify->prev_block_hash, prev_hash_raw, 32) != 32) {
+        memset(prev_hash_raw, 0, sizeof(prev_hash_raw));
+        hex_to_bytes(notify->prev_block_hash, prev_hash_raw, sizeof(prev_hash_raw));
+    }
+    /* Swap bytes within each 4-byte word (stratum wire -> internal LE) */
+    for (int i = 0; i < 32; i += 4) {
+        prev_hash[i + 0] = prev_hash_raw[i + 3];
+        prev_hash[i + 1] = prev_hash_raw[i + 2];
+        prev_hash[i + 2] = prev_hash_raw[i + 1];
+        prev_hash[i + 3] = prev_hash_raw[i + 0];
     }
 
     /* Fill the asic_job_t with standard byte order.

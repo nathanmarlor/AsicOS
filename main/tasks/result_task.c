@@ -125,11 +125,16 @@ static void result_task_fn(void *param)
         memcpy(header + 72, &job->nbits,           4);   /* nbits: LE uint32 */
         memcpy(header + 76, &result.nonce,         4);   /* nonce: raw ASIC bytes */
 
+        ESP_LOG_BUFFER_HEX_LEVEL(TAG, header, 80, ESP_LOG_DEBUG);
+
         double share_diff = 0.0;
         mining_test_nonce(header, &share_diff);
 
+        ESP_LOGI(TAG, "Nonce 0x%08lx diff=%.4f (pool_diff=%.4f)",
+                 (unsigned long)result.nonce, share_diff, job->pool_diff);
+
         if (share_diff <= 0.0) {
-            ESP_LOGD(TAG, "Invalid nonce test result");
+            ESP_LOGW(TAG, "Invalid nonce test result (diff=%.6f)", share_diff);
             continue;
         }
 
