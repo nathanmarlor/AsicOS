@@ -325,3 +325,254 @@ esp_err_t api_system_ota_handler(httpd_req_t *req)
 
     return ESP_OK; /* unreachable */
 }
+
+/* ── Helper: board slug for firmware filename ─────────────────────── */
+
+static const char *board_slug(void)
+{
+    const board_config_t *board = board_get_config();
+    /* Map board name to the slug used in GitHub release assets */
+    if (strstr(board->name, "Nano"))    return "bitforge-nano";
+    if (strstr(board->name, "NerdQ"))   return "nerdqaxepp";
+    return "unknown";
+}
+
+/* ── GET /api/system/ota/check ────────────────────────────────────── */
+
+/* Buffer for GitHub API JSON response */
+#define OTA_CHECK_BUF_SIZE  4096
+
+typedef struct {
+    char  *buf;
+    int    len;
+    int    max;
+} ota_resp_t;
+
+static esp_err_t ota_check_http_event(esp_http_client_event_t *evt)
+{
+    ota_resp_t *ctx = (ota_resp_t *)evt->user_data;
+    if (evt->event_id == HTTP_EVENT_ON_DATA && ctx) {
+        int copy = evt->data_len;
+        if (ctx->len + copy > ctx->max - 1) {
+            copy = ctx->max - 1 - ctx->len;
+        }
+        if (copy > 0) {
+            memcpy(ctx->buf + ctx->len, evt->data, copy);
+            ctx->len += copy;
+            ctx->buf[ctx->len] = '\0';
+        }
+    }
+    return ESP_OK;
+}
+
+esp_err_t api_system_ota_check_handler(httpd_req_t *req)
+{
+    set_cors(req);
+
+    const esp_app_desc_t *app = esp_app_get_description();
+    const char *slug = board_slug();
+
+    char url[256];
+    snprintf(url, sizeof(url),
+             "https://api.github.com/repos/%s/releases/latest",
+             GITHUB_OTA_REPO);
+
+    char *resp_buf = calloc(1, OTA_CHECK_BUF_SIZE);
+    if (!resp_buf) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "No memory");
+        return ESP_FAIL;
+    }
+
+    ota_resp_t ctx = { .buf = resp_buf, .len = 0, .max = OTA_CHECK_BUF_SIZE };
+
+    esp_http_client_config_t config = {
+        .url            = url,
+        .event_handler  = ota_check_http_event,
+        .user_data      = &ctx,
+        .timeout_ms     = 10000,
+    };
+
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    esp_http_client_set_header(client, "Accept", "application/vnd.github+json");
+    esp_http_client_set_header(client, "User-Agent", "AsicOS");
+
+    esp_err_t err = esp_http_client_perform(client);
+    int status = esp_http_client_get_status_code(client);
+    esp_http_client_cleanup(client);
+
+    if (err != ESP_OK || status != 200) {
+        ESP_LOGE(TAG, "GitHub API request failed: err=%s status=%d", esp_err_to_name(err), status);
+        free(resp_buf);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "GitHub API request failed");
+        return ESP_FAIL;
+    }
+
+    /* Parse the GitHub release JSON */
+    cJSON *gh = cJSON_Parse(resp_buf);
+    free(resp_buf);
+    if (!gh) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to parse GitHub response");
+        return ESP_FAIL;
+    }
+
+    cJSON *tag = cJSON_GetObjectItem(gh, "tag_name");
+    const char *latest_ver = (tag && cJSON_IsString(tag)) ? tag->valuestring : "unknown";
+
+    /* Strip leading 'v' from tag if present */
+    if (latest_ver[0] == 'v' || latest_ver[0] == 'V') {
+        latest_ver++;
+    }
+
+    /* Build download URL for this board's firmware asset */
+    char download_url[512];
+    snprintf(download_url, sizeof(download_url),
+             "https://github.com/%s/releases/latest/download/AsicOS-%s-fw.bin",
+             GITHUB_OTA_REPO, slug);
+
+    bool update_available = (strcmp(app->version, latest_ver) != 0);
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "current_version", app->version);
+    cJSON_AddStringToObject(root, "latest_version",  latest_ver);
+    cJSON_AddBoolToObject(root, "update_available",  update_available);
+    cJSON_AddStringToObject(root, "download_url",    download_url);
+
+    cJSON_Delete(gh);
+    send_json(req, root);
+    return ESP_OK;
+}
+
+/* ── POST /api/system/ota/github ──────────────────────────────────── */
+
+esp_err_t api_system_ota_github_handler(httpd_req_t *req)
+{
+    set_cors(req);
+
+    /* Read optional body for download URL override, or build default */
+    char download_url[512];
+    char *body = read_body(req);
+    bool url_from_body = false;
+
+    if (body) {
+        cJSON *json = cJSON_Parse(body);
+        free(body);
+        if (json) {
+            cJSON *url_item = cJSON_GetObjectItem(json, "download_url");
+            if (url_item && cJSON_IsString(url_item)) {
+                strncpy(download_url, url_item->valuestring, sizeof(download_url) - 1);
+                download_url[sizeof(download_url) - 1] = '\0';
+                url_from_body = true;
+            }
+            cJSON_Delete(json);
+        }
+    }
+
+    if (!url_from_body) {
+        const char *slug = board_slug();
+        snprintf(download_url, sizeof(download_url),
+                 "https://github.com/%s/releases/latest/download/AsicOS-%s-fw.bin",
+                 GITHUB_OTA_REPO, slug);
+    }
+
+    ESP_LOGI(TAG, "GitHub OTA: downloading from %s", download_url);
+
+    const esp_partition_t *update_partition = esp_ota_get_next_update_partition(NULL);
+    if (!update_partition) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "No OTA partition");
+        return ESP_FAIL;
+    }
+
+    esp_ota_handle_t ota_handle;
+    esp_err_t err = esp_ota_begin(update_partition, OTA_WITH_SEQUENTIAL_WRITES, &ota_handle);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_ota_begin failed: %s", esp_err_to_name(err));
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA begin failed");
+        return ESP_FAIL;
+    }
+
+    esp_http_client_config_t config = {
+        .url           = download_url,
+        .timeout_ms    = 30000,
+        .buffer_size   = 4096,
+    };
+
+    esp_http_client_handle_t client = esp_http_client_init(&config);
+    esp_http_client_set_header(client, "User-Agent", "AsicOS");
+
+    err = esp_http_client_open(client, 0);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "HTTP open failed: %s", esp_err_to_name(err));
+        esp_http_client_cleanup(client);
+        esp_ota_abort(ota_handle);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Download failed");
+        return ESP_FAIL;
+    }
+
+    int content_length = esp_http_client_fetch_headers(client);
+    ESP_LOGI(TAG, "GitHub OTA: content_length=%d", content_length);
+
+    char *buf = malloc(4096);
+    if (!buf) {
+        esp_http_client_cleanup(client);
+        esp_ota_abort(ota_handle);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "No memory");
+        return ESP_FAIL;
+    }
+
+    int total_read = 0;
+    while (1) {
+        int read_len = esp_http_client_read(client, buf, 4096);
+        if (read_len < 0) {
+            ESP_LOGE(TAG, "HTTP read error");
+            break;
+        }
+        if (read_len == 0) {
+            /* Check if we're done or if it's a redirect */
+            if (esp_http_client_is_complete_data_received(client)) {
+                break;
+            }
+            continue;
+        }
+
+        err = esp_ota_write(ota_handle, buf, read_len);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "esp_ota_write failed: %s", esp_err_to_name(err));
+            break;
+        }
+        total_read += read_len;
+    }
+
+    free(buf);
+    esp_http_client_cleanup(client);
+
+    if (err != ESP_OK || total_read == 0) {
+        esp_ota_abort(ota_handle);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA download/write failed");
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(TAG, "GitHub OTA: downloaded %d bytes", total_read);
+
+    err = esp_ota_end(ota_handle);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_ota_end failed: %s", esp_err_to_name(err));
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA end failed");
+        return ESP_FAIL;
+    }
+
+    err = esp_ota_set_boot_partition(update_partition);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_ota_set_boot_partition failed: %s", esp_err_to_name(err));
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Set boot partition failed");
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(TAG, "GitHub OTA complete, restarting...");
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, "{\"status\":\"ota_complete\",\"restarting\":true}");
+
+    vTaskDelay(pdMS_TO_TICKS(500));
+    esp_restart();
+
+    return ESP_OK; /* unreachable */
+}

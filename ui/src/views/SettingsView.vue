@@ -11,6 +11,15 @@ const saved = ref(false)
 const error = ref('')
 const showFallback = ref(false)
 
+// OTA state
+const otaChecking = ref(false)
+const otaInfo = ref<{ current_version: string; latest_version: string; update_available: boolean; download_url: string } | null>(null)
+const otaUpdating = ref(false)
+const otaProgress = ref('')
+const otaError = ref('')
+const otaFile = ref<File | null>(null)
+const otaUploading = ref(false)
+
 // Form fields
 const wifiSsid = ref('')
 const wifiPassword = ref('')
@@ -115,6 +124,65 @@ async function restart() {
   try {
     await post('/api/system/restart')
   } catch { /* device will restart */ }
+}
+
+// OTA functions
+async function checkForUpdates() {
+  otaChecking.value = true
+  otaError.value = ''
+  otaInfo.value = null
+  try {
+    const data = await get('/api/system/ota/check')
+    otaInfo.value = data
+  } catch (e: any) {
+    otaError.value = 'Failed to check for updates: ' + e.message
+  } finally {
+    otaChecking.value = false
+  }
+}
+
+async function updateFromGithub() {
+  if (!otaInfo.value?.download_url) return
+  otaUpdating.value = true
+  otaProgress.value = 'Downloading and flashing firmware...'
+  otaError.value = ''
+  try {
+    await post('/api/system/ota/github', { download_url: otaInfo.value.download_url })
+    otaProgress.value = 'Update complete! Device is restarting...'
+  } catch (e: any) {
+    otaError.value = 'GitHub OTA failed: ' + e.message
+    otaProgress.value = ''
+  } finally {
+    otaUpdating.value = false
+  }
+}
+
+function onFileSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  otaFile.value = input.files?.[0] ?? null
+}
+
+async function uploadFirmware() {
+  if (!otaFile.value) return
+  otaUploading.value = true
+  otaProgress.value = 'Uploading firmware...'
+  otaError.value = ''
+  try {
+    const { BASE_URL } = useApi()
+    const res = await fetch(`${BASE_URL}/api/system/ota`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: otaFile.value,
+    })
+    if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
+    otaProgress.value = 'Update complete! Device is restarting...'
+    otaFile.value = null
+  } catch (e: any) {
+    otaError.value = 'Upload OTA failed: ' + e.message
+    otaProgress.value = ''
+  } finally {
+    otaUploading.value = false
+  }
 }
 </script>
 
@@ -314,6 +382,79 @@ async function restart() {
           <option value="simple">Simple</option>
           <option value="advanced">Advanced</option>
         </select>
+      </div>
+    </section>
+
+    <!-- Firmware Update (OTA) -->
+    <section class="card space-y-3">
+      <div class="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider">Firmware Update</div>
+
+      <!-- Check for updates -->
+      <div class="flex items-center gap-3">
+        <button
+          @click="checkForUpdates"
+          :disabled="otaChecking"
+          class="btn btn-secondary text-xs"
+        >
+          {{ otaChecking ? 'Checking...' : 'Check for Updates' }}
+        </button>
+        <span v-if="system.info?.firmware_version" class="text-[10px] font-mono text-[var(--text-muted)]">
+          Current: {{ system.info.firmware_version }}
+        </span>
+      </div>
+
+      <!-- Update info -->
+      <div v-if="otaInfo" class="bg-[var(--bg)] rounded p-3 space-y-2">
+        <div class="flex items-center justify-between text-xs font-mono">
+          <span class="text-[var(--text-secondary)]">Installed</span>
+          <span class="text-[var(--text)]">{{ otaInfo.current_version }}</span>
+        </div>
+        <div class="flex items-center justify-between text-xs font-mono">
+          <span class="text-[var(--text-secondary)]">Latest</span>
+          <span :class="otaInfo.update_available ? 'text-[#22c55e]' : 'text-[var(--text)]'">
+            {{ otaInfo.latest_version }}
+          </span>
+        </div>
+        <div v-if="otaInfo.update_available" class="pt-2 border-t border-[var(--border)]">
+          <button
+            @click="updateFromGithub"
+            :disabled="otaUpdating"
+            class="btn btn-primary text-xs w-full"
+          >
+            {{ otaUpdating ? 'Updating...' : 'Update from GitHub' }}
+          </button>
+        </div>
+        <div v-else class="text-[10px] font-mono text-[#22c55e]">
+          Firmware is up to date.
+        </div>
+      </div>
+
+      <!-- Manual upload -->
+      <div class="border-t border-[var(--border)] pt-3">
+        <div class="text-xs text-[var(--text-secondary)] mb-2">Manual Upload</div>
+        <div class="flex items-center gap-2">
+          <input
+            type="file"
+            accept=".bin"
+            @change="onFileSelected"
+            class="text-[11px] font-mono text-[var(--text-secondary)] file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-[11px] file:font-mono file:bg-[var(--surface-light)] file:text-[var(--text-secondary)] hover:file:text-[var(--text)]"
+          />
+          <button
+            @click="uploadFirmware"
+            :disabled="!otaFile || otaUploading"
+            class="btn btn-secondary text-xs"
+          >
+            {{ otaUploading ? 'Uploading...' : 'Flash' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Progress / status -->
+      <div v-if="otaProgress" class="text-[10px] font-mono text-[#3b82f6] animate-pulse">
+        {{ otaProgress }}
+      </div>
+      <div v-if="otaError" class="text-[10px] font-mono text-red-400">
+        {{ otaError }}
       </div>
     </section>
 

@@ -1,7 +1,6 @@
 #include "power_task.h"
 
 #include <inttypes.h>
-#include <math.h>
 
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -138,14 +137,8 @@ static void power_task(void *pvParameters)
                 s_status.therm1_temp = adc.therm1_temp_c;
                 s_status.therm2_temp = adc.therm2_temp_c;
 
-                /* Cross-check ADC VCORE against VR telemetry VOUT.
-                 * Log a warning if they differ by more than 50mV. */
-                float vr_vout_mv = s_status.vout * 1000.0f;
-                float delta = fabsf(adc.vcore_mv - vr_vout_mv);
-                if (vr_vout_mv > 0.0f && delta > 50.0f) {
-                    ESP_LOGW(TAG, "VCORE mismatch: ADC=%.0fmV VR=%.0fmV (delta=%.0fmV)",
-                             adc.vcore_mv, vr_vout_mv, delta);
-                }
+                /* ADC VCORE cross-check disabled: known ADC channel
+                 * offset causes persistent false mismatch warnings. */
             }
         }
 

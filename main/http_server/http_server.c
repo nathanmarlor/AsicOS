@@ -155,6 +155,20 @@ static void register_routes(httpd_handle_t server)
     };
     httpd_register_uri_handler(server, &system_ota);
 
+    httpd_uri_t ota_check = {
+        .uri      = "/api/system/ota/check",
+        .method   = HTTP_GET,
+        .handler  = api_system_ota_check_handler,
+    };
+    httpd_register_uri_handler(server, &ota_check);
+
+    httpd_uri_t ota_github = {
+        .uri      = "/api/system/ota/github",
+        .method   = HTTP_POST,
+        .handler  = api_system_ota_github_handler,
+    };
+    httpd_register_uri_handler(server, &ota_github);
+
     /* Mining API */
     httpd_uri_t mining_info = {
         .uri      = "/api/mining/info",
