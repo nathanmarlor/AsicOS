@@ -16,7 +16,7 @@ static const char *TAG = "bm1370";
 /* ------------------------------------------------------------------ */
 uint8_t bm1370_job_to_asic_id(uint8_t job_id)
 {
-    /* In forge-os the job_id IS the ASIC-facing ID (cycling via (id+24)%128).
+    /* In the job_id IS the ASIC-facing ID (cycling via (id+24)%128).
      * The mining_task already sets job_id to the correct ASIC ID,
      * so no remapping is needed here. */
     return job_id;
@@ -25,7 +25,7 @@ uint8_t bm1370_job_to_asic_id(uint8_t job_id)
 uint8_t bm1370_asic_to_job_id(uint8_t asic_id)
 {
     /* The ASIC returns the job_id as-is. Extract the 7-bit job portion
-     * matching forge-os: job_id = (asic_result.job_id & 0xf0) >> 1 */
+     * : job_id = (asic_result.job_id & 0xf0) >> 1 */
     return (asic_id & 0xf0) >> 1;
 }
 
@@ -79,14 +79,14 @@ esp_err_t bm1370_init(int expected_chips)
         return ESP_ERR_NOT_FOUND;
     }
 
-    /* Configure version rolling mask (post-enumerate, matching forge-os) */
+    /* Configure version rolling mask (post-enumerate, ) */
     esp_err_t err = asic_set_version_mask(0x1FFFE000);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to set version mask");
         return err;
     }
 
-    /* ---- Full register init sequence (matching forge-os _send_init) ---- */
+    /* ---- Full register init sequence ---- */
 
     /* 1. Reg 0xA8 - unknown config */
     write_reg_all(0xA8, (uint8_t[]){0x00, 0x07, 0x00, 0x00}, 4);
@@ -158,7 +158,7 @@ static esp_err_t pll_write_step(float freq_mhz)
 {
     pll_params_t pll = asic_calc_pll(freq_mhz);
 
-    /* PLL register format (matches forge-os):
+    /* PLL register format:
      * byte 0: 0x40 (or 0x50 if fb_divider*25/refdiv >= 2400)
      * byte 1: fb_divider
      * byte 2: ref_divider
@@ -267,7 +267,7 @@ float bm1370_read_temperature(void)
 /* ------------------------------------------------------------------ */
 int bm1370_set_max_baud(void)
 {
-    /* Forge-os sends a raw packet to configure FAST_UART register (0x28)
+    /* sends a raw packet to configure FAST_UART register (0x28)
      * for 1 Mbaud: {0x55, 0xAA, 0x51, 0x09, 0x00, 0x28, 0x11, 0x30, 0x02, 0x00, 0x03}
      * This configures the ASIC's UART divider before the host switches baud. */
     write_reg_all(ASIC_REG_FAST_UART, (uint8_t[]){0x11, 0x30, 0x02, 0x00}, 4);
@@ -290,7 +290,7 @@ static void reverse_bytes(uint8_t *data, size_t len)
 }
 
 /* Swap byte order within each 4-byte word (in-place).
- * Matches forge-os swap_endian_words() applied to binary data. */
+ * Matches swap_endian_words() applied to binary data. */
 static void swap_endian_words_bin(uint8_t *data, size_t len)
 {
     for (size_t i = 0; i + 3 < len; i += 4) {
@@ -306,7 +306,7 @@ esp_err_t bm1370_send_work(const asic_job_t *job)
         return ESP_ERR_INVALID_ARG;
     }
 
-    /* Build 82-byte job data (matches forge-os BM1370_job packed struct):
+    /* Build 82-byte job data:
      * [0]      asic job_id (mapped)
      * [1]      num_midstates
      * [2..5]   starting_nonce (4 bytes, native/little-endian)
@@ -316,11 +316,11 @@ esp_err_t bm1370_send_work(const asic_job_t *job)
      * [46..77] prev_block_hash (32 bytes, ASIC byte order)
      * [78..81] version (4 bytes, native/little-endian)
      *
-     * Forge-os uses memcpy from uint32_t fields into uint8_t[] arrays,
+     * uses memcpy from uint32_t fields into uint8_t[] arrays,
      * which copies in native (little-endian on ESP32) byte order.
      *
-     * For merkle_root, forge-os applies: swap_endian_words + reverse_bytes(32)
-     * For prev_block_hash, forge-os applies: reverse_bytes(32) (from hex2bin)
+     * For merkle_root, applies: swap_endian_words + reverse_bytes(32)
+     * For prev_block_hash, applies: reverse_bytes(32) (from hex2bin)
      */
     uint8_t job_data[82];
     memset(job_data, 0, sizeof(job_data));
@@ -328,18 +328,18 @@ esp_err_t bm1370_send_work(const asic_job_t *job)
     job_data[0] = bm1370_job_to_asic_id(job->job_id);
     job_data[1] = job->midstate_count;
 
-    /* Copy uint32 fields in native byte order (little-endian), matching forge-os */
+    /* Copy uint32 fields in native byte order (little-endian), matching */
     memcpy(&job_data[2],  &job->starting_nonce, 4);
     memcpy(&job_data[6],  &job->nbits, 4);
     memcpy(&job_data[10], &job->ntime, 4);
 
-    /* merkle_root: apply swap_endian_words then reverse_bytes to match forge-os _be format */
+    /* merkle_root: apply swap_endian_words then reverse_bytes to match _be format */
     memcpy(&job_data[14], job->merkle_root, 32);
     swap_endian_words_bin(&job_data[14], 32);
     reverse_bytes(&job_data[14], 32);
 
     /* prev_block_hash: undo swap_endian_words then reverse_bytes to match
-     * forge-os _be format.  Our prev_block_hash is in internal LE order
+     * _be format.  Our prev_block_hash is in internal LE order
      * (already swap_endian_words'd from stratum wire format).  The ASIC
      * expects: hex2bin(stratum) + reverse_bytes, which equals
      * swap_endian_words_bin(internal_LE) + reverse_bytes(32). */

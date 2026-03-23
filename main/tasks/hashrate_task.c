@@ -77,7 +77,7 @@ static void hashrate_task_fn(void *param)
             prev_counter[i] = counter;
 
             if (dt_sec > 0 && delta > 0) {
-                /* forge-os formula: GH/s = counter_delta / dt * 2^32 / 1e9 */
+                /* GH/s = counter_delta / dt * 2^32 / 1e9 */
                 float ghs = (float)delta / (float)dt_sec * 4294967296.0f / 1e9f;
                 s_info.per_chip_hashrate_ghs[i] = ghs;
                 total_ghs += ghs;

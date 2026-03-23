@@ -107,7 +107,7 @@ pll_params_t asic_calc_pll(float target_freq_mhz)
     float best_err = 1e9f;
     const float max_diff = 1.0f;
 
-    /* Match forge-os search order: refdiv 2..1, postdiv1 7..1, postdiv2 7..1,
+    /* Search: refdiv 2..1, postdiv1 7..1, postdiv2 7..1,
      * with constraint postdiv1 >= postdiv2 */
     for (uint8_t refdiv = 2; refdiv >= 1; refdiv--) {
         for (uint8_t pd1 = 7; pd1 >= 1; pd1--) {
@@ -142,7 +142,7 @@ int asic_enumerate(void)
     serial_flush_rx();
 
     /* BM1370 needs version mask writes before it responds to chip ID reads.
-     * Send the actual version mask value (matching forge-os _send_init). */
+     * Send the actual version mask value ( _send_init). */
     uint32_t default_mask = 0x1FFFE000;
     uint32_t versions_to_roll = default_mask >> 13;
     uint8_t ver_data[4] = {0x90, 0x00,
@@ -244,7 +244,7 @@ static uint8_t bit_reverse_byte(uint8_t b)
 esp_err_t asic_set_difficulty_mask(uint64_t difficulty)
 {
     /* Compute largest power-of-two <= difficulty, then subtract 1 for mask.
-     * Matches forge-os: difficulty = _largest_power_of_two(difficulty) - 1 */
+     * : difficulty = _largest_power_of_two(difficulty) - 1 */
     if (difficulty == 0) {
         difficulty = 1;
     }
@@ -254,7 +254,7 @@ esp_err_t asic_set_difficulty_mask(uint64_t difficulty)
     }
     uint32_t mask = (uint32_t)(pot - 1);  /* e.g. difficulty 256 -> mask 0xFF */
 
-    /* Build 4-byte data with bit-reversed bytes (matching forge-os format).
+    /* Build 4-byte data with bit-reversed bytes ( format).
      * The bytes are stored in reverse order: LSB first in the register. */
     uint8_t data[4];
     for (int i = 0; i < 4; i++) {
@@ -326,7 +326,7 @@ int asic_receive_result(asic_result_t *result, uint32_t timeout_ms)
     }
 
     if (asic_is_nonce_response(resp)) {
-        /* Parse nonce response matching forge-os packed struct layout:
+        /* Parse nonce response  packed struct layout:
          * [2..5] nonce - stored as-is via memcpy (LE uint32 on ESP32)
          * [6]    midstate_num
          * [7]    job_id
@@ -342,7 +342,7 @@ int asic_receive_result(asic_result_t *result, uint32_t timeout_ms)
         return 1;
     }
 
-    /* Register read response - matching forge-os bm1370_asic_result_cmd_t:
+    /* Register read response -  bm1370_asic_result_cmd_t:
      * [2..5] value (uint32_t, big-endian - use ntohl)
      * [6]    asic_address (chip address: 0x00, 0x04, etc)
      * [7]    register_address (0x8C for hash count, 0xB4 for temp, etc)

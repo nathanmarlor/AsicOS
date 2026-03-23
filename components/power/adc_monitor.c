@@ -53,9 +53,9 @@ esp_err_t adc_monitor_init(void)
         .atten = ADC_ATTEN_DB_12,      /* 0-3.3V range */
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
-    adc_oneshot_config_channel(s_adc_handle, ADC_CHANNEL_0, &chan_cfg); /* VCORE (ADC1_CH0) */
-    adc_oneshot_config_channel(s_adc_handle, ADC_CHANNEL_2, &chan_cfg); /* Therm2 (ADC1_CH2) */
-    adc_oneshot_config_channel(s_adc_handle, ADC_CHANNEL_3, &chan_cfg); /* Therm1 (ADC1_CH3) */
+    adc_oneshot_config_channel(s_adc_handle, ADC_CHANNEL_1, &chan_cfg); /* VCORE - V_BUCK_OUTPUT */
+    adc_oneshot_config_channel(s_adc_handle, ADC_CHANNEL_3, &chan_cfg); /* Therm2 - V_TEMP_10K_A2 */
+    adc_oneshot_config_channel(s_adc_handle, ADC_CHANNEL_4, &chan_cfg); /* Therm1 - V_TEMP_10K_A1 */
 
     /* Calibration via curve fitting */
     adc_cali_curve_fitting_config_t cali_cfg = {
@@ -82,20 +82,19 @@ esp_err_t adc_monitor_read(adc_readings_t *readings)
     int raw;
     int mv;
 
-    /* VCORE - channel 0 (ADC1_CH0)
-     * The buck output goes through a 100K/100K resistor divider,
-     * so actual voltage = ADC reading * 2.0 */
-    if (adc_oneshot_read(s_adc_handle, ADC_CHANNEL_0, &raw) == ESP_OK) {
+    /* VCORE - channel 1 (ADC1_CH1) = V_BUCK_OUTPUT
+     * reads this directly with no divider - the buck output
+     * voltage (~1.2V) is within the 0-3.3V ADC range at DB_12 atten */
+    if (adc_oneshot_read(s_adc_handle, ADC_CHANNEL_1, &raw) == ESP_OK) {
         if (s_cali_handle && adc_cali_raw_to_voltage(s_cali_handle, raw, &mv) == ESP_OK) {
-            readings->vcore_mv = (float)mv * 2.0f;
+            readings->vcore_mv = (float)mv;  /* No divider - direct reading */
         } else {
-            /* Fallback: rough conversion without calibration */
-            readings->vcore_mv = ((float)raw / 4095.0f) * 3300.0f * 2.0f;
+            readings->vcore_mv = ((float)raw / 4095.0f) * 3300.0f;
         }
     }
 
-    /* Thermistor 1 (ASIC 1) - channel 3 (ADC1_CH3) */
-    if (adc_oneshot_read(s_adc_handle, ADC_CHANNEL_3, &raw) == ESP_OK) {
+    /* Thermistor 1 (ASIC 1) - channel 4 (ADC1_CH4) = V_TEMP_10K_A1 */
+    if (adc_oneshot_read(s_adc_handle, ADC_CHANNEL_4, &raw) == ESP_OK) {
         if (s_cali_handle && adc_cali_raw_to_voltage(s_cali_handle, raw, &mv) == ESP_OK) {
             readings->therm1_temp_c = ntc_voltage_to_temp((float)mv);
         } else {

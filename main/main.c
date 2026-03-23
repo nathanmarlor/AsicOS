@@ -253,11 +253,9 @@ void app_main(void)
         ESP_LOGW(TAG, "POST: some checks failed, continuing boot");
     }
 
-    // 12. HTTP server
+    // 12. HTTP server + WebSocket log forwarding
     http_server_start();
-    // ws_log_init() disabled: overriding esp_log_set_vprintf silences the
-    // serial console, making UART0 debugging impossible.  WebSocket log
-    // forwarding can be re-enabled once a non-intrusive hook is available.
+    ws_log_init();  /* Forwards ESP_LOG output to WebSocket clients AND serial */
 
     // 13. Stratum client
     init_stratum(board);

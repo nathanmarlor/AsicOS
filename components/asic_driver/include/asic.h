@@ -14,11 +14,11 @@
 #define ASIC_REG_CORE_CTRL      0x3C
 #define ASIC_REG_ANALOG_MUX     0x54
 #define ASIC_REG_IO_DRIVE       0x58
-#define ASIC_REG_DOMAIN_0       0x88  /* Domain 0 hash count (forge-os REGISTER_DOMAIN_0_COUNT) */
-#define ASIC_REG_DOMAIN_1       0x89  /* Domain 1 hash count (forge-os REGISTER_DOMAIN_1_COUNT) */
-#define ASIC_REG_DOMAIN_2       0x8A  /* Domain 2 hash count (forge-os REGISTER_DOMAIN_2_COUNT) */
-#define ASIC_REG_DOMAIN_3       0x8B  /* Domain 3 hash count (forge-os REGISTER_DOMAIN_3_COUNT) */
-#define ASIC_REG_NONCE_COUNT    0x8C  /* Total hash count (forge-os REGISTER_TOTAL_COUNT) */
+#define ASIC_REG_DOMAIN_0       0x88  /* Domain 0 hash count */
+#define ASIC_REG_DOMAIN_1       0x89  /* Domain 1 hash count */
+#define ASIC_REG_DOMAIN_2       0x8A  /* Domain 2 hash count */
+#define ASIC_REG_DOMAIN_3       0x8B  /* Domain 3 hash count */
+#define ASIC_REG_NONCE_COUNT    0x8C  /* Total hash count */
 
 #define ASIC_NUM_DOMAINS        4
 #define ASIC_REG_VR_MASK        0xA4

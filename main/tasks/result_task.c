@@ -106,14 +106,14 @@ static void result_task_fn(void *param)
         s_nonce_count++;
 
         /* Build block header and test nonce with version rolling.
-         * Matching forge-os BM1370_process_work():
+         * BM1370 nonce processing:
          *   version_bits = ntohs(asic_result.job.version) << 13
          *   rolled_version = job->version | version_bits
          */
         uint32_t version_bits = (uint32_t)ntohs(result.rolled_version) << 13;
         uint32_t rolled_version = job->version | version_bits;
 
-        /* Build header exactly as forge-os test_nonce_value() does:
+        /* Build header for nonce verification:
          * memcpy fields directly from the job struct with no extra swaps.
          * The job's prev_block_hash and merkle_root are already in the
          * correct byte order for block header hashing. */
@@ -160,7 +160,7 @@ static void result_task_fn(void *param)
             char version_hex[9];
             snprintf(nonce_hex, sizeof(nonce_hex), "%08lx", (unsigned long)result.nonce);
             /* Submit version rolling MASK (delta), not the full rolled version.
-             * Matches forge-os: rolled_version ^ job->version */
+             * rolled_version ^ job->version */
             uint32_t version_mask = rolled_version ^ job->version;
             snprintf(version_hex, sizeof(version_hex), "%08lx", (unsigned long)version_mask);
 

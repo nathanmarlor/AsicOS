@@ -13,7 +13,7 @@ void mining_double_sha256(const uint8_t *data, size_t len, uint8_t *out)
     sha256_hash(tmp, 32, out);
 }
 
-/* Matches forge-os le256todouble() exactly */
+/* Matches le256todouble() exactly */
 static const double bits192 = 6277101735386680763835789423207666416102355444464034512896.0;
 static const double bits128 = 340282366920938463463374607431768211456.0;
 static const double bits64  = 18446744073709551616.0;
@@ -113,7 +113,7 @@ bool mining_test_nonce(const uint8_t *block_header_80,
     uint8_t hash[32];
 
     /* Header is already fully constructed (version, nonce, etc. applied).
-     * Just double-SHA256 and compute difficulty, matching forge-os
+     * Just double-SHA256 and compute difficulty, 
      * test_nonce_value(). */
     mining_double_sha256(block_header_80, 80, hash);
 

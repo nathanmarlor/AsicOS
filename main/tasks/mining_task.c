@@ -96,7 +96,7 @@ static void mining_task_fn(void *param)
             continue;
         }
 
-        /* Assign rotating job ID (matches forge-os: id incremented BEFORE assign) */
+        /* Assign rotating job ID */
         s_asic_job_id = (s_asic_job_id + 24) % 128;
         job.job_id = s_asic_job_id;
 

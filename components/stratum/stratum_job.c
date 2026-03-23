@@ -38,7 +38,7 @@ int stratum_build_asic_job(const stratum_notify_t *notify, const char *extranonc
     memset(job_out, 0, sizeof(*job_out));
 
     /* Build extranonce2 hex from counter in little-endian byte order.
-     * Matches forge-os extranonce_2_generate() which uses bin2hex on
+     * Matches extranonce_2_generate() which uses bin2hex on
      * the raw (little-endian) bytes of the uint32_t counter. */
     char extranonce2_hex[64];
     memset(extranonce2_hex, '0', sizeof(extranonce2_hex));
@@ -109,7 +109,7 @@ int stratum_build_asic_job(const stratum_notify_t *notify, const char *extranonc
      * Stratum sends prev_block_hash with each 4-byte word byte-swapped
      * relative to the internal byte order used in block header hashing.
      * We must reverse each 4-byte word to get the correct format.
-     * This matches forge-os swap_endian_words(params->prev_block_hash, ...). */
+     * This matches swap_endian_words(params->prev_block_hash, ...). */
     uint8_t prev_hash_raw[32];
     uint8_t prev_hash[32];
     if (hex_to_bytes(notify->prev_block_hash, prev_hash_raw, 32) != 32) {
