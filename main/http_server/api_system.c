@@ -202,6 +202,30 @@ esp_err_t api_system_info_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(root, "free_heap", (double)esp_get_free_heap_size());
     cJSON_AddNumberToObject(root, "wifi_rssi", (int)wifi_get_rssi());
 
+#if CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS
+    /* CPU usage: sum idle task time on both cores, derive total usage */
+    {
+        TaskStatus_t *tasks;
+        UBaseType_t count = uxTaskGetNumberOfTasks();
+        tasks = malloc(count * sizeof(TaskStatus_t));
+        if (tasks) {
+            uint32_t total_runtime;
+            count = uxTaskGetSystemState(tasks, count, &total_runtime);
+            if (total_runtime > 0) {
+                uint32_t idle_runtime = 0;
+                for (UBaseType_t i = 0; i < count; i++) {
+                    if (strncmp(tasks[i].pcTaskName, "IDLE", 4) == 0) {
+                        idle_runtime += tasks[i].ulRunTimeCounter;
+                    }
+                }
+                float cpu_pct = (1.0f - (float)idle_runtime / (float)total_runtime) * 100.0f;
+                cJSON_AddNumberToObject(root, "cpu_usage", cpu_pct);
+            }
+            free(tasks);
+        }
+    }
+#endif
+
     /* Reset reason */
     esp_reset_reason_t reason = esp_reset_reason();
     const char *reason_str = "unknown";

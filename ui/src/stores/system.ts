@@ -19,6 +19,7 @@ export interface SystemInfo {
   uptime_ms: number
   free_heap: number
   wifi_rssi: number
+  cpu_usage?: number
   reset_reason?: string
 }
 

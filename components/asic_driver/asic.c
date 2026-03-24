@@ -415,7 +415,7 @@ int asic_receive_result(asic_result_t *result, uint32_t timeout_ms)
     uint32_t value = ntohl(raw_value);
     int chip = resp[6] / 4;  /* asic_address / interval */
     uint8_t reg = resp[7];
-    ESP_LOGD(TAG, "Register read: chip=%d reg=0x%02x value=0x%08lx",
+    ESP_LOGI(TAG, "Reg read: chip=%d reg=0x%02x val=0x%08lx",
              chip, reg, (unsigned long)value);
 
     /* Route to appropriate callback based on register address.
