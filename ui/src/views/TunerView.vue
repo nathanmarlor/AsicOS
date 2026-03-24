@@ -83,7 +83,7 @@ async function handleStart() {
         <div class="font-mono font-medium text-sm text-[#22c55e]">Eco</div>
         <div class="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Best J/TH</div>
         <template v-if="profiles.eco">
-          <div class="text-xs font-mono text-[var(--text-secondary)] space-y-0.5">
+          <div class="text-[11px] font-mono text-[var(--text-secondary)] space-y-0.5">
             <div>{{ profiles.eco.freq }} MHz @ {{ profiles.eco.voltage }} mV</div>
             <div>{{ profiles.eco.hashrate.toFixed(0) }} GH/s</div>
             <div>{{ profiles.eco.power.toFixed(1) }} W</div>
@@ -101,7 +101,7 @@ async function handleStart() {
         <div class="font-mono font-medium text-sm text-[#f97316]">Balanced</div>
         <div class="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Best overall</div>
         <template v-if="profiles.balanced">
-          <div class="text-xs font-mono text-[var(--text-secondary)] space-y-0.5">
+          <div class="text-[11px] font-mono text-[var(--text-secondary)] space-y-0.5">
             <div>{{ profiles.balanced.freq }} MHz @ {{ profiles.balanced.voltage }} mV</div>
             <div>{{ profiles.balanced.hashrate.toFixed(0) }} GH/s</div>
             <div>{{ profiles.balanced.power.toFixed(1) }} W</div>
@@ -119,7 +119,7 @@ async function handleStart() {
         <div class="font-mono font-medium text-sm text-[#ef4444]">Power</div>
         <div class="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Max hashrate</div>
         <template v-if="profiles.power">
-          <div class="text-xs font-mono text-[var(--text-secondary)] space-y-0.5">
+          <div class="text-[11px] font-mono text-[var(--text-secondary)] space-y-0.5">
             <div>{{ profiles.power.freq }} MHz @ {{ profiles.power.voltage }} mV</div>
             <div class="text-[#ef4444] font-medium">{{ profiles.power.hashrate.toFixed(0) }} GH/s</div>
             <div>{{ profiles.power.power.toFixed(1) }} W</div>
@@ -169,7 +169,7 @@ async function handleStart() {
       </table>
     </div>
 
-    <div v-if="tuner.error" class="text-xs font-mono text-red-400">
+    <div v-if="tuner.error" class="text-xs font-mono text-[#ef4444]">
       {{ tuner.error }}
     </div>
   </div>

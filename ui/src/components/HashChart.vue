@@ -266,7 +266,7 @@ const gradientId = computed(() => `grad-${_uid}`)
           :y1="toY(referenceLine)"
           :x2="PAD.left + chartW"
           :y2="toY(referenceLine)"
-          stroke="#9ca3af"
+          stroke="var(--text-muted)"
           stroke-width="1"
           stroke-dasharray="6,4"
           opacity="0.7"
@@ -276,7 +276,7 @@ const gradientId = computed(() => `grad-${_uid}`)
           :x="PAD.left + chartW - 2"
           :y="toY(referenceLine) - 4"
           text-anchor="end"
-          fill="#9ca3af"
+          fill="var(--text-muted)"
           font-size="9"
           font-family="monospace"
           opacity="0.8"
@@ -319,29 +319,29 @@ const gradientId = computed(() => `grad-${_uid}`)
         <!-- Tooltip box (taller if dual) -->
         <rect
           :x="hoverPos.x + (hoverPos.x > W/2 ? -100 : 10)"
-          :y="hoverPos.y - 32"
+          :y="Math.max(PAD.top + 4, hoverPos.y - 32)"
           :width="hoverSecondValue != null ? 90 : 80"
-          :height="hoverSecondValue != null ? 36 : 22" rx="3"
+          :height="hoverSecondValue != null ? 36 : 26" rx="3"
           fill="var(--surface)" stroke="var(--border)" stroke-width="1"
         />
         <!-- Primary value -->
         <text
           :x="hoverPos.x + (hoverPos.x > W/2 ? -55 : 55)"
-          :y="hoverPos.y - 19"
+          :y="Math.max(PAD.top + 4, hoverPos.y - 32) + 13"
           text-anchor="middle"
           :fill="color" font-size="11" font-family="monospace"
         >{{ hoverValue.toFixed(1) }}{{ label?.includes('TEMP') ? '°' : '' }}</text>
         <!-- Second value -->
         <text v-if="hoverSecondValue != null"
           :x="hoverPos.x + (hoverPos.x > W/2 ? -55 : 55)"
-          :y="hoverPos.y - 7"
+          :y="Math.max(PAD.top + 4, hoverPos.y - 32) + 25"
           text-anchor="middle"
           :fill="secondColor" font-size="11" font-family="monospace"
         >{{ hoverSecondValue.toFixed(1) }}{{ label?.includes('TEMP') ? '°' : '' }}</text>
         <!-- Time -->
         <text
           :x="hoverPos.x + (hoverPos.x > W/2 ? -55 : 55)"
-          :y="hoverPos.y + (hoverSecondValue != null ? 4 : -2)"
+          :y="Math.max(PAD.top + 4, hoverPos.y - 32) + (hoverSecondValue != null ? 35 : 23)"
           text-anchor="middle"
           fill="var(--text-muted)" font-size="9" font-family="monospace"
         >{{ hoverTimeAgo }}</text>

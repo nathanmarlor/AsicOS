@@ -290,7 +290,7 @@ async function uploadWww() {
           :min="freqMin"
           :max="freqMax"
           step="5"
-          class="w-full accent-accent bg-transparent"
+          class="w-full accent-[#f97316] bg-transparent"
         />
         <div class="flex justify-between text-[10px] text-[var(--text-muted)] font-mono">
           <span>{{ freqMin }}</span>
@@ -308,7 +308,7 @@ async function uploadWww() {
           :min="voltMin"
           :max="voltMax"
           step="5"
-          class="w-full accent-accent bg-transparent"
+          class="w-full accent-[#f97316] bg-transparent"
         />
         <div class="flex justify-between text-[10px] text-[var(--text-muted)] font-mono">
           <span>{{ voltMin }}</span>
@@ -325,14 +325,14 @@ async function uploadWww() {
           <label class="text-[var(--text-secondary)]">Fan Target Temp</label>
           <span class="font-mono text-[var(--text)]">{{ fanTargetTemp }}&deg;C</span>
         </div>
-        <input v-model.number="fanTargetTemp" type="range" min="40" max="85" class="w-full accent-accent bg-transparent" />
+        <input v-model.number="fanTargetTemp" type="range" min="40" max="85" class="w-full accent-[#f97316] bg-transparent" />
       </div>
       <div>
         <div class="flex justify-between text-xs mb-1">
           <label class="text-[var(--text-secondary)]">Overheat Temp</label>
           <span class="font-mono text-[var(--text)]">{{ overheatTemp }}&deg;C</span>
         </div>
-        <input v-model.number="overheatTemp" type="range" min="70" max="120" class="w-full accent-accent bg-transparent" />
+        <input v-model.number="overheatTemp" type="range" min="70" max="120" class="w-full accent-[#f97316] bg-transparent" />
       </div>
       <!-- Fan Override -->
       <div class="border-t border-[var(--border)] pt-3">
@@ -363,7 +363,7 @@ async function uploadWww() {
             min="0"
             max="100"
             step="5"
-            class="w-full accent-accent bg-transparent"
+            class="w-full accent-[#f97316] bg-transparent"
           />
         </div>
         <div v-else class="text-[10px] font-mono text-[var(--text-muted)]">
@@ -401,7 +401,7 @@ async function uploadWww() {
       <div class="text-[10px] font-mono text-[var(--text-muted)] uppercase tracking-wider">UI</div>
       <div>
         <label class="text-xs text-[var(--text-secondary)] block mb-1">Default Mode</label>
-        <select v-model="defaultMode" class="w-full">
+        <select v-model="defaultMode" class="w-full font-mono">
           <option value="simple">Simple</option>
           <option value="advanced">Advanced</option>
         </select>
@@ -492,7 +492,7 @@ async function uploadWww() {
       <div v-if="otaProgress" class="text-[10px] font-mono text-[#3b82f6] animate-pulse">
         {{ otaProgress }}
       </div>
-      <div v-if="otaError" class="text-[10px] font-mono text-red-400">
+      <div v-if="otaError" class="text-[10px] font-mono text-[#ef4444]">
         {{ otaError }}
       </div>
     </section>
@@ -511,14 +511,14 @@ async function uploadWww() {
 
     <!-- Actions -->
     <div class="flex gap-3">
-      <button @click="save" :disabled="saving" class="btn btn-primary">
+      <button @click="save" :disabled="saving" class="btn btn-primary min-h-[44px]">
         {{ saving ? 'Saving...' : saved ? 'Saved' : 'Save' }}
       </button>
-      <button @click="restart" class="btn btn-danger">
+      <button @click="restart" class="btn btn-danger min-h-[44px]">
         {{ confirmRestart ? 'Confirm Restart?' : 'Restart Device' }}
       </button>
     </div>
 
-    <div v-if="error" class="text-xs font-mono text-red-400">{{ error }}</div>
+    <div v-if="error" class="text-xs font-mono text-[#ef4444]">{{ error }}</div>
   </div>
 </template>

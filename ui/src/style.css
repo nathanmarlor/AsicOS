@@ -99,7 +99,7 @@
   .card {
     background-color: var(--surface);
     border-color: var(--border);
-    @apply border rounded p-4;
+    @apply border rounded p-3;
   }
 }
 

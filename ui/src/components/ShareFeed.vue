@@ -26,7 +26,7 @@ function barWidth(diff: number): string {
   <div class="flex flex-col h-full min-h-0">
     <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-2 shrink-0">Submitted Shares</div>
 
-    <div class="flex-1 overflow-y-auto space-y-0.5 min-h-0 max-h-[220px]">
+    <div class="flex-1 overflow-y-auto space-y-0.5 min-h-0">
       <div
         v-if="visible.length === 0"
         class="text-xs text-[var(--text-muted)] font-mono py-4 text-center"
@@ -36,7 +36,7 @@ function barWidth(diff: number): string {
       <div
         v-for="(share, i) in visible"
         :key="share.ts + '-' + i"
-        class="flex items-center gap-2 py-1 px-1 text-xs font-mono rounded"
+        class="flex items-center gap-2 py-1 px-1 text-[10px] font-mono rounded"
         :class="i === 0 ? 'animate-slide-in bg-[#f97316]/5' : (i % 2 === 0 ? 'bg-transparent' : 'bg-[var(--surface)]/50')"
       >
         <span class="text-[var(--text-muted)] w-[60px] shrink-0 text-[10px]">{{ formatTime(share.ts) }}</span>

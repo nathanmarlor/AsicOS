@@ -59,8 +59,8 @@ async function activate() {
         <div class="flex justify-between">
           <span class="text-[var(--text-secondary)]">Connection</span>
           <span class="flex items-center gap-1.5">
-            <span class="w-1.5 h-1.5 rounded-full" :class="isConnected ? 'bg-green-500' : 'bg-[var(--text-muted)]'" />
-            <span :class="isConnected ? 'text-green-500' : 'text-[var(--text-secondary)]'">
+            <span class="w-1.5 h-1.5 rounded-full" :class="isConnected ? 'bg-[#22c55e]' : 'bg-[var(--text-muted)]'" />
+            <span :class="isConnected ? 'text-[#22c55e]' : 'text-[var(--text-secondary)]'">
               {{ stateLabel }}
             </span>
           </span>
@@ -71,7 +71,7 @@ async function activate() {
         </div>
         <div class="flex justify-between">
           <span class="text-[var(--text-secondary)]">Licensed</span>
-          <span :class="status.licensed ? 'text-green-500' : 'text-[var(--text-secondary)]'">
+          <span :class="status.licensed ? 'text-[#22c55e]' : 'text-[var(--text-secondary)]'">
             {{ status.licensed ? 'yes' : 'no' }}
           </span>
         </div>
@@ -103,6 +103,6 @@ async function activate() {
       outbound to the relay server -- no port forwarding needed.
     </div>
 
-    <div v-if="error" class="text-xs font-mono text-red-400">{{ error }}</div>
+    <div v-if="error" class="text-xs font-mono text-[#ef4444]">{{ error }}</div>
   </div>
 </template>

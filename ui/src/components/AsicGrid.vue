@@ -89,7 +89,8 @@ const distribution = computed(() => {
     <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-2">ASIC Hashmap</div>
 
     <!-- Chip grid -->
-    <div class="grid gap-2" :class="chips.length <= 4 ? 'grid-cols-2' : 'grid-cols-4'">
+    <template v-if="chips.length > 0">
+    <div class="grid gap-2" :class="chips.length <= 4 ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'">
       <div
         v-for="chip in chips"
         :key="chip.id"
@@ -131,6 +132,8 @@ const distribution = computed(() => {
         </template>
       </div>
     </div>
+    </template>
+    <div v-if="chips.length === 0" class="text-[10px] font-mono text-[var(--text-muted)] py-4 text-center">No chip data</div>
 
     <!-- Distribution bar -->
     <div class="mt-3">

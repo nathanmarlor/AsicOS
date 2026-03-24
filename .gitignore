@@ -7,3 +7,12 @@ ui/node_modules/
 ui/dist/
 *.pyc
 __pycache__/
+*.bmu
+test/test_crc
+test/test_mining
+test/test_pid
+test/test_stratum
+test/test_nonce_verify
+test/test_hashrate_hw
+test/test_difficulty_edge
+test/test_diff_zero_bug

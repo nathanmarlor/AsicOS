@@ -63,7 +63,7 @@ const hasAlerts = computed(() => showOverheat.value || showVrFault.value || show
       </span>
       <button
         @click="dismissedOverheat = true"
-        class="ml-3 shrink-0 text-[#ef4444] hover:text-[#fca5a5] transition-colors text-sm leading-none px-1"
+        class="ml-3 shrink-0 text-[#ef4444] hover:text-[#fca5a5] transition-colors text-sm leading-none px-1 min-w-[44px] min-h-[44px] flex items-center justify-center"
         aria-label="Dismiss overheat alert"
       >&times;</button>
     </div>
@@ -79,7 +79,7 @@ const hasAlerts = computed(() => showOverheat.value || showVrFault.value || show
       </span>
       <button
         @click="dismissedVrFault = true"
-        class="ml-3 shrink-0 text-[#ef4444] hover:text-[#fca5a5] transition-colors text-sm leading-none px-1"
+        class="ml-3 shrink-0 text-[#ef4444] hover:text-[#fca5a5] transition-colors text-sm leading-none px-1 min-w-[44px] min-h-[44px] flex items-center justify-center"
         aria-label="Dismiss VR fault alert"
       >&times;</button>
     </div>
@@ -95,7 +95,7 @@ const hasAlerts = computed(() => showOverheat.value || showVrFault.value || show
       </span>
       <button
         @click="dismissedCrash = true"
-        class="ml-3 shrink-0 text-[#eab308] hover:text-[#fde047] transition-colors text-sm leading-none px-1"
+        class="ml-3 shrink-0 text-[#eab308] hover:text-[#fde047] transition-colors text-sm leading-none px-1 min-w-[44px] min-h-[44px] flex items-center justify-center"
         aria-label="Dismiss crash alert"
       >&times;</button>
     </div>

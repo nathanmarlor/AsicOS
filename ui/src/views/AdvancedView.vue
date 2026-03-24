@@ -190,11 +190,12 @@ async function restart() {
 </script>
 
 <template>
+  <template v-if="system.info">
   <div class="px-3 py-3 space-y-3 max-w-[1400px] mx-auto">
 
     <!-- Status Banner -->
     <div
-      class="flex items-center justify-between px-3 py-1.5 bg-[var(--surface)] border border-[var(--border)] rounded text-[11px] font-mono"
+      class="flex flex-wrap items-center justify-between px-3 py-1.5 bg-[var(--surface)] border border-[var(--border)] rounded text-[11px] font-mono"
     >
       <div class="flex items-center gap-2">
         <span
@@ -225,10 +226,10 @@ async function restart() {
     <SystemAlerts />
 
     <!-- KPI Strip -->
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
       <KpiCard
         label="Hashrate"
-        :value="hashrate.toFixed(1)"
+        :value="system.info ? hashrate.toFixed(1) : '--'"
         unit="GH/s"
         :subtitle="expectedGhs > 0 ? `/ ${expectedGhs.toLocaleString()} expected` : undefined"
         :history="system.hashrateHistory"
@@ -237,7 +238,7 @@ async function restart() {
       />
       <KpiCard
         label="Efficiency"
-        :value="efficiencyDisplay"
+        :value="system.info ? efficiencyDisplay : '--'"
         unit="J/TH"
         :history="system.efficiencyHistory"
         :status="efficiencyStatus"
@@ -245,7 +246,7 @@ async function restart() {
       />
       <KpiCard
         label="Power"
-        :value="power.toFixed(1)"
+        :value="system.info ? power.toFixed(1) : '--'"
         unit="Watts"
         :history="system.powerHistory"
         status="neutral"
@@ -253,22 +254,22 @@ async function restart() {
       />
       <KpiCard
         label="ASIC Temp"
-        :value="chipTemp.toFixed(0) + '\u00B0'"
+        :value="system.info ? chipTemp.toFixed(0) + '\u00B0' : '--'"
         unit="Celsius"
         :history="system.chipTempHistory"
         :status="asicTempStatus"
       />
       <KpiCard
         label="VRM Temp"
-        :value="vrTemp.toFixed(0) + '\u00B0'"
+        :value="system.info ? vrTemp.toFixed(0) + '\u00B0' : '--'"
         unit="Celsius"
         :history="system.vrTempHistory"
         :status="vrmTempStatus"
       />
       <KpiCard
         label="Reject Rate"
-        :value="rejectPct.toFixed(1) + '%'"
-        unit="of shares"
+        :value="system.info ? rejectPct.toFixed(1) : '--'"
+        unit="%"
         :status="rejectStatus"
       />
     </div>
@@ -331,7 +332,7 @@ async function restart() {
           :hw-error-rate="system.info?.mining?.hw_error_rate"
         />
       </div>
-      <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3 flex flex-col min-h-[280px]">
+      <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3 flex flex-col min-h-[280px] h-full">
         <ShareFeed
           :shares="mining.submittedShares"
           :pool-diff="mining.info?.pool_diff ?? 256"
@@ -425,4 +426,6 @@ async function restart() {
       </button>
     </div>
   </div>
+  </template>
+  <div v-else class="flex items-center justify-center h-64 text-[var(--text-muted)] font-mono text-sm">Loading...</div>
 </template>

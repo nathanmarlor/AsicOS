@@ -135,7 +135,7 @@ onUnmounted(() => {
       class="flex-1 overflow-y-auto overflow-x-auto bg-[var(--bg)] border border-[var(--border)] rounded p-2 font-mono text-[11px] leading-relaxed min-h-[120px] max-h-[300px]"
     >
       <div v-if="filtered.length === 0" class="text-[var(--text-muted)] py-4 text-center">
-        {{ connected ? 'no log entries' : 'connecting...' }}
+        {{ connected ? 'no log entries' : 'WebSocket disconnected -- waiting for connection...' }}
       </div>
       <div
         v-for="(entry, i) in filtered"
@@ -171,7 +171,7 @@ onUnmounted(() => {
           >
             {{ modalAutoScroll ? '\u2B07 Auto' : '\u23F8 Paused' }}
           </button>
-          <button @click="showModal = false" class="text-[var(--text-muted)] hover:text-[var(--text)] text-lg px-2 ml-2">&#x2715;</button>
+          <button @click="showModal = false" class="text-[var(--text-muted)] hover:text-[var(--text)] text-lg px-2 ml-2 min-w-[44px] min-h-[44px] flex items-center justify-center">&#x2715;</button>
         </div>
       </div>
       <div
@@ -180,7 +180,7 @@ onUnmounted(() => {
         class="flex-1 overflow-auto bg-[var(--surface)] border border-[var(--border)] rounded p-3 font-mono text-[11px] leading-relaxed"
       >
         <div v-if="modalFiltered.length === 0" class="text-[var(--text-muted)] py-4 text-center">
-          {{ connected ? 'no log entries' : 'connecting...' }}
+          {{ connected ? 'no log entries' : 'WebSocket disconnected -- waiting for connection...' }}
         </div>
         <div
           v-for="(entry, i) in modalFiltered"

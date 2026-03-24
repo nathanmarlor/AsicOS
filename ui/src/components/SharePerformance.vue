@@ -35,7 +35,7 @@ const rejectTooltip = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-2.5">
+  <div class="flex flex-col gap-2">
     <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider">Pool & Shares</div>
 
     <!-- Pool connection -->

@@ -103,7 +103,7 @@ const overallHealthLabel = computed(() => {
 const timeToBlock = computed(() => {
   const hr = hashrate.value * 1e9 // convert GH/s to H/s
   if (hr <= 0) return '--'
-  // Current network difficulty ~80T (approximate)
+  // Current network difficulty ~80T (approximate) - TODO: fetch from API in future
   const networkDiff = 80e12
   // Expected time = diff * 2^32 / hashrate (in seconds)
   const seconds = (networkDiff * Math.pow(2, 32)) / hr
@@ -115,6 +115,7 @@ const timeToBlock = computed(() => {
 </script>
 
 <template>
+  <template v-if="system.info">
   <div class="max-w-lg mx-auto px-4 py-6 space-y-5">
 
     <!-- System Alerts -->
@@ -180,12 +181,12 @@ const timeToBlock = computed(() => {
     <!-- Health Overview -->
     <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3">
       <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-3">System Health</div>
-      <div class="grid grid-cols-2 gap-x-4 gap-y-2.5">
+      <div class="grid grid-cols-2 gap-x-4 gap-y-2">
         <!-- ASIC Temp -->
         <div class="flex items-center justify-between">
           <span class="text-[11px] font-mono text-[var(--text-secondary)]">ASIC</span>
           <div class="flex items-center gap-1.5">
-            <span class="font-mono text-sm font-medium" :style="{ color: tempColor }">{{ chipTemp.toFixed(0) }}&deg;C</span>
+            <span class="text-xs font-mono" :style="{ color: tempColor }">{{ chipTemp.toFixed(0) }}&deg;C</span>
             <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: tempColor }" />
           </div>
         </div>
@@ -193,29 +194,29 @@ const timeToBlock = computed(() => {
         <div class="flex items-center justify-between">
           <span class="text-[11px] font-mono text-[var(--text-secondary)]">VRM</span>
           <div class="flex items-center gap-1.5">
-            <span class="font-mono text-sm font-medium" :style="{ color: vrmColor }">{{ vrmTemp.toFixed(0) }}&deg;C</span>
+            <span class="text-xs font-mono" :style="{ color: vrmColor }">{{ vrmTemp.toFixed(0) }}&deg;C</span>
             <span class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: vrmColor }" />
           </div>
         </div>
         <!-- Fan -->
         <div class="flex items-center justify-between">
           <span class="text-[11px] font-mono text-[var(--text-secondary)]">Fan</span>
-          <span class="font-mono text-sm text-[var(--text)]">{{ fanRpm.toLocaleString() }} rpm</span>
+          <span class="text-xs font-mono text-[var(--text)]">{{ fanRpm.toLocaleString() }} rpm</span>
         </div>
         <!-- Power -->
         <div class="flex items-center justify-between">
           <span class="text-[11px] font-mono text-[var(--text-secondary)]">Power</span>
-          <span class="font-mono text-sm text-[var(--text)]">{{ power.toFixed(1) }}W</span>
+          <span class="text-xs font-mono text-[var(--text)]">{{ power.toFixed(1) }}W</span>
         </div>
         <!-- Efficiency -->
         <div class="flex items-center justify-between">
           <span class="text-[11px] font-mono text-[var(--text-secondary)]">Efficiency</span>
-          <span class="font-mono text-sm" :style="{ color: efficiencyColor }">{{ efficiencyDisplay }} J/TH</span>
+          <span class="text-xs font-mono" :style="{ color: efficiencyColor }">{{ efficiencyDisplay }} J/TH</span>
         </div>
         <!-- Reject Rate -->
         <div class="flex items-center justify-between">
           <span class="text-[11px] font-mono text-[var(--text-secondary)]">Reject</span>
-          <span class="font-mono text-sm" :style="{ color: rejectColor }">{{ rejectRate.toFixed(1) }}%</span>
+          <span class="text-xs font-mono" :style="{ color: rejectColor }">{{ rejectRate.toFixed(1) }}%</span>
         </div>
       </div>
       <!-- Overall status bar -->
@@ -244,4 +245,6 @@ const timeToBlock = computed(() => {
       <span>uptime: {{ uptime }}</span>
     </div>
   </div>
+  </template>
+  <div v-else class="flex items-center justify-center h-64 text-[var(--text-muted)] font-mono text-sm">Loading...</div>
 </template>
