@@ -26,7 +26,7 @@ function barWidth(diff: number): string {
   <div class="flex flex-col h-full min-h-0">
     <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-2 shrink-0">Submitted Shares</div>
 
-    <div class="flex-1 overflow-y-auto space-y-0.5 min-h-0">
+    <div class="flex-1 overflow-y-auto space-y-0.5 min-h-0 max-h-[240px]">
       <div
         v-if="visible.length === 0"
         class="text-xs text-[var(--text-muted)] font-mono py-4 text-center"
