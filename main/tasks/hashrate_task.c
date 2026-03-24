@@ -47,9 +47,9 @@ static void hashrate_task_fn(void *param)
 
     /* Send initial register read requests to seed the baseline */
     for (int i = 0; i < s_info.chip_count; i++) {
-        asic_request_hash_counter((uint8_t)(i * bm1370_get_address_interval()));
+        asic_request_hash_counter((uint8_t)(i * 4));
         vTaskDelay(pdMS_TO_TICKS(2));
-        asic_request_domain_counters((uint8_t)(i * bm1370_get_address_interval()));
+        asic_request_domain_counters((uint8_t)(i * 4));
         vTaskDelay(pdMS_TO_TICKS(5));
     }
 
@@ -70,8 +70,8 @@ static void hashrate_task_fn(void *param)
             asic_reset_hashrate_measurements();
             /* Re-seed baselines */
             for (int i = 0; i < s_info.chip_count; i++) {
-                asic_request_hash_counter((uint8_t)(i * bm1370_get_address_interval()));
-                asic_request_domain_counters((uint8_t)(i * bm1370_get_address_interval()));
+                asic_request_hash_counter((uint8_t)(i * 4));
+                asic_request_domain_counters((uint8_t)(i * 4));
             }
             continue;
         }
@@ -79,11 +79,11 @@ static void hashrate_task_fn(void *param)
         /* Request register reads with small delays between each to avoid
          * overwhelming the ASIC UART and losing responses (matches ForgeOS). */
         for (int i = 0; i < s_info.chip_count; i++) {
-            asic_request_hash_counter((uint8_t)(i * bm1370_get_address_interval()));
+            asic_request_hash_counter((uint8_t)(i * 4));
             vTaskDelay(pdMS_TO_TICKS(2));
-            asic_request_domain_counters((uint8_t)(i * bm1370_get_address_interval()));
+            asic_request_domain_counters((uint8_t)(i * 4));
             vTaskDelay(pdMS_TO_TICKS(5));
-            asic_request_error_counters((uint8_t)(i * bm1370_get_address_interval()));
+            asic_request_error_counters((uint8_t)(i * 4));
             vTaskDelay(pdMS_TO_TICKS(2));
         }
 

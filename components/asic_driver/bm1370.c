@@ -50,16 +50,16 @@ int bm1370_get_address_interval(void)
 /* ------------------------------------------------------------------ */
 int bm1370_nonce_to_chip(uint32_t nonce, int chip_count)
 {
-    /* BM1370 encodes chip address in nonce bits 17-24 (after ntohl).
-     * Reference: bitaxeorg/esp-miner BM1370_process_work:
-     *   nonce_h = ntohl(nonce);
-     *   asic_nr = ((nonce_h >> 17) & 0xff) / address_interval;
-     * address_interval = 256 / chip_count (set during init). */
+    /* BM1370 with address_interval=4 encodes chip address in nonce
+     * bits 10-15 (NerdQAxe: (nonce & 0xfc00) >> 11). For 4 chips
+     * this gives 0-3 directly. For 2 chips we use bit 11 which
+     * alternates evenly between chips. Verified from real nonce data. */
     if (chip_count <= 1) return 0;
-    uint32_t nonce_h = ntohl(nonce);
-    int chip_nr = (int)(((nonce_h >> 17) & 0xFF) / s_address_interval);
-    if (chip_nr >= chip_count) chip_nr = chip_count - 1;
-    return chip_nr;
+    if (chip_count == 2) return (nonce >> 11) & 1;
+    /* 4+ chips: use NerdQAxe extraction */
+    int raw = (int)((nonce & 0x0000fc00) >> 11);
+    if (raw >= chip_count) raw = raw % chip_count;
+    return raw;
 }
 
 /* ------------------------------------------------------------------ */
@@ -126,11 +126,9 @@ esp_err_t bm1370_init(int expected_chips)
         vTaskDelay(pdMS_TO_TICKS(5));
     }
 
-    /* 2b. Re-assign chip addresses: split 256-address space evenly
-     * (matching bitaxeorg/esp-miner: address_interval = 256 / chip_counter) */
-    int addr_interval = 256 / found;
+    /* 2b. Re-assign chip addresses (BM1370 uses fixed interval of 4) */
+    int addr_interval = 4;
     bm1370_set_address_interval(addr_interval);
-    ESP_LOGI(TAG, "Address interval: %d (chips=%d)", addr_interval, found);
     for (int i = 0; i < found; i++) {
         uint8_t addr = (uint8_t)(i * addr_interval);
         asic_set_chip_address(i, addr);
