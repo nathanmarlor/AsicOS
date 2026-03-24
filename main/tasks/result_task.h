@@ -23,5 +23,5 @@ uint64_t result_task_get_total_hw_errors(void);
 float    result_task_get_hw_error_rate(void);
 double   result_task_get_last_share_diff(void);
 uint32_t result_task_get_recent_nonces_seq(void);
-int      result_task_get_recent_nonces(double *diffs, bool *submitted, int max_count);
+int      result_task_get_recent_nonces(double *diffs, bool *submitted, uint32_t *uptime_secs, int max_count);
 float    result_task_get_share_rate(void);

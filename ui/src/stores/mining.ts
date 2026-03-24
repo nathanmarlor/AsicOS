@@ -23,7 +23,7 @@ export interface MiningInfo {
   duplicates: number
   chips: ChipInfo[]
   last_share_diff: number
-  recent_nonces: { diff: number; submitted: boolean }[]
+  recent_nonces: { diff: number; submitted: boolean; age_sec: number }[]
 }
 
 export interface ShareEntry {
@@ -76,10 +76,11 @@ export const useMiningStore = defineStore('mining', () => {
         const recent = info.value.recent_nonces ?? []
 
         if (prevAccepted === 0 && submittedShares.value.length === 0) {
-          // First load: populate from server's ring buffer so UI isn't empty
+          // First load: populate from server's ring buffer with real timestamps
+          const now = Date.now()
           for (let i = 0; i < Math.min(recent.length, 15); i++) {
             addShare({
-              ts: Date.now() - i * 10000,
+              ts: now - (recent[i].age_sec ?? 0) * 1000,
               diff: recent[i].diff,
               diff_str: formatDiff(recent[i].diff),
               accepted: true,
@@ -92,7 +93,7 @@ export const useMiningStore = defineStore('mining', () => {
           if (newAccepted > 0 && prevAccepted > 0) {
             for (let i = 0; i < Math.min(newAccepted, recent.length); i++) {
               addShare({
-                ts: Date.now() - i * 100,
+                ts: Date.now() - (recent[i].age_sec ?? 0) * 1000,
                 diff: recent[i].diff,
                 diff_str: formatDiff(recent[i].diff),
                 accepted: true,

@@ -42,8 +42,9 @@ static volatile double s_last_share_diff = 0.0;  /* last submitted share difficu
 /* Ring buffer of recent nonce difficulties for the share feed */
 #define RECENT_NONCES_SIZE 32
 typedef struct {
-    double diff;
-    bool   submitted;
+    double   diff;
+    bool     submitted;
+    uint32_t uptime_sec;  /* seconds since boot */
 } recent_nonce_t;
 static recent_nonce_t s_recent_nonces[RECENT_NONCES_SIZE];
 static int s_recent_idx = 0;
@@ -107,7 +108,7 @@ uint32_t result_task_get_recent_nonces_seq(void)
 }
 
 /* Copy recent nonces into caller's arrays, newest first. Returns count. */
-int result_task_get_recent_nonces(double *diffs, bool *submitted, int max_count)
+int result_task_get_recent_nonces(double *diffs, bool *submitted, uint32_t *uptime_secs, int max_count)
 {
     int count = (s_recent_seq < RECENT_NONCES_SIZE) ? (int)s_recent_seq : RECENT_NONCES_SIZE;
     if (count > max_count) count = max_count;
@@ -115,6 +116,7 @@ int result_task_get_recent_nonces(double *diffs, bool *submitted, int max_count)
         int idx = (s_recent_idx - 1 - i + RECENT_NONCES_SIZE) % RECENT_NONCES_SIZE;
         diffs[i] = s_recent_nonces[idx].diff;
         submitted[i] = s_recent_nonces[idx].submitted;
+        uptime_secs[i] = s_recent_nonces[idx].uptime_sec;
     }
     return count;
 }
@@ -321,6 +323,7 @@ static void result_task_fn(void *param)
                 /* Record in submitted shares ring buffer */
                 s_recent_nonces[s_recent_idx].diff = share_diff;
                 s_recent_nonces[s_recent_idx].submitted = true;
+                s_recent_nonces[s_recent_idx].uptime_sec = (uint32_t)(esp_timer_get_time() / 1000000);
                 s_recent_idx = (s_recent_idx + 1) % RECENT_NONCES_SIZE;
                 s_recent_seq++;
                 led_flash();  /* Brief LED flash on share submission */

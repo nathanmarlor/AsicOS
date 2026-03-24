@@ -132,7 +132,7 @@ onUnmounted(() => {
       v-else
       ref="logContainer"
       @scroll="onScroll"
-      class="flex-1 overflow-y-auto overflow-x-auto bg-[var(--bg)] border border-[var(--border)] rounded p-2 font-mono text-[11px] leading-relaxed min-h-[120px] max-h-[300px]"
+      class="flex-1 overflow-y-auto overflow-x-auto bg-[var(--bg)] border border-[var(--border)] rounded p-2 font-mono text-[11px] leading-relaxed min-h-[120px] max-h-[300px] flex flex-col-reverse"
     >
       <div v-if="filtered.length === 0" class="text-[var(--text-muted)] py-4 text-center">
         {{ connected ? 'no log entries' : 'connecting...' }}
