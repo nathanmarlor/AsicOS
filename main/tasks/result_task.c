@@ -36,10 +36,13 @@ static uint64_t s_per_chip_hw_errors[16] = {0};
 static int64_t s_last_summary_time = 0;
 static uint32_t s_nonces_since_summary = 0;
 
-/* Rolling per-chip nonce counts (last hour, reset every 30 min with overlap) */
-static uint32_t s_rolling_nonces[16] = {0};
-static int64_t s_rolling_reset_time = 0;
-#define ROLLING_WINDOW_US  (3600LL * 1000000LL)  /* 1 hour */
+/* Rolling per-chip nonce counts: two alternating 30-minute buckets.
+ * Report current + previous for a ~30-60 min sliding window.
+ * Every 30 min, previous = current, current = zeroed. */
+#define BUCKET_WINDOW_US  (1800LL * 1000000LL)  /* 30 minutes */
+static uint32_t s_nonce_bucket_cur[16] = {0};
+static uint32_t s_nonce_bucket_prev[16] = {0};
+static int64_t s_bucket_swap_time = 0;
 
 /* Rolling share rate: ring buffer of share timestamps (last hour) */
 #define SHARE_TS_RING_SIZE 256
@@ -65,7 +68,7 @@ uint64_t result_task_get_chip_nonce_count(int chip)
 
 uint32_t result_task_get_chip_rolling_nonces(int chip)
 {
-    if (chip >= 0 && chip < 16) return s_rolling_nonces[chip];
+    if (chip >= 0 && chip < 16) return s_nonce_bucket_cur[chip] + s_nonce_bucket_prev[chip];
     return 0;
 }
 
@@ -167,14 +170,18 @@ static void result_task_fn(void *param)
         int chip_nr = bm1370_nonce_to_chip(result.nonce, 2);
         if (chip_nr >= 0 && chip_nr < 16) {
             s_per_chip_nonces[chip_nr]++;
-            s_rolling_nonces[chip_nr]++;
+            s_nonce_bucket_cur[chip_nr]++;
         }
 
-        /* Reset rolling window every hour */
+        /* Swap buckets every 30 min: prev = cur, cur = zeroed.
+         * Reported value is cur + prev = ~30-60 min sliding window. */
         int64_t now_roll = esp_timer_get_time();
-        if (now_roll - s_rolling_reset_time >= ROLLING_WINDOW_US) {
-            memset(s_rolling_nonces, 0, sizeof(s_rolling_nonces));
-            s_rolling_reset_time = now_roll;
+        if (s_bucket_swap_time == 0) {
+            s_bucket_swap_time = now_roll;
+        } else if (now_roll - s_bucket_swap_time >= BUCKET_WINDOW_US) {
+            memcpy(s_nonce_bucket_prev, s_nonce_bucket_cur, sizeof(s_nonce_bucket_prev));
+            memset(s_nonce_bucket_cur, 0, sizeof(s_nonce_bucket_cur));
+            s_bucket_swap_time = now_roll;
         }
 
         /* Build block header and test nonce with version rolling.
