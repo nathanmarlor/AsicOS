@@ -22,13 +22,12 @@ function formatTime(ts: number): string {
 }
 
 function barWidth(diff: number): string {
-  /* Bar = share difficulty as % of pool difficulty (log scale).
-   * 100% = meets pool diff, >100% capped at 100%.
-   * Uses log scale so low-diff shares are still visible. */
-  const target = Math.max(props.poolDiff, 1)
-  const logTarget = Math.log10(target)
+  /* Log scale from 1 to network difficulty (~100T).
+   * Low shares (256) = small bar, pool diff (4096) = medium, high diff = long.
+   * This makes submitted shares visually distinct from low-diff ones. */
+  const LOG_MAX = 14  /* log10(100T) ≈ 14 */
   const logVal = Math.log10(Math.max(diff, 1))
-  const pct = Math.max(3, (logVal / logTarget) * 100)
+  const pct = Math.max(2, (logVal / LOG_MAX) * 100)
   return Math.min(100, pct) + '%'
 }
 </script>
