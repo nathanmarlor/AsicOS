@@ -111,6 +111,10 @@ const distribution = computed(() => {
             <span class="text-[10px] font-mono font-medium text-[var(--text-secondary)]">Total:</span>
             <span class="font-mono font-bold text-sm text-[var(--text)]">{{ chip.hashrate_ghs.toFixed(0) }} <span class="text-[9px] text-[var(--text-muted)]">GH/s</span></span>
           </div>
+          <div v-if="(chip.hw_errors ?? 0) > 0" class="flex items-center justify-between text-[9px] font-mono mt-0.5">
+            <span class="text-[#ef4444]">HW Errors:</span>
+            <span class="text-[#ef4444]">{{ (chip.hw_errors ?? 0).toLocaleString() }}</span>
+          </div>
         </template>
 
         <!-- Fallback: chip-level only (no domain data) -->

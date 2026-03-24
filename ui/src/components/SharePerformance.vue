@@ -14,10 +14,22 @@ const props = defineProps<{
   rttMs?: number
   blockHeight?: number
   blocksFound?: number
+  rejectReasons?: { job_not_found: number; duplicate: number; low_difficulty: number; other: number }
 }>()
 
 const total = computed(() => props.accepted + props.rejected)
 const acceptPct = computed(() => total.value === 0 ? 100 : (props.accepted / total.value) * 100)
+
+const rejectTooltip = computed(() => {
+  const r = props.rejectReasons
+  if (!r) return ''
+  const parts: string[] = []
+  if (r.job_not_found) parts.push(`Stale/Job not found: ${r.job_not_found}`)
+  if (r.duplicate) parts.push(`Duplicate: ${r.duplicate}`)
+  if (r.low_difficulty) parts.push(`Low difficulty: ${r.low_difficulty}`)
+  if (r.other) parts.push(`Other: ${r.other}`)
+  return parts.length > 0 ? parts.join('\n') : 'No rejections'
+})
 </script>
 
 <template>
@@ -35,7 +47,7 @@ const acceptPct = computed(() => total.value === 0 ? 100 : (props.accepted / tot
       <div class="flex items-center justify-between text-[11px] font-mono mb-1">
         <span class="text-[#22c55e]">{{ accepted.toLocaleString() }} accepted</span>
         <span class="text-[var(--text)]">{{ acceptPct.toFixed(1) }}%</span>
-        <span :class="rejected > 0 ? 'text-[#ef4444]' : 'text-[var(--text-muted)]'">{{ rejected }} rejected</span>
+        <span :class="rejected > 0 ? 'text-[#ef4444]' : 'text-[var(--text-muted)]'" :title="rejectTooltip">{{ rejected }} rejected</span>
       </div>
       <div class="h-[6px] bg-[var(--surface-light)] rounded-sm overflow-hidden flex">
         <div class="h-full bg-[#22c55e] transition-all duration-500" :style="{ width: acceptPct + '%' }" />

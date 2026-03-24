@@ -54,7 +54,7 @@ function barWidth(diff: number): string {
     </div>
 
     <!-- Share list -->
-    <div class="flex-1 overflow-y-auto space-y-0.5 min-h-0 max-h-[300px]">
+    <div class="flex-1 overflow-y-auto space-y-0.5 min-h-0 max-h-[220px]">
       <div
         v-if="visible.length === 0"
         class="text-xs text-[var(--text-muted)] font-mono py-4 text-center"

@@ -22,6 +22,7 @@
 #include "power_task.h"
 #include "result_task.h"
 #include "stratum_client.h"
+#include "wifi_task.h"
 
 #define GITHUB_OTA_REPO "nathanmarlor/AsicOS"
 
@@ -153,6 +154,12 @@ esp_err_t api_system_info_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(pool, "difficulty",  stratum_client_get_current_difficulty());
     cJSON_AddNumberToObject(pool, "rtt_ms",     stratum_client_get_rtt_ms());
     cJSON_AddNumberToObject(pool, "share_rate", result_task_get_share_rate());
+    const stratum_rejection_reasons_t *reasons = stratum_client_get_rejection_reasons();
+    cJSON *reject_reasons = cJSON_AddObjectToObject(pool, "reject_reasons");
+    cJSON_AddNumberToObject(reject_reasons, "job_not_found", reasons->job_not_found);
+    cJSON_AddNumberToObject(reject_reasons, "duplicate", reasons->duplicate);
+    cJSON_AddNumberToObject(reject_reasons, "low_difficulty", reasons->low_difficulty);
+    cJSON_AddNumberToObject(reject_reasons, "other", reasons->other);
     cJSON_AddNumberToObject(pool, "block_height", mining_get_block_height());
     cJSON_AddNumberToObject(pool, "blocks_found", stratum_client_get_block_count());
 
@@ -193,6 +200,7 @@ esp_err_t api_system_info_handler(httpd_req_t *req)
     cJSON_AddStringToObject(root, "firmware_version", app->version);
     cJSON_AddNumberToObject(root, "uptime_ms", (double)(esp_timer_get_time() / 1000));
     cJSON_AddNumberToObject(root, "free_heap", (double)esp_get_free_heap_size());
+    cJSON_AddNumberToObject(root, "wifi_rssi", (int)wifi_get_rssi());
 
     /* Reset reason */
     esp_reset_reason_t reason = esp_reset_reason();

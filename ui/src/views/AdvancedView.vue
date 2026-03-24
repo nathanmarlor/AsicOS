@@ -321,6 +321,7 @@ async function restart() {
           :rtt-ms="system.info?.pool.rtt_ms"
           :block-height="system.info?.pool.block_height"
           :blocks-found="system.info?.pool.blocks_found"
+          :reject-reasons="system.info?.pool.reject_reasons"
         />
       </div>
       <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3 flex flex-col min-h-[280px]">
@@ -379,6 +380,8 @@ async function restart() {
           <div class="text-right text-[var(--text)]">{{ heap }} KB</div>
           <div class="text-[var(--text-muted)]">Uptime</div>
           <div class="text-right text-[var(--text)]">{{ uptime }}</div>
+          <div class="text-[var(--text-muted)]">WiFi RSSI</div>
+          <div class="text-right text-[var(--text)]">{{ system.info?.wifi_rssi ?? '--' }} dBm</div>
           <div class="text-[var(--text-muted)]">Last Reset</div>
           <div class="text-right text-[var(--text)]">{{ resetReason }}</div>
         </div>

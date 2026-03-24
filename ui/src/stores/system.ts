@@ -14,10 +14,11 @@ export interface SystemInfo {
   temps: { chip: number; vr: number; board: number }
   power: { vin: number; iin: number; vout: number; iout: number; watts: number; input_watts: number; efficiency_pct: number; fan0_rpm: number; fan1_rpm: number; fan0_pct: number; fan1_pct: number; fan_override: number; fan_mode: string; overheat: boolean; vr_fault: boolean; vr_temp: number; vcore_adc_mv: number }
   mining: { best_difficulty: number; total_shares_submitted: number; duplicate_nonces: number }
-  pool: { state: string; accepted: number; rejected: number; difficulty: number; rtt_ms: number; block_height: number; blocks_found: number; share_rate: number }
+  pool: { state: string; accepted: number; rejected: number; difficulty: number; rtt_ms: number; block_height: number; blocks_found: number; share_rate: number; reject_reasons: { job_not_found: number; duplicate: number; low_difficulty: number; other: number } }
   config: { pool_url: string; pool_port: number; pool_user: string; frequency: number; voltage: number; wifi_ssid: string; ui_mode: string }
   uptime_ms: number
   free_heap: number
+  wifi_rssi: number
   reset_reason?: string
 }
 

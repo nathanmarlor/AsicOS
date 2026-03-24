@@ -6,6 +6,7 @@ export interface ChipInfo {
   id: number
   hashrate_ghs: number
   nonces?: number
+  hw_errors?: number
   domains?: number[]  // per-domain hashrate in GH/s (4 domains for BM1370)
 }
 
