@@ -260,11 +260,6 @@ static void result_task_fn(void *param)
             s_total_hw_errors++;
         } else {
             s_last_valid_diff = share_diff;
-            /* Record in recent nonces ring buffer */
-            s_recent_nonces[s_recent_idx].diff = share_diff;
-            s_recent_nonces[s_recent_idx].submitted = (share_diff >= job->pool_diff);
-            s_recent_idx = (s_recent_idx + 1) % RECENT_NONCES_SIZE;
-            s_recent_seq++;
         }
 
         /* Periodic nonce summary (after HW error counting for accuracy) */
@@ -323,6 +318,11 @@ static void result_task_fn(void *param)
                 s_stats.total_shares_submitted++;
                 s_last_share_diff = share_diff;
                 record_share_timestamp();
+                /* Record in submitted shares ring buffer */
+                s_recent_nonces[s_recent_idx].diff = share_diff;
+                s_recent_nonces[s_recent_idx].submitted = true;
+                s_recent_idx = (s_recent_idx + 1) % RECENT_NONCES_SIZE;
+                s_recent_seq++;
                 led_flash();  /* Brief LED flash on share submission */
                 ESP_LOGI(TAG, "Share submitted: diff=%.4f pool_diff=%.4f nonce=0x%s",
                          share_diff, job->pool_diff, nonce_hex);

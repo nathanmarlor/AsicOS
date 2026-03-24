@@ -77,12 +77,11 @@ export const useMiningStore = defineStore('mining', () => {
 
         if (prevAccepted === 0 && submittedShares.value.length === 0) {
           // First load: populate from server's ring buffer so UI isn't empty
-          const submitted = recent.filter(n => n.submitted).slice(0, 15)
-          for (let i = 0; i < submitted.length; i++) {
+          for (let i = 0; i < Math.min(recent.length, 15); i++) {
             addShare({
-              ts: Date.now() - i * 10000,  // spread timestamps for visual ordering
-              diff: submitted[i].diff,
-              diff_str: formatDiff(submitted[i].diff),
+              ts: Date.now() - i * 10000,
+              diff: recent[i].diff,
+              diff_str: formatDiff(recent[i].diff),
               accepted: true,
               submitted: true,
             })
@@ -91,12 +90,11 @@ export const useMiningStore = defineStore('mining', () => {
           // Incremental: add new shares since last poll
           const newAccepted = info.value.accepted - prevAccepted
           if (newAccepted > 0 && prevAccepted > 0) {
-            const submitted = recent.filter(n => n.submitted).slice(0, newAccepted)
-            for (let i = 0; i < submitted.length; i++) {
+            for (let i = 0; i < Math.min(newAccepted, recent.length); i++) {
               addShare({
                 ts: Date.now() - i * 100,
-                diff: submitted[i].diff,
-                diff_str: formatDiff(submitted[i].diff),
+                diff: recent[i].diff,
+                diff_str: formatDiff(recent[i].diff),
                 accepted: true,
                 submitted: true,
               })
