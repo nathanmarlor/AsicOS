@@ -6,6 +6,7 @@
 #include <math.h>
 
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "lwip/inet.h"  /* ntohl */
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -15,50 +16,73 @@ static const char *TAG = "asic";
 static asic_state_t s_state = {0};
 
 /* ------------------------------------------------------------------ */
-/* Hash counter relay (result_task -> hashrate_task)                    */
+/* Hashrate measurement (callback-style, matching ForgeOS/ESP-Miner)   */
+/* Delta computed immediately when register response arrives, with     */
+/* per-chip timestamps for accurate timing.                            */
 /* ------------------------------------------------------------------ */
-static volatile uint32_t s_last_hash_counter[16] = {0};
-static volatile bool     s_hash_counter_valid[16] = {false};
+#define HASH_CNT_LSB 4294967296.0f  /* 2^32 */
+#define MAX_CHIP_GHS 5000.0f        /* sanity cap */
 
-/* ------------------------------------------------------------------ */
-/* Domain counter relay (per-domain hash counts, 4 domains per chip)   */
-/* ------------------------------------------------------------------ */
-static volatile uint32_t s_domain_counters[16][ASIC_NUM_DOMAINS] = {{0}};
-static volatile bool     s_domain_counter_valid[16][ASIC_NUM_DOMAINS] = {{false}};
+typedef struct {
+    uint32_t value;
+    int64_t  time_us;
+    float    hashrate;
+} measurement_t;
 
-void asic_store_hash_counter(int chip, uint32_t value)
+static measurement_t s_total_meas[16] = {0};
+static measurement_t s_domain_meas[16][ASIC_NUM_DOMAINS] = {{{0}}};
+
+static float hash_counter_to_ghs(int64_t duration_us, uint32_t counter_delta)
 {
-    if (chip >= 0 && chip < 16) {
-        s_last_hash_counter[chip] = value;
-        s_hash_counter_valid[chip] = true;
-    }
+    if (duration_us <= 0 || counter_delta == 0) return 0.0f;
+    float seconds = (float)duration_us / 1e6f;
+    float ghs = (float)counter_delta / seconds * HASH_CNT_LSB / 1e9f;
+    return (ghs < MAX_CHIP_GHS) ? ghs : 0.0f;
 }
 
-uint32_t asic_get_stored_hash_counter(int chip)
+void asic_on_hash_counter(int chip, uint32_t value)
 {
-    if (chip >= 0 && chip < 16 && s_hash_counter_valid[chip]) {
-        s_hash_counter_valid[chip] = false;
-        return s_last_hash_counter[chip];
+    if (chip < 0 || chip >= 16) return;
+    int64_t now = esp_timer_get_time();
+    measurement_t *m = &s_total_meas[chip];
+    if (m->time_us != 0) {
+        uint32_t delta = value - m->value;
+        m->hashrate = hash_counter_to_ghs(now - m->time_us, delta);
     }
-    return 0;
+    m->value = value;
+    m->time_us = now;
 }
 
-void asic_store_domain_counter(int chip, int domain, uint32_t value)
+void asic_on_domain_counter(int chip, int domain, uint32_t value)
 {
-    if (chip >= 0 && chip < 16 && domain >= 0 && domain < ASIC_NUM_DOMAINS) {
-        s_domain_counters[chip][domain] = value;
-        s_domain_counter_valid[chip][domain] = true;
+    if (chip < 0 || chip >= 16 || domain < 0 || domain >= ASIC_NUM_DOMAINS) return;
+    int64_t now = esp_timer_get_time();
+    measurement_t *m = &s_domain_meas[chip][domain];
+    if (m->time_us != 0) {
+        uint32_t delta = value - m->value;
+        m->hashrate = hash_counter_to_ghs(now - m->time_us, delta);
     }
+    m->value = value;
+    m->time_us = now;
 }
 
-uint32_t asic_get_stored_domain_counter(int chip, int domain)
+float asic_get_chip_hashrate(int chip)
 {
-    if (chip >= 0 && chip < 16 && domain >= 0 && domain < ASIC_NUM_DOMAINS
-        && s_domain_counter_valid[chip][domain]) {
-        s_domain_counter_valid[chip][domain] = false;
-        return s_domain_counters[chip][domain];
-    }
-    return 0;
+    if (chip >= 0 && chip < 16) return s_total_meas[chip].hashrate;
+    return 0.0f;
+}
+
+float asic_get_domain_hashrate(int chip, int domain)
+{
+    if (chip >= 0 && chip < 16 && domain >= 0 && domain < ASIC_NUM_DOMAINS)
+        return s_domain_meas[chip][domain].hashrate;
+    return 0.0f;
+}
+
+void asic_reset_hashrate_measurements(void)
+{
+    memset(s_total_meas, 0, sizeof(s_total_meas));
+    memset(s_domain_meas, 0, sizeof(s_domain_meas));
 }
 
 void asic_request_domain_counters(uint8_t chip_addr)
@@ -356,12 +380,13 @@ int asic_receive_result(asic_result_t *result, uint32_t timeout_ms)
     ESP_LOGD(TAG, "Register read: chip=%d reg=0x%02x value=0x%08lx",
              chip, reg, (unsigned long)value);
 
-    /* Route to domain counters or total hash counter */
+    /* Route to domain counters or total hash counter.
+     * Hashrate delta computed immediately with accurate timestamp. */
     if (reg >= ASIC_REG_DOMAIN_0 && reg <= ASIC_REG_DOMAIN_3) {
         int domain = reg - ASIC_REG_DOMAIN_0;
-        asic_store_domain_counter(chip, domain, value);
+        asic_on_domain_counter(chip, domain, value);
     } else {
-        asic_store_hash_counter(chip, value);
+        asic_on_hash_counter(chip, value);
     }
     return 0;
 }

@@ -62,15 +62,14 @@ int       asic_receive_result(asic_result_t *result, uint32_t timeout_ms);
 // State
 const asic_state_t *asic_get_state(void);
 
-// Hash counter relay (result_task stores, hashrate_task reads)
+// Hash counter - callback-style: computes hashrate delta immediately on register read
 void      asic_request_hash_counter(uint8_t chip_addr);
-void      asic_store_hash_counter(int chip, uint32_t value);
-uint32_t  asic_get_stored_hash_counter(int chip);
-
-// Domain counter relay (per-domain hash counts)
 void      asic_request_domain_counters(uint8_t chip_addr);
-void      asic_store_domain_counter(int chip, int domain, uint32_t value);
-uint32_t  asic_get_stored_domain_counter(int chip, int domain);
+void      asic_on_hash_counter(int chip, uint32_t value);
+void      asic_on_domain_counter(int chip, int domain, uint32_t value);
+float     asic_get_chip_hashrate(int chip);
+float     asic_get_domain_hashrate(int chip, int domain);
+void      asic_reset_hashrate_measurements(void);
 
 // PLL helper
 typedef struct {

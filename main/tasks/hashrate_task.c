@@ -12,10 +12,9 @@
 
 static const char *TAG = "hashrate_task";
 
-#define POLL_INTERVAL_MS 10000
+#define POLL_INTERVAL_MS 5000
 #define WARMUP_MS        10000
 #define EMA_ALPHA        12
-#define RESPONSE_WAIT_MS 200
 
 static volatile hashrate_info_t s_info;
 static volatile bool s_reset_requested = false;
@@ -37,100 +36,60 @@ static void hashrate_task_fn(void *param)
         s_info.chip_count = 16;
     }
 
-    ESP_LOGI(TAG, "Hashrate task started (HW counter method), warmup %d ms", WARMUP_MS);
+    ESP_LOGI(TAG, "Hashrate task started (callback method), warmup %d ms", WARMUP_MS);
     vTaskDelay(pdMS_TO_TICKS(WARMUP_MS));
 
-    /* Read initial counter values (total + domain) */
+    /* Send initial register read requests to seed the baseline */
     for (int i = 0; i < s_info.chip_count; i++) {
         asic_request_hash_counter((uint8_t)(i * 4));
         asic_request_domain_counters((uint8_t)(i * 4));
     }
-    vTaskDelay(pdMS_TO_TICKS(RESPONSE_WAIT_MS));
-
-    uint32_t prev_counter[16] = {0};
-    uint32_t prev_domain[16][HASHRATE_NUM_DOMAINS] = {{0}};
-    for (int i = 0; i < s_info.chip_count; i++) {
-        prev_counter[i] = asic_get_stored_hash_counter(i);
-        for (int d = 0; d < HASHRATE_NUM_DOMAINS; d++) {
-            prev_domain[i][d] = asic_get_stored_domain_counter(i, d);
-        }
-    }
-    int64_t prev_time_us = esp_timer_get_time();
 
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(POLL_INTERVAL_MS));
 
-        /* Handle reset request: zero out EMA and counters, re-read baselines */
+        /* Handle reset request */
         if (s_reset_requested) {
             s_reset_requested = false;
-            ESP_LOGI(TAG, "Reset requested – clearing EMA and re-reading baseline counters");
+            ESP_LOGI(TAG, "Reset requested – clearing measurements");
             s_info.total_hashrate_ghs = 0.0f;
             for (int i = 0; i < s_info.chip_count; i++) {
                 s_info.per_chip_hashrate_ghs[i] = 0.0f;
                 for (int d = 0; d < HASHRATE_NUM_DOMAINS; d++) {
                     s_info.per_domain_hashrate_ghs[i][d] = 0.0f;
                 }
+            }
+            asic_reset_hashrate_measurements();
+            /* Re-seed baselines */
+            for (int i = 0; i < s_info.chip_count; i++) {
                 asic_request_hash_counter((uint8_t)(i * 4));
                 asic_request_domain_counters((uint8_t)(i * 4));
             }
-            vTaskDelay(pdMS_TO_TICKS(RESPONSE_WAIT_MS));
-            for (int i = 0; i < s_info.chip_count; i++) {
-                prev_counter[i] = asic_get_stored_hash_counter(i);
-                for (int d = 0; d < HASHRATE_NUM_DOMAINS; d++) {
-                    prev_domain[i][d] = asic_get_stored_domain_counter(i, d);
-                }
-            }
-            prev_time_us = esp_timer_get_time();
-            continue;  /* Skip this cycle, wait for next poll with fresh baseline */
+            continue;
         }
 
-        /* Send read requests for all chips (total + domain counters) */
+        /* Request register reads - hashrate computed via callback when response arrives */
         for (int i = 0; i < s_info.chip_count; i++) {
             asic_request_hash_counter((uint8_t)(i * 4));
             asic_request_domain_counters((uint8_t)(i * 4));
         }
-        vTaskDelay(pdMS_TO_TICKS(RESPONSE_WAIT_MS));
 
-        int64_t now_us = esp_timer_get_time();
-        double dt_sec = (double)(now_us - prev_time_us) / 1e6;
+        /* Small delay for responses, then aggregate */
+        vTaskDelay(pdMS_TO_TICKS(100));
 
+        /* Read computed hashrates from the measurement callbacks */
         float total_ghs = 0.0f;
-
         for (int i = 0; i < s_info.chip_count; i++) {
-            uint32_t counter = asic_get_stored_hash_counter(i);
-            if (counter == 0 && prev_counter[i] == 0) {
-                continue;  /* No data yet for this chip */
-            }
+            float chip_ghs = asic_get_chip_hashrate(i);
+            s_info.per_chip_hashrate_ghs[i] = chip_ghs;
+            total_ghs += chip_ghs;
 
-            uint32_t delta = counter - prev_counter[i];  /* handles wrap */
-            prev_counter[i] = counter;
-
-            if (dt_sec > 0 && delta > 0) {
-                /* GH/s = counter_delta / dt * 2^32 / 1e9 */
-                float ghs = (float)delta / (float)dt_sec * 4294967296.0f / 1e9f;
-                /* Sanity: max ~2000 GH/s per chip at any realistic frequency */
-                if (ghs < 5000.0f) {
-                    s_info.per_chip_hashrate_ghs[i] = ghs;
-                    total_ghs += ghs;
-                }
-            }
-
-            /* Per-domain hashrate using delta counter method (matches ESP-Miner).
-             * Domain registers 0x88-0x8B are counters like 0x8C. */
             for (int d = 0; d < HASHRATE_NUM_DOMAINS; d++) {
-                uint32_t d_val = asic_get_stored_domain_counter(i, d);
-                uint32_t d_delta = d_val - prev_domain[i][d];
-                prev_domain[i][d] = d_val;
-                if (dt_sec > 0 && d_delta > 0) {
-                    float d_ghs = (float)d_delta / (float)dt_sec * 4294967296.0f / 1e9f;
-                    if (d_ghs < 2000.0f) {  /* sanity cap per domain */
-                        s_info.per_domain_hashrate_ghs[i][d] = d_ghs;
-                    }
-                }
+                s_info.per_domain_hashrate_ghs[i][d] = asic_get_domain_hashrate(i, d);
             }
         }
 
-        /* EMA smoothing */
+        /* EMA smoothing on total */
         if (total_ghs > 0.0f) {
             if (s_info.total_hashrate_ghs == 0.0f) {
                 s_info.total_hashrate_ghs = total_ghs;
@@ -140,10 +99,8 @@ static void hashrate_task_fn(void *param)
             }
         }
 
-        prev_time_us = now_us;
-
-        ESP_LOGI(TAG, "Hashrate: %.2f GH/s (%d chips, measured over %.1f seconds)",
-                 s_info.total_hashrate_ghs, s_info.chip_count, dt_sec);
+        ESP_LOGI(TAG, "Hashrate: %.2f GH/s (%d chips)",
+                 s_info.total_hashrate_ghs, s_info.chip_count);
     }
 }
 
