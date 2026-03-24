@@ -10,6 +10,7 @@ import AsicGrid from '../components/AsicGrid.vue'
 import SharePerformance from '../components/SharePerformance.vue'
 import ShareFeed from '../components/ShareFeed.vue'
 import LogConsole from '../components/LogConsole.vue'
+import SystemAlerts from '../components/SystemAlerts.vue'
 
 const router = useRouter()
 const system = useSystemStore()
@@ -219,6 +220,9 @@ async function restart() {
         <span v-if="system.info">heap: {{ (system.info.free_heap / 1024).toFixed(0) }}KB</span>
       </div>
     </div>
+
+    <!-- System Alerts -->
+    <SystemAlerts />
 
     <!-- KPI Strip -->
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">

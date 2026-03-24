@@ -4,6 +4,7 @@ import { useSystemStore } from '../stores/system'
 import { useMiningStore } from '../stores/mining'
 import Sparkline from '../components/Sparkline.vue'
 import ShareFeed from '../components/ShareFeed.vue'
+import SystemAlerts from '../components/SystemAlerts.vue'
 
 const system = useSystemStore()
 const mining = useMiningStore()
@@ -115,6 +116,9 @@ const timeToBlock = computed(() => {
 
 <template>
   <div class="max-w-lg mx-auto px-4 py-6 space-y-5">
+
+    <!-- System Alerts -->
+    <SystemAlerts />
 
     <!-- Big hashrate -->
     <div class="text-center">
