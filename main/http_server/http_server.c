@@ -291,8 +291,10 @@ esp_err_t http_server_start(void)
     config.max_uri_handlers = 24;
     config.stack_size       = 12288;
     config.max_resp_headers = 16;
+    config.max_open_sockets   = 10;
     config.recv_wait_timeout  = 10;
     config.send_wait_timeout  = 10;
+    config.lru_purge_enable   = true;
     config.uri_match_fn     = httpd_uri_match_wildcard;
 
     ret = httpd_start(&s_server, &config);

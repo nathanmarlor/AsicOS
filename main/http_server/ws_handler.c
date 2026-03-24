@@ -5,6 +5,8 @@
 
 #include "esp_http_server.h"
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 
 static const char *TAG = "ws_handler";
 
@@ -12,6 +14,8 @@ static const char *TAG = "ws_handler";
 
 static httpd_handle_t s_server = NULL;
 static int            s_ws_fd  = -1;
+static SemaphoreHandle_t s_ws_mutex = NULL;
+static volatile bool  s_sending = false;  /* prevent re-entrant log sends */
 
 /* ── Handler ───────────────────────────────────────────────────────── */
 
@@ -19,8 +23,15 @@ esp_err_t ws_handler(httpd_req_t *req)
 {
     /* First call is the HTTP GET handshake – just store the fd */
     if (req->method == HTTP_GET) {
+        int new_fd = httpd_req_to_sockfd(req);
+
+        /* Close previous WebSocket if still open */
+        if (s_ws_fd >= 0 && s_ws_fd != new_fd) {
+            httpd_sess_trigger_close(req->handle, s_ws_fd);
+        }
+
         s_server = req->handle;
-        s_ws_fd  = httpd_req_to_sockfd(req);
+        s_ws_fd  = new_fd;
         ESP_LOGI(TAG, "WebSocket handshake, fd=%d", s_ws_fd);
         return ESP_OK;
     }
@@ -35,6 +46,7 @@ esp_err_t ws_handler(httpd_req_t *req)
     esp_err_t ret = httpd_ws_recv_frame(req, &frame, 0);
     if (ret != ESP_OK) {
         ESP_LOGW(TAG, "ws recv len failed: %d", ret);
+        s_ws_fd = -1;
         return ret;
     }
 
@@ -77,7 +89,7 @@ void ws_send_log(const char *msg)
 
     esp_err_t ret = httpd_ws_send_frame_async(s_server, s_ws_fd, &frame);
     if (ret != ESP_OK) {
-        /* Don't use ESP_LOGW here to avoid recursion */
+        /* Connection dead – stop sending. Don't log to avoid recursion. */
         s_ws_fd = -1;
     }
 }
@@ -95,23 +107,24 @@ static int ws_log_vprintf(const char *fmt, va_list args)
     /* Original UART output */
     int ret = s_original_vprintf(fmt, args);
 
-    /* Forward to WebSocket if connected, stripping ANSI escape codes */
-    if (s_ws_fd >= 0 && s_server) {
+    /* Forward to WebSocket if connected.
+     * Guard against re-entrancy: if ws_send_log fails and generates a log
+     * message, we must not recurse back into ws_send_log. */
+    if (s_ws_fd >= 0 && s_server && !s_sending) {
+        s_sending = true;
+
         char raw[256];
         vsnprintf(raw, sizeof(raw), fmt, args_copy);
 
-        /* Strip ANSI escape sequences: \033[...m or \e[...m */
+        /* Strip ANSI escape sequences: \033[...m */
         char clean[256];
         int ci = 0;
         for (int ri = 0; raw[ri] && ci < (int)sizeof(clean) - 1; ri++) {
-            if (raw[ri] == '\033' || (raw[ri] == '[' && ri > 0 && raw[ri-1] == '\033')) {
-                /* Skip until 'm' */
-                if (raw[ri] == '\033') {
-                    while (raw[ri] && raw[ri] != 'm') ri++;
-                    continue;
-                }
+            if (raw[ri] == '\033') {
+                while (raw[ri] && raw[ri] != 'm') ri++;
+                continue;
             }
-            /* Skip standalone [0m etc that weren't caught */
+            /* Skip orphaned CSI sequences like [0m */
             if (raw[ri] == '[' && ri + 1 < (int)sizeof(raw) && raw[ri+1] >= '0' && raw[ri+1] <= '9') {
                 int peek = ri + 1;
                 while (raw[peek] && raw[peek] != 'm' && peek - ri < 8) peek++;
@@ -121,6 +134,8 @@ static int ws_log_vprintf(const char *fmt, va_list args)
         }
         clean[ci] = '\0';
         if (ci > 0) ws_send_log(clean);
+
+        s_sending = false;
     }
     va_end(args_copy);
 
