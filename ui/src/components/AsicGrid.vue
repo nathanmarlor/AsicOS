@@ -47,13 +47,18 @@ function chipPctOfTotal(hashrate: number): string {
   return ((hashrate / totalHashrate.value) * 100).toFixed(1)
 }
 
+/* Use rolling nonces (last hour) for distribution, fall back to all-time */
+function getChipNonces(c: ChipInfo): number {
+  return c.rolling_nonces ?? c.nonces ?? 0
+}
+
 const totalNonces = computed(() => {
-  return props.chips.reduce((s, c) => s + (c.nonces ?? 0), 0)
+  return props.chips.reduce((s, c) => s + getChipNonces(c), 0)
 })
 
 function noncePct(chip: ChipInfo): string {
   if (totalNonces.value === 0) return '0%'
-  return (((chip.nonces ?? 0) / totalNonces.value) * 100).toFixed(1) + '%'
+  return ((getChipNonces(chip) / totalNonces.value) * 100).toFixed(1) + '%'
 }
 
 function formatNonces(n: number): string {
@@ -62,7 +67,7 @@ function formatNonces(n: number): string {
 
 const distribution = computed(() => {
   if (props.chips.length === 0) return 0
-  const nonces = props.chips.map(c => c.nonces ?? 0)
+  const nonces = props.chips.map(c => getChipNonces(c))
   const total = nonces.reduce((s, n) => s + n, 0)
   if (total === 0) {
     // Fall back to hashrate-based distribution
@@ -130,7 +135,7 @@ const distribution = computed(() => {
     <!-- Distribution bar -->
     <div class="mt-3">
       <div class="flex items-center justify-between text-[10px] font-mono text-[var(--text-secondary)] mb-1">
-        <span>Nonce Distribution</span>
+        <span>Nonce Distribution (1h)</span>
         <span>{{ distribution.toFixed(0) }}% even</span>
       </div>
       <div class="h-1.5 bg-[var(--surface-light)] rounded-sm overflow-hidden flex">
@@ -138,13 +143,13 @@ const distribution = computed(() => {
           v-for="chip in chips"
           :key="'bar-' + chip.id"
           class="h-full transition-all duration-500"
-          :class="totalNonces > 0 && (chip.nonces ?? 0) / (totalNonces / chips.length) < 0.8 ? 'bg-[#ef4444]' : 'bg-[#f97316]'"
+          :class="totalNonces > 0 && getChipNonces(chip) / (totalNonces / chips.length) < 0.8 ? 'bg-[#ef4444]' : 'bg-[#f97316]'"
           :style="{ width: totalNonces > 0 ? noncePct(chip) : perfPct(chip.hashrate_ghs) }"
         />
       </div>
       <div v-if="totalNonces > 0" class="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[9px] font-mono text-[var(--text-muted)]">
         <span v-for="chip in chips" :key="'nonce-' + chip.id">
-          Chip {{ chip.id }}: {{ formatNonces(chip.nonces ?? 0) }} nonces
+          Chip {{ chip.id }}: {{ formatNonces(getChipNonces(chip)) }} nonces
         </span>
       </div>
     </div>

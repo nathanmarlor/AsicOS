@@ -36,6 +36,11 @@ static uint64_t s_per_chip_hw_errors[16] = {0};
 static int64_t s_last_summary_time = 0;
 static uint32_t s_nonces_since_summary = 0;
 
+/* Rolling per-chip nonce counts (last hour, reset every 30 min with overlap) */
+static uint32_t s_rolling_nonces[16] = {0};
+static int64_t s_rolling_reset_time = 0;
+#define ROLLING_WINDOW_US  (3600LL * 1000000LL)  /* 1 hour */
+
 /* Rolling share rate: ring buffer of share timestamps (last hour) */
 #define SHARE_TS_RING_SIZE 256
 static int64_t s_share_timestamps[SHARE_TS_RING_SIZE];
@@ -55,6 +60,12 @@ uint64_t result_task_get_nonce_count(void)
 uint64_t result_task_get_chip_nonce_count(int chip)
 {
     if (chip >= 0 && chip < 16) return s_per_chip_nonces[chip];
+    return 0;
+}
+
+uint32_t result_task_get_chip_rolling_nonces(int chip)
+{
+    if (chip >= 0 && chip < 16) return s_rolling_nonces[chip];
     return 0;
 }
 
@@ -154,7 +165,17 @@ static void result_task_fn(void *param)
         }
 
         int chip_nr = bm1370_nonce_to_chip(result.nonce, 2);
-        if (chip_nr >= 0 && chip_nr < 16) s_per_chip_nonces[chip_nr]++;
+        if (chip_nr >= 0 && chip_nr < 16) {
+            s_per_chip_nonces[chip_nr]++;
+            s_rolling_nonces[chip_nr]++;
+        }
+
+        /* Reset rolling window every hour */
+        int64_t now_roll = esp_timer_get_time();
+        if (now_roll - s_rolling_reset_time >= ROLLING_WINDOW_US) {
+            memset(s_rolling_nonces, 0, sizeof(s_rolling_nonces));
+            s_rolling_reset_time = now_roll;
+        }
 
         /* Build block header and test nonce with version rolling.
          * BM1370 nonce processing:

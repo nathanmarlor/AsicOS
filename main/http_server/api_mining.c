@@ -46,6 +46,7 @@ esp_err_t api_mining_info_handler(httpd_req_t *req)
             cJSON_AddNumberToObject(chip, "id", i);
             cJSON_AddNumberToObject(chip, "hashrate_ghs", hr->per_chip_hashrate_ghs[i]);
             cJSON_AddNumberToObject(chip, "nonces", (double)result_task_get_chip_nonce_count(i));
+            cJSON_AddNumberToObject(chip, "rolling_nonces", (double)result_task_get_chip_rolling_nonces(i));
             cJSON_AddNumberToObject(chip, "hw_errors", (double)result_task_get_chip_hw_errors(i));
             cJSON *domains = cJSON_AddArrayToObject(chip, "domains");
             for (int d = 0; d < HASHRATE_NUM_DOMAINS; d++) {
