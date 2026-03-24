@@ -269,9 +269,8 @@ static void result_task_fn(void *param)
         s_nonces_since_summary++;
         int64_t now = esp_timer_get_time();
         if (now - s_last_summary_time >= 10000000LL) { /* 10 seconds */
-            ESP_LOGI(TAG, "Nonces: %lu in 10s (diff=%.1f pool=%.0f err=%llu)",
+            ESP_LOGI(TAG, "Nonces: %lu in 10s (pool=%.0f err=%llu)",
                      (unsigned long)s_nonces_since_summary,
-                     s_last_valid_diff > 0 ? s_last_valid_diff : share_diff,
                      job->pool_diff, (unsigned long long)s_total_hw_errors);
             s_nonces_since_summary = 0;
             s_last_summary_time = now;
