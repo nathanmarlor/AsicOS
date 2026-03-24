@@ -3,6 +3,7 @@
 #include "stratum_api.h"
 #include "cJSON.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <string.h>
@@ -24,26 +25,57 @@ static uint32_t                s_accepted;
 static uint32_t                s_rejected;
 static stratum_pool_config_t  *s_current_pool;
 
-/* Track pending submit message IDs for accept/reject counting */
+/* Track pending submit message IDs for accept/reject counting + RTT */
 #define MAX_PENDING_IDS 64
-static int s_pending_ids[MAX_PENDING_IDS];
+typedef struct {
+    int     id;
+    int64_t submit_time_us;
+} pending_share_t;
+static pending_share_t s_pending[MAX_PENDING_IDS];
 static int s_pending_count;
+
+/* RTT tracking (EMA) */
+static float s_rtt_ema_ms = 0.0f;
+#define RTT_EMA_ALPHA 0.2f
+
+/* Rejection reasons */
+static stratum_rejection_reasons_t s_reject_reasons;
+
+/* Block tracking */
+static uint32_t s_block_count = 0;
 
 static void add_pending_id(int id)
 {
-    if (s_pending_count < MAX_PENDING_IDS)
-        s_pending_ids[s_pending_count++] = id;
+    if (s_pending_count < MAX_PENDING_IDS) {
+        s_pending[s_pending_count].id = id;
+        s_pending[s_pending_count].submit_time_us = esp_timer_get_time();
+        s_pending_count++;
+    }
 }
 
-static bool remove_pending_id(int id)
+static int64_t remove_pending_id(int id)
 {
     for (int i = 0; i < s_pending_count; i++) {
-        if (s_pending_ids[i] == id) {
-            s_pending_ids[i] = s_pending_ids[--s_pending_count];
-            return true;
+        if (s_pending[i].id == id) {
+            int64_t t = s_pending[i].submit_time_us;
+            s_pending[i] = s_pending[--s_pending_count];
+            return t;
         }
     }
-    return false;
+    return -1;
+}
+
+static void classify_rejection(const char *msg)
+{
+    if (!msg) { s_reject_reasons.other++; return; }
+    if (strcasestr(msg, "job not found") || strcasestr(msg, "stale"))
+        s_reject_reasons.job_not_found++;
+    else if (strcasestr(msg, "duplicate"))
+        s_reject_reasons.duplicate++;
+    else if (strcasestr(msg, "low difficulty") || strcasestr(msg, "difficulty"))
+        s_reject_reasons.low_difficulty++;
+    else
+        s_reject_reasons.other++;
 }
 
 static int pool_id(void)
@@ -62,8 +94,9 @@ static void handle_line(const char *line)
         /* Server push methods */
         if (strcmp(method, "mining.notify") == 0) {
             stratum_notify_t notify;
-            if (stratum_parse_notify(line, &notify) == 0 && s_config.on_notify) {
-                s_config.on_notify(&notify, pool_id());
+            if (stratum_parse_notify(line, &notify) == 0) {
+                if (notify.clean_jobs) s_block_count++;
+                if (s_config.on_notify) s_config.on_notify(&notify, pool_id());
             }
         } else if (strcmp(method, "mining.set_difficulty") == 0) {
             double diff;
@@ -86,22 +119,31 @@ static void handle_line(const char *line)
             cJSON *id_item = cJSON_GetObjectItemCaseSensitive(root, "id");
             if (cJSON_IsNumber(id_item)) {
                 int id = id_item->valueint;
-                if (remove_pending_id(id)) {
+                int64_t submit_time = remove_pending_id(id);
+                if (submit_time >= 0) {
+                    /* Calculate RTT */
+                    float rtt_ms = (float)(esp_timer_get_time() - submit_time) / 1000.0f;
+                    if (s_rtt_ema_ms == 0.0f)
+                        s_rtt_ema_ms = rtt_ms;
+                    else
+                        s_rtt_ema_ms = s_rtt_ema_ms * (1.0f - RTT_EMA_ALPHA) + rtt_ms * RTT_EMA_ALPHA;
+
                     cJSON *result = cJSON_GetObjectItemCaseSensitive(root, "result");
                     if (cJSON_IsTrue(result)) {
                         s_accepted++;
-                        ESP_LOGI(TAG, "Share accepted (total: %lu)", (unsigned long)s_accepted);
+                        ESP_LOGI(TAG, "Share accepted (total: %lu, rtt: %.0fms)",
+                                 (unsigned long)s_accepted, rtt_ms);
                     } else {
                         s_rejected++;
+                        const char *reason = "unknown";
                         cJSON *err = cJSON_GetObjectItemCaseSensitive(root, "error");
                         if (cJSON_IsArray(err) && cJSON_GetArraySize(err) >= 2) {
                             cJSON *msg = cJSON_GetArrayItem(err, 1);
-                            ESP_LOGW(TAG, "Share rejected: %s (total: %lu)",
-                                     cJSON_IsString(msg) ? msg->valuestring : "unknown",
-                                     (unsigned long)s_rejected);
-                        } else {
-                            ESP_LOGW(TAG, "Share rejected (total: %lu)", (unsigned long)s_rejected);
+                            reason = cJSON_IsString(msg) ? msg->valuestring : "unknown";
                         }
+                        classify_rejection(reason);
+                        ESP_LOGW(TAG, "Share rejected: %s (total: %lu)",
+                                 reason, (unsigned long)s_rejected);
                     }
                 }
             }
@@ -357,4 +399,19 @@ esp_err_t stratum_client_submit_share(const char *job_id, const char *extranonce
         return ESP_FAIL;
 
     return ESP_OK;
+}
+
+float stratum_client_get_rtt_ms(void)
+{
+    return s_rtt_ema_ms;
+}
+
+const stratum_rejection_reasons_t *stratum_client_get_rejection_reasons(void)
+{
+    return &s_reject_reasons;
+}
+
+uint32_t stratum_client_get_block_count(void)
+{
+    return s_block_count;
 }

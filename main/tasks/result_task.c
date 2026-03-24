@@ -32,6 +32,7 @@ static int           s_dedup_index = 0;
 static volatile mining_stats_t s_stats;
 static volatile uint64_t s_nonce_count = 0;
 static uint64_t s_per_chip_nonces[16] = {0};
+static uint64_t s_per_chip_hw_errors[16] = {0};
 static int64_t s_last_summary_time = 0;
 static uint32_t s_nonces_since_summary = 0;
 
@@ -48,6 +49,12 @@ uint64_t result_task_get_nonce_count(void)
 uint64_t result_task_get_chip_nonce_count(int chip)
 {
     if (chip >= 0 && chip < 16) return s_per_chip_nonces[chip];
+    return 0;
+}
+
+uint64_t result_task_get_chip_hw_errors(int chip)
+{
+    if (chip >= 0 && chip < 16) return s_per_chip_hw_errors[chip];
     return 0;
 }
 
@@ -150,7 +157,7 @@ static void result_task_fn(void *param)
         }
 
         if (share_diff <= 0.0) {
-            ESP_LOGW(TAG, "Invalid nonce test result (diff=%.6f)", share_diff);
+            if (chip_nr >= 0 && chip_nr < 16) s_per_chip_hw_errors[chip_nr]++;
             continue;
         }
 

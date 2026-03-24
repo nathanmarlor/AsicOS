@@ -333,6 +333,9 @@ async function restart() {
           :pool-connected="poolConnected"
           :duplicates="mining.info?.duplicates ?? 0"
           :share-rate="shareRate"
+          :rtt-ms="system.info?.pool.rtt_ms"
+          :block-height="system.info?.pool.block_height"
+          :blocks-found="system.info?.pool.blocks_found"
         />
       </div>
       <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3 flex flex-col min-h-[280px]">

@@ -17,6 +17,7 @@
 
 #include "board.h"
 #include "hashrate_task.h"
+#include "mining_task.h"
 #include "nvs_config.h"
 #include "power_task.h"
 #include "result_task.h"
@@ -150,6 +151,9 @@ esp_err_t api_system_info_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(pool, "accepted",   stratum_client_get_accepted());
     cJSON_AddNumberToObject(pool, "rejected",   stratum_client_get_rejected());
     cJSON_AddNumberToObject(pool, "difficulty",  stratum_client_get_current_difficulty());
+    cJSON_AddNumberToObject(pool, "rtt_ms",     stratum_client_get_rtt_ms());
+    cJSON_AddNumberToObject(pool, "block_height", mining_get_block_height());
+    cJSON_AddNumberToObject(pool, "blocks_found", stratum_client_get_block_count());
 
     /* Config from NVS */
     cJSON *config = cJSON_AddObjectToObject(root, "config");

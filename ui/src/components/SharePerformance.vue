@@ -11,6 +11,9 @@ const props = defineProps<{
   poolConnected?: boolean
   duplicates: number
   shareRate: number
+  rttMs?: number
+  blockHeight?: number
+  blocksFound?: number
 }>()
 
 const total = computed(() => props.accepted + props.rejected)
@@ -50,6 +53,18 @@ const acceptPct = computed(() => total.value === 0 ? 100 : (props.accepted / tot
       <div class="text-right text-[#eab308]">{{ alltimeBestDiff ?? '--' }}</div>
       <div class="text-[var(--text-muted)]">Share Rate</div>
       <div class="text-right text-[var(--text)]">{{ shareRate.toFixed(1) }} /min</div>
+      <template v-if="rttMs != null && rttMs > 0">
+        <div class="text-[var(--text-muted)]">Pool RTT</div>
+        <div class="text-right text-[var(--text)]">{{ rttMs.toFixed(0) }} ms</div>
+      </template>
+      <template v-if="blockHeight != null && blockHeight > 0">
+        <div class="text-[var(--text-muted)]">Block Height</div>
+        <div class="text-right text-[var(--text)]">{{ blockHeight.toLocaleString() }}</div>
+      </template>
+      <template v-if="blocksFound != null && blocksFound > 0">
+        <div class="text-[var(--text-muted)]">New Blocks</div>
+        <div class="text-right text-[var(--text)]">{{ blocksFound }}</div>
+      </template>
     </div>
   </div>
 </template>

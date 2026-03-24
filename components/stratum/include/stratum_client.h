@@ -4,6 +4,14 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+typedef struct {
+    uint32_t job_not_found;
+    uint32_t duplicate;
+    uint32_t low_difficulty;
+    uint32_t stale;
+    uint32_t other;
+} stratum_rejection_reasons_t;
+
 typedef enum {
     STRATUM_STATE_DISCONNECTED,
     STRATUM_STATE_CONNECTING,
@@ -45,3 +53,7 @@ double          stratum_client_get_current_difficulty(void);
 esp_err_t stratum_client_submit_share(const char *job_id, const char *extranonce2,
                                       const char *ntime, const char *nonce,
                                       const char *version_bits);
+
+float    stratum_client_get_rtt_ms(void);
+const stratum_rejection_reasons_t *stratum_client_get_rejection_reasons(void);
+uint32_t stratum_client_get_block_count(void);

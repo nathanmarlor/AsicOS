@@ -16,3 +16,4 @@ void result_task_start(void);
 const mining_stats_t *result_task_get_stats(void);
 uint64_t result_task_get_nonce_count(void);
 uint64_t result_task_get_chip_nonce_count(int chip);
+uint64_t result_task_get_chip_hw_errors(int chip);

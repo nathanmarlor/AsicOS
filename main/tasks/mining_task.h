@@ -14,3 +14,6 @@ void mining_on_difficulty(double diff, int pool_id);
 
 // Job lookup (used by result task) - copies job into caller buffer while holding mutex
 bool mining_get_job(uint8_t job_id, asic_job_t *out);
+
+// Block height parsed from coinbase (BIP34)
+uint32_t mining_get_block_height(void);

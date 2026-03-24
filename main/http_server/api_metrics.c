@@ -10,7 +10,11 @@
 #include "esp_heap_caps.h"
 #include "esp_wifi.h"
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
 #include "hashrate_task.h"
+#include "mining_task.h"
 #include "power_task.h"
 #include "result_task.h"
 #include "stratum_client.h"
@@ -20,7 +24,7 @@
 
 static const char *TAG = "api_metrics";
 
-#define METRICS_BUF_SIZE 8192
+#define METRICS_BUF_SIZE 12288
 
 esp_err_t api_metrics_handler(httpd_req_t *req)
 {
@@ -260,8 +264,81 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
         "# HELP asicos_efficiency_jth Mining efficiency in J/TH\n"
         "# TYPE asicos_efficiency_jth gauge\n"
-        "asicos_efficiency_jth %.1f\n",
+        "asicos_efficiency_jth %.1f\n\n",
         jth);
+
+    /* Stratum RTT */
+    off += snprintf(buf + off, METRICS_BUF_SIZE - off,
+        "# HELP asicos_stratum_rtt_ms Stratum round-trip time (EMA) in ms\n"
+        "# TYPE asicos_stratum_rtt_ms gauge\n"
+        "asicos_stratum_rtt_ms %.1f\n\n",
+        stratum_client_get_rtt_ms());
+
+    /* Block height & new blocks */
+    off += snprintf(buf + off, METRICS_BUF_SIZE - off,
+        "# HELP asicos_block_height Current Bitcoin block height\n"
+        "# TYPE asicos_block_height gauge\n"
+        "asicos_block_height %u\n\n"
+        "# HELP asicos_blocks_found_total New blocks received from pool (clean_jobs)\n"
+        "# TYPE asicos_blocks_found_total counter\n"
+        "asicos_blocks_found_total %u\n\n",
+        (unsigned)mining_get_block_height(),
+        (unsigned)stratum_client_get_block_count());
+
+    /* Rejected shares by reason */
+    const stratum_rejection_reasons_t *reasons = stratum_client_get_rejection_reasons();
+    off += snprintf(buf + off, METRICS_BUF_SIZE - off,
+        "# HELP asicos_shares_rejected_reason Rejected shares by reason\n"
+        "# TYPE asicos_shares_rejected_reason counter\n"
+        "asicos_shares_rejected_reason{reason=\"job_not_found\"} %u\n"
+        "asicos_shares_rejected_reason{reason=\"duplicate\"} %u\n"
+        "asicos_shares_rejected_reason{reason=\"low_difficulty\"} %u\n"
+        "asicos_shares_rejected_reason{reason=\"stale\"} %u\n"
+        "asicos_shares_rejected_reason{reason=\"other\"} %u\n\n",
+        (unsigned)reasons->job_not_found,
+        (unsigned)reasons->duplicate,
+        (unsigned)reasons->low_difficulty,
+        (unsigned)reasons->stale,
+        (unsigned)reasons->other);
+
+    /* Per-chip HW errors */
+    if (hr) {
+        off += snprintf(buf + off, METRICS_BUF_SIZE - off,
+            "# HELP asicos_chip_hw_errors_total Per-chip hardware errors\n"
+            "# TYPE asicos_chip_hw_errors_total counter\n");
+        for (int i = 0; i < hr->chip_count; i++) {
+            off += snprintf(buf + off, METRICS_BUF_SIZE - off,
+                "asicos_chip_hw_errors_total{chip=\"%d\"} %llu\n",
+                i, (unsigned long long)result_task_get_chip_hw_errors(i));
+        }
+        off += snprintf(buf + off, METRICS_BUF_SIZE - off, "\n");
+    }
+
+#if CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS
+    /* CPU usage per task */
+    {
+        TaskStatus_t *task_array;
+        UBaseType_t task_count = uxTaskGetNumberOfTasks();
+        task_array = malloc(task_count * sizeof(TaskStatus_t));
+        if (task_array) {
+            uint32_t total_runtime;
+            task_count = uxTaskGetSystemState(task_array, task_count, &total_runtime);
+            if (total_runtime > 0) {
+                off += snprintf(buf + off, METRICS_BUF_SIZE - off,
+                    "# HELP asicos_task_cpu_percent Per-task CPU usage\n"
+                    "# TYPE asicos_task_cpu_percent gauge\n");
+                for (UBaseType_t i = 0; i < task_count && off < METRICS_BUF_SIZE - 100; i++) {
+                    float pct = (float)task_array[i].ulRunTimeCounter / (float)total_runtime * 100.0f;
+                    off += snprintf(buf + off, METRICS_BUF_SIZE - off,
+                        "asicos_task_cpu_percent{task=\"%s\"} %.1f\n",
+                        task_array[i].pcTaskName, pct);
+                }
+                off += snprintf(buf + off, METRICS_BUF_SIZE - off, "\n");
+            }
+            free(task_array);
+        }
+    }
+#endif
 
     httpd_resp_set_type(req, "text/plain; version=0.0.4; charset=utf-8");
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
