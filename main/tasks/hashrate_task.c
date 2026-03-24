@@ -3,6 +3,7 @@
 #include "asic.h"
 #include "board.h"
 #include "power_task.h"
+#include "nvs_config.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -14,9 +15,11 @@
 
 static const char *TAG = "hashrate_task";
 
-#define POLL_INTERVAL_MS 5000
-#define WARMUP_MS        10000
-#define EMA_ALPHA        12
+#define POLL_INTERVAL_MS        5000
+#define WARMUP_MS               10000
+#define EMA_ALPHA               12
+#define STARTUP_TEST_DELAY_MS   30000
+#define STARTUP_TEST_THRESHOLD  0.70f
 
 static volatile hashrate_info_t s_info;
 static volatile bool s_reset_requested = false;
@@ -105,6 +108,26 @@ static void hashrate_task_fn(void *param)
             } else {
                 s_info.total_hashrate_ghs =
                     (s_info.total_hashrate_ghs * (EMA_ALPHA - 1) + total_ghs) / EMA_ALPHA;
+            }
+        }
+
+        /* One-time startup hashrate validation after mining stabilizes */
+        static bool s_startup_test_done = false;
+        if (!s_startup_test_done && s_info.total_hashrate_ghs > 0.0f) {
+            int64_t uptime_ms = esp_timer_get_time() / 1000;
+            if (uptime_ms > STARTUP_TEST_DELAY_MS) {
+                uint16_t freq = nvs_config_get_u16(NVS_KEY_ASIC_FREQ, board->freq_default);
+                float expected = (float)freq * board->small_core_count
+                               * board->expected_chip_count / 1000.0f;
+                float pct = s_info.total_hashrate_ghs / expected;
+                if (pct < STARTUP_TEST_THRESHOLD) {
+                    ESP_LOGW(TAG, "HASHRATE TEST: %.1f GH/s is only %.0f%% of expected %.1f GH/s",
+                             s_info.total_hashrate_ghs, pct * 100.0f, expected);
+                } else {
+                    ESP_LOGI(TAG, "HASHRATE TEST: PASS (%.1f GH/s = %.0f%% of expected %.1f GH/s)",
+                             s_info.total_hashrate_ghs, pct * 100.0f, expected);
+                }
+                s_startup_test_done = true;
             }
         }
 

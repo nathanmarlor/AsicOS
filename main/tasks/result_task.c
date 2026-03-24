@@ -6,6 +6,7 @@
 #include "mining.h"
 #include "nvs_config.h"
 #include "led_status.h"
+#include "board.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -217,7 +218,7 @@ static void result_task_fn(void *param)
             led_set_state(LED_STATE_MINING);
         }
 
-        int chip_nr = bm1370_nonce_to_chip(result.nonce, 2);
+        int chip_nr = bm1370_nonce_to_chip(result.nonce, board_get_config()->expected_chip_count);
         if (chip_nr >= 0 && chip_nr < 16) {
             s_per_chip_nonces[chip_nr]++;
             s_nonce_bucket_cur[chip_nr]++;

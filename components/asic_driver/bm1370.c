@@ -34,10 +34,11 @@ uint8_t bm1370_asic_to_job_id(uint8_t asic_id)
 /* ------------------------------------------------------------------ */
 int bm1370_nonce_to_chip(uint32_t nonce, int chip_count)
 {
-    if (chip_count <= 0) {
-        return 0;
-    }
-    return (int)((nonce >> 11) & (uint32_t)(chip_count - 1));
+    /* BM1370 nonce layout: bits 25-31 = core_id, bits 17-24 = chip_address */
+    uint8_t chip_addr = (uint8_t)((nonce >> 17) & 0xFF);
+    int chip_nr = chip_addr / 4;  /* address interval is always 4 for BM1370 */
+    if (chip_nr >= chip_count) chip_nr = chip_count - 1;
+    return chip_nr;
 }
 
 /* ------------------------------------------------------------------ */

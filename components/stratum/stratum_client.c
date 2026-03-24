@@ -26,6 +26,11 @@ static uint32_t                s_accepted;
 static uint32_t                s_rejected;
 static stratum_pool_config_t  *s_current_pool;
 static SemaphoreHandle_t       s_conn_mutex;
+static volatile bool           s_reconnect_requested = false;
+
+/* Primary pool heartbeat when using fallback */
+static int64_t s_last_primary_check_us = 0;
+#define PRIMARY_CHECK_INTERVAL_US (60LL * 1000000LL)
 
 /* Track pending submit message IDs for accept/reject counting + RTT */
 #define MAX_PENDING_IDS 64
@@ -113,6 +118,9 @@ static void handle_line(const char *line)
             if (stratum_parse_set_version_mask(line, &mask) == 0) {
                 ESP_LOGI(TAG, "Version mask updated: 0x%08x", (unsigned)mask);
             }
+        } else if (strcmp(method, "client.reconnect") == 0) {
+            ESP_LOGI(TAG, "Pool requested reconnect");
+            s_reconnect_requested = true;
         }
     } else {
         /* Response message - check for id and result */
@@ -317,11 +325,45 @@ void stratum_client_task(void *param)
         /* Successfully connected - reset backoff */
         retry_delay_s = BACKOFF_INITIAL_S;
 
+        /* Suggest difficulty to pool based on ASIC difficulty */
+        {
+            char buf[MSG_BUF_SIZE];
+            int len = stratum_build_suggest_difficulty(buf, sizeof(buf), 256.0);
+            if (len > 0 && s_conn) {
+                stratum_send(s_conn, buf, (size_t)len);
+                ESP_LOGI(TAG, "Suggested difficulty 256 to pool");
+            }
+        }
+
         /* Enter mining loop */
         s_state = STRATUM_STATE_MINING;
         ESP_LOGI(TAG, "Mining state reached, processing pool messages");
 
         while (stratum_is_connected(s_conn)) {
+            if (s_reconnect_requested) {
+                s_reconnect_requested = false;
+                ESP_LOGI(TAG, "Reconnecting as requested by pool");
+                break;
+            }
+
+            /* Periodically check if primary pool is back when using fallback */
+            if (s_current_pool == &s_config.fallback && s_config.primary.pool_url[0]) {
+                int64_t now_us = esp_timer_get_time();
+                if (now_us - s_last_primary_check_us >= PRIMARY_CHECK_INTERVAL_US) {
+                    s_last_primary_check_us = now_us;
+                    /* Try a quick TCP probe to primary */
+                    stratum_conn_t *probe = stratum_connect(
+                        s_config.primary.pool_url,
+                        s_config.primary.pool_port,
+                        s_config.primary.use_tls);
+                    if (probe) {
+                        ESP_LOGI(TAG, "Primary pool is back, switching...");
+                        stratum_disconnect(probe);
+                        break;  /* exit mining loop to reconnect to primary */
+                    }
+                }
+            }
+
             int ret = stratum_recv_line(s_conn, line, sizeof(line), 60000);
             if (ret < 0) {
                 ESP_LOGW(TAG, "Recv error or timeout, disconnecting");

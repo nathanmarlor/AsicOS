@@ -18,11 +18,19 @@ static const char *TAG = "vr";
 #define PMBUS_FREQ_SWITCH     0x33
 #define PMBUS_VIN_ON          0x35
 #define PMBUS_VIN_OFF         0x36
+#define PMBUS_VOUT_OV_FAULT_LIMIT   0x40
+#define PMBUS_VOUT_OV_WARN_LIMIT    0x42
+#define PMBUS_VOUT_UV_WARN_LIMIT    0x43
+#define PMBUS_VOUT_UV_FAULT_LIMIT   0x44
 #define PMBUS_IOUT_OC_FAULT   0x46
+#define PMBUS_IOUT_OC_FAULT_RESPONSE 0x47
 #define PMBUS_IOUT_OC_WARN    0x4A
 #define PMBUS_OT_FAULT        0x4F
+#define PMBUS_OT_FAULT_RESPONSE     0x50
 #define PMBUS_OT_WARN         0x51
 #define PMBUS_VIN_OV_FAULT    0x55
+#define PMBUS_VIN_OV_FAULT_RESPONSE 0x56
+#define PMBUS_VIN_UV_WARN_LIMIT     0x58
 #define PMBUS_VOUT_MIN        0x2B
 #define PMBUS_STATUS_WORD     0x79
 #define PMBUS_STATUS_BYTE     0x78
@@ -290,6 +298,32 @@ static esp_err_t tps546_init(void)
         ESP_LOGW(TAG, "TPS546 OT_FAULT write failed: %s", esp_err_to_name(err));
     }
 
+    /* Step 4b: Fault response configuration (matching ForgeOS) */
+
+    /* VIN_UV_WARN_LIMIT = 10.8V (SLINEAR11) */
+    err = pmbus_write16(PMBUS_VIN_UV_WARN_LIMIT, float_to_slinear11(10.8f));
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "TPS546 VIN_UV_WARN_LIMIT write failed: %s", esp_err_to_name(err));
+    }
+
+    /* VIN_OV_FAULT_RESPONSE = 0xB7 (shutdown + 6 retries with hiccup) */
+    err = pmbus_write8(PMBUS_VIN_OV_FAULT_RESPONSE, 0xB7);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "TPS546 VIN_OV_FAULT_RESPONSE write failed: %s", esp_err_to_name(err));
+    }
+
+    /* IOUT_OC_FAULT_RESPONSE = 0xC0 (immediate shutdown, no retries) */
+    err = pmbus_write8(PMBUS_IOUT_OC_FAULT_RESPONSE, 0xC0);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "TPS546 IOUT_OC_FAULT_RESPONSE write failed: %s", esp_err_to_name(err));
+    }
+
+    /* OT_FAULT_RESPONSE = 0xFF (wait for cooling, retry indefinitely) */
+    err = pmbus_write8(PMBUS_OT_FAULT_RESPONSE, 0xFF);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "TPS546 OT_FAULT_RESPONSE write failed: %s", esp_err_to_name(err));
+    }
+
     /* Step 5: Clear faults (send-byte command, no data) */
     err = pmbus_write_cmd(PMBUS_CLEAR_FAULTS);
     if (err != ESP_OK) {
@@ -306,7 +340,26 @@ static esp_err_t tps546_set_voltage(uint16_t millivolts)
     uint16_t val = float_to_ulinear16(voltage);
     ESP_LOGI(TAG, "TPS546 set voltage %u mV -> 0x%04X (exp=%d)", millivolts, val, s_vout_exponent);
 
-    esp_err_t err = pmbus_write16(PMBUS_VOUT_CMD, val);
+    /* Set VOUT OV/UV protection limits relative to commanded voltage (ULINEAR16) */
+    esp_err_t err;
+    err = pmbus_write16(PMBUS_VOUT_OV_FAULT_LIMIT, float_to_ulinear16(voltage * 1.25f));
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "TPS546 VOUT_OV_FAULT_LIMIT write failed: %s", esp_err_to_name(err));
+    }
+    err = pmbus_write16(PMBUS_VOUT_OV_WARN_LIMIT, float_to_ulinear16(voltage * 1.15f));
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "TPS546 VOUT_OV_WARN_LIMIT write failed: %s", esp_err_to_name(err));
+    }
+    err = pmbus_write16(PMBUS_VOUT_UV_WARN_LIMIT, float_to_ulinear16(voltage * 0.85f));
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "TPS546 VOUT_UV_WARN_LIMIT write failed: %s", esp_err_to_name(err));
+    }
+    err = pmbus_write16(PMBUS_VOUT_UV_FAULT_LIMIT, float_to_ulinear16(voltage * 0.75f));
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "TPS546 VOUT_UV_FAULT_LIMIT write failed: %s", esp_err_to_name(err));
+    }
+
+    err = pmbus_write16(PMBUS_VOUT_CMD, val);
     if (err != ESP_OK) {
         return err;
     }
