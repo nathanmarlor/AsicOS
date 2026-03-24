@@ -39,8 +39,8 @@ function barWidth(diff: number): string {
         class="flex items-center gap-2 py-1 px-1 text-xs font-mono rounded"
         :class="i === 0 ? 'animate-slide-in bg-[#f97316]/5' : (i % 2 === 0 ? 'bg-transparent' : 'bg-[var(--surface)]/50')"
       >
-        <span class="text-[var(--text-muted)] w-[60px] shrink-0 text-[11px]">{{ formatTime(share.ts) }}</span>
-        <span class="text-[var(--text-secondary)] w-[48px] text-right shrink-0">{{ share.diff_str }}</span>
+        <span class="text-[var(--text-muted)] w-[60px] shrink-0 text-[10px]">{{ formatTime(share.ts) }}</span>
+        <span class="text-[var(--text-secondary)] w-[48px] text-right shrink-0 text-[10px]">{{ share.diff_str }}</span>
         <div class="flex-1 h-[6px] bg-[var(--surface-light)] rounded-sm overflow-hidden">
           <div
             class="h-full rounded-sm transition-all duration-300 bg-[#f97316]"

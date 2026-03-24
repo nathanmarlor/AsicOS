@@ -346,12 +346,12 @@ async function restart() {
       <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3">
         <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-2">Power</div>
         <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] font-mono">
-          <div class="text-[var(--text-muted)]">Input</div>
+          <div class="text-[var(--text-muted)]">Vin / Iin</div>
           <div class="text-right text-[var(--text)]">{{ vin }} V / {{ iin }} A</div>
-          <div class="text-[var(--text-muted)]">VRM</div>
+          <div class="text-[var(--text-muted)]">Vout / Iout</div>
           <div class="text-right text-[var(--text)]">{{ vout }} mV / {{ iout }} A</div>
           <div class="text-[var(--text-muted)]">Power</div>
-          <div class="text-right text-[var(--text)]">{{ watts }} W</div>
+          <div class="text-right text-[var(--text)]">{{ system.info?.power?.input_watts?.toFixed(1) ?? '--' }} W in / {{ watts }} W out</div>
           <template v-if="hasAdcVcore">
             <div class="text-[var(--text-muted)]">Core ADC</div>
             <div class="text-right text-[var(--text)]">{{ vcoreAdc }} mV</div>
@@ -373,6 +373,14 @@ async function restart() {
           <div class="text-right text-[var(--text)]">{{ fan1 }} RPM<span v-if="isAutoFan" class="text-[var(--text-muted)]"> ({{ system.info?.power.fan1_pct ?? 0 }}%)</span></div>
           <div class="text-[var(--text-muted)]">Mode</div>
           <div class="text-right text-[var(--text)]">{{ fanMode }}</div>
+          <template v-if="system.info?.power?.overheat">
+            <div class="text-[#ef4444]">Status</div>
+            <div class="text-right text-[#ef4444]">OVERHEAT</div>
+          </template>
+          <template v-if="system.info?.power?.vr_fault">
+            <div class="text-[#ef4444]">VR Fault</div>
+            <div class="text-right text-[#ef4444]">ACTIVE</div>
+          </template>
         </div>
       </div>
 

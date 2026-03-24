@@ -71,6 +71,10 @@ const rejectTooltip = computed(() => {
         <div class="text-[var(--text-muted)]">HW Errors</div>
         <div class="text-right" :class="(hwErrorRate ?? 0) > 5 ? 'text-[#ef4444]' : 'text-[var(--text)]'">{{ hwErrors.toLocaleString() }} <span class="text-[var(--text-muted)]">({{ hwErrorRate?.toFixed(1) ?? '0' }}%)</span></div>
       </template>
+      <template v-if="duplicates > 0">
+        <div class="text-[var(--text-muted)]">Duplicates</div>
+        <div class="text-right text-[var(--text)]">{{ duplicates.toLocaleString() }}</div>
+      </template>
       <template v-if="rttMs != null && rttMs > 0">
         <div class="text-[var(--text-muted)]">Pool RTT</div>
         <div class="text-right text-[var(--text)]">{{ rttMs.toFixed(0) }} ms</div>
