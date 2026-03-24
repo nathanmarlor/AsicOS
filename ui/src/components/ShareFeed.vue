@@ -7,7 +7,7 @@ const props = defineProps<{
   poolDiff: number
 }>()
 
-const visible = computed(() => props.shares.slice(0, 30))
+const visible = computed(() => [...props.shares].sort((a, b) => b.ts - a.ts).slice(0, 30))
 
 function formatTime(ts: number): string {
   const d = new Date(ts)
