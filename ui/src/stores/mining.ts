@@ -73,20 +73,34 @@ export const useMiningStore = defineStore('mining', () => {
       error.value = null
 
       if (info.value) {
-        // Add real submitted shares from recent_nonces (server-side ring buffer)
         const recent = info.value.recent_nonces ?? []
-        const newAccepted = info.value.accepted - prevAccepted
-        if (newAccepted > 0 && prevAccepted > 0) {
-          // Take the newest entries that are submitted
-          const submitted = recent.filter(n => n.submitted).slice(0, newAccepted)
+
+        if (prevAccepted === 0 && submittedShares.value.length === 0) {
+          // First load: populate from server's ring buffer so UI isn't empty
+          const submitted = recent.filter(n => n.submitted).slice(0, 15)
           for (let i = 0; i < submitted.length; i++) {
             addShare({
-              ts: Date.now() - i * 100,
+              ts: Date.now() - i * 10000,  // spread timestamps for visual ordering
               diff: submitted[i].diff,
               diff_str: formatDiff(submitted[i].diff),
               accepted: true,
               submitted: true,
             })
+          }
+        } else {
+          // Incremental: add new shares since last poll
+          const newAccepted = info.value.accepted - prevAccepted
+          if (newAccepted > 0 && prevAccepted > 0) {
+            const submitted = recent.filter(n => n.submitted).slice(0, newAccepted)
+            for (let i = 0; i < submitted.length; i++) {
+              addShare({
+                ts: Date.now() - i * 100,
+                diff: submitted[i].diff,
+                diff_str: formatDiff(submitted[i].diff),
+                accepted: true,
+                submitted: true,
+              })
+            }
           }
         }
         prevAccepted = info.value.accepted
