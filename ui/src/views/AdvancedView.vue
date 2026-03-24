@@ -333,9 +333,7 @@ async function restart() {
       </div>
       <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3 flex flex-col min-h-[280px]">
         <ShareFeed
-          :all-shares="mining.allShares"
-          :submitted-shares="mining.submittedShares"
-          :best-diff="mining.info?.best_diff ?? 0"
+          :shares="mining.submittedShares"
           :pool-diff="mining.info?.pool_diff ?? 256"
         />
       </div>

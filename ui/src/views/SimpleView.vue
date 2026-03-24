@@ -172,9 +172,7 @@ const timeToBlock = computed(() => {
     <!-- Share feed with all/submitted toggle -->
     <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3 h-[240px] flex flex-col">
       <ShareFeed
-        :all-shares="mining.allShares"
-        :submitted-shares="mining.submittedShares"
-        :best-diff="bestDiff"
+        :shares="mining.submittedShares"
         :pool-diff="mining.info?.pool_diff ?? 256"
       />
     </div>
