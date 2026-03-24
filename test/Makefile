@@ -7,7 +7,7 @@ OPENSSL_LDFLAGS = -L/opt/homebrew/opt/openssl@3/lib
 
 LDFLAGS = $(OPENSSL_LDFLAGS) -lssl -lcrypto -lm
 
-all: test_crc test_mining test_pid test_stratum test_nonce_verify test_hashrate_hw
+all: test_crc test_mining test_pid test_stratum test_nonce_verify test_hashrate_hw test_difficulty_edge
 
 test_crc: test_crc.c ../components/asic_driver/asic_packet.c
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
@@ -27,6 +27,9 @@ test_nonce_verify: test_nonce_verify.c
 test_hashrate_hw: test_hashrate_hw.c
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
+test_difficulty_edge: test_difficulty_edge.c
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
 run: all
 	@echo ""; echo "=== test_crc ==="; ./test_crc
 	@echo ""; echo "=== test_mining ==="; ./test_mining
@@ -34,8 +37,9 @@ run: all
 	@echo ""; echo "=== test_stratum ==="; ./test_stratum
 	@echo ""; echo "=== test_nonce_verify ==="; ./test_nonce_verify
 	@echo ""; echo "=== test_hashrate_hw ==="; ./test_hashrate_hw
+	@echo ""; echo "=== test_difficulty_edge ==="; ./test_difficulty_edge
 
 clean:
-	rm -f test_crc test_mining test_pid test_stratum test_nonce_verify test_hashrate_hw
+	rm -f test_crc test_mining test_pid test_stratum test_nonce_verify test_hashrate_hw test_difficulty_edge
 
 .PHONY: all run clean
