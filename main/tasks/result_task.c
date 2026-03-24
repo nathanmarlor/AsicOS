@@ -33,8 +33,10 @@ static volatile mining_stats_t s_stats;
 static volatile uint64_t s_nonce_count = 0;
 static uint64_t s_per_chip_nonces[16] = {0};
 static uint64_t s_per_chip_hw_errors[16] = {0};
+static volatile uint64_t s_total_hw_errors = 0;
 static int64_t s_last_summary_time = 0;
 static uint32_t s_nonces_since_summary = 0;
+static double s_last_valid_diff = 0.0;
 
 /* Rolling per-chip nonce counts: two alternating 30-minute buckets.
  * Report current + previous for a ~30-60 min sliding window.
@@ -76,6 +78,18 @@ uint64_t result_task_get_chip_hw_errors(int chip)
 {
     if (chip >= 0 && chip < 16) return s_per_chip_hw_errors[chip];
     return 0;
+}
+
+uint64_t result_task_get_total_hw_errors(void)
+{
+    return s_total_hw_errors;
+}
+
+float result_task_get_hw_error_rate(void)
+{
+    uint64_t total = s_nonce_count + s_total_hw_errors;
+    if (total == 0) return 0.0f;
+    return (float)s_total_hw_errors / (float)total * 100.0f;
 }
 
 static void record_share_timestamp(void)
@@ -211,16 +225,19 @@ static void result_task_fn(void *param)
         s_nonces_since_summary++;
         int64_t now = esp_timer_get_time();
         if (now - s_last_summary_time >= 10000000LL) { /* 10 seconds */
-            ESP_LOGI(TAG, "Nonces: %lu in last 10s (latest diff=%.4f pool_diff=%.4f)",
-                     (unsigned long)s_nonces_since_summary, share_diff, job->pool_diff);
+            ESP_LOGI(TAG, "Nonces: %lu in last 10s (diff=%.4f pool_diff=%.4f hw_err=%llu)",
+                     (unsigned long)s_nonces_since_summary, s_last_valid_diff,
+                     job->pool_diff, (unsigned long long)s_total_hw_errors);
             s_nonces_since_summary = 0;
             s_last_summary_time = now;
         }
 
         if (share_diff <= 0.0) {
             if (chip_nr >= 0 && chip_nr < 16) s_per_chip_hw_errors[chip_nr]++;
+            s_total_hw_errors++;
             continue;
         }
+        s_last_valid_diff = share_diff;
 
         /* Update best difficulties */
         if (share_diff > s_stats.session_best_diff) {

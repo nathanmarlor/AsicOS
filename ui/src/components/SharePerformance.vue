@@ -15,6 +15,8 @@ const props = defineProps<{
   blockHeight?: number
   blocksFound?: number
   rejectReasons?: { job_not_found: number; duplicate: number; low_difficulty: number; other: number }
+  hwErrors?: number
+  hwErrorRate?: number
 }>()
 
 const total = computed(() => props.accepted + props.rejected)
@@ -65,6 +67,10 @@ const rejectTooltip = computed(() => {
       <div class="text-right text-[#eab308]">{{ alltimeBestDiff ?? '--' }}</div>
       <div class="text-[var(--text-muted)]">Share Rate</div>
       <div class="text-right text-[var(--text)]">{{ shareRate.toFixed(1) }} /min</div>
+      <template v-if="hwErrors != null && hwErrors > 0">
+        <div class="text-[var(--text-muted)]">HW Errors</div>
+        <div class="text-right" :class="(hwErrorRate ?? 0) > 5 ? 'text-[#ef4444]' : 'text-[var(--text)]'">{{ hwErrors.toLocaleString() }} <span class="text-[var(--text-muted)]">({{ hwErrorRate?.toFixed(1) ?? '0' }}%)</span></div>
+      </template>
       <template v-if="rttMs != null && rttMs > 0">
         <div class="text-[var(--text-muted)]">Pool RTT</div>
         <div class="text-right text-[var(--text)]">{{ rttMs.toFixed(0) }} ms</div>

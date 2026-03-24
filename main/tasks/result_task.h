@@ -18,4 +18,6 @@ uint64_t result_task_get_nonce_count(void);
 uint64_t result_task_get_chip_nonce_count(int chip);
 uint32_t result_task_get_chip_rolling_nonces(int chip);
 uint64_t result_task_get_chip_hw_errors(int chip);
+uint64_t result_task_get_total_hw_errors(void);
+float    result_task_get_hw_error_rate(void);
 float    result_task_get_share_rate(void);

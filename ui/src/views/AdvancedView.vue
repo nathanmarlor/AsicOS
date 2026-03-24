@@ -327,6 +327,8 @@ async function restart() {
           :block-height="system.info?.pool.block_height"
           :blocks-found="system.info?.pool.blocks_found"
           :reject-reasons="system.info?.pool.reject_reasons"
+          :hw-errors="system.info?.mining?.hw_errors"
+          :hw-error-rate="system.info?.mining?.hw_error_rate"
         />
       </div>
       <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3 flex flex-col min-h-[280px]">
