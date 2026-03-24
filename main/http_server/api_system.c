@@ -471,7 +471,7 @@ static const char *board_slug(void)
 /* ── GET /api/system/ota/check ────────────────────────────────────── */
 
 /* Buffer for GitHub API JSON response */
-#define OTA_CHECK_BUF_SIZE  8192
+#define OTA_CHECK_BUF_SIZE  16384
 
 typedef struct {
     char  *buf;
