@@ -36,17 +36,15 @@ function connect() {
         msg: data.msg || evt.data
       }
       allLogs.value.push(entry)
+      if (allLogs.value.length > 5000) allLogs.value = allLogs.value.slice(-5000)
       logs.value.push(entry)
-      if (logs.value.length > 200) {
-        logs.value = logs.value.slice(-200)
-      }
+      if (logs.value.length > 200) logs.value = logs.value.slice(-200)
     } catch {
       const fallback: LogEntry = { ts: Date.now(), level: 'INFO', msg: evt.data }
       allLogs.value.push(fallback)
+      if (allLogs.value.length > 5000) allLogs.value = allLogs.value.slice(-5000)
       logs.value.push(fallback)
-      if (logs.value.length > 200) {
-        logs.value = logs.value.slice(-200)
-      }
+      if (logs.value.length > 200) logs.value = logs.value.slice(-200)
     }
   }
 

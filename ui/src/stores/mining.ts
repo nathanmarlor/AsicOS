@@ -59,15 +59,14 @@ export const useMiningStore = defineStore('mining', () => {
 
   let prevNonces = 0
 
+  let polling = false
   async function poll() {
+    if (polling) return
+    polling = true
     try {
       const prev = info.value
       const data = await get<MiningInfo>('/api/mining/info')
-      if (info.value) {
-        Object.assign(info.value, data)
-      } else {
-        info.value = data
-      }
+      info.value = data
       error.value = null
 
       if (prev && info.value) {
@@ -108,6 +107,8 @@ export const useMiningStore = defineStore('mining', () => {
       }
     } catch (e: any) {
       error.value = e.message
+    } finally {
+      polling = false
     }
   }
 

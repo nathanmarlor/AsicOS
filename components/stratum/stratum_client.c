@@ -6,6 +6,7 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -24,6 +25,7 @@ static double                  s_current_diff = 1.0;
 static uint32_t                s_accepted;
 static uint32_t                s_rejected;
 static stratum_pool_config_t  *s_current_pool;
+static SemaphoreHandle_t       s_conn_mutex;
 
 /* Track pending submit message IDs for accept/reject counting + RTT */
 #define MAX_PENDING_IDS 64
@@ -265,6 +267,7 @@ esp_err_t stratum_client_init(const stratum_client_config_t *config)
     s_state = STRATUM_STATE_DISCONNECTED;
     s_accepted = 0;
     s_rejected = 0;
+    if (!s_conn_mutex) s_conn_mutex = xSemaphoreCreateMutex();
     s_pending_count = 0;
     s_current_pool = &s_config.primary;
     return ESP_OK;
@@ -331,9 +334,11 @@ void stratum_client_task(void *param)
 
         /* Disconnected - clean up and retry */
         ESP_LOGW(TAG, "Disconnected from pool, retrying in %ds", retry_delay_s);
+        xSemaphoreTake(s_conn_mutex, portMAX_DELAY);
         stratum_disconnect(s_conn);
         s_conn = NULL;
         s_state = STRATUM_STATE_DISCONNECTED;
+        xSemaphoreGive(s_conn_mutex);
         vTaskDelay(pdMS_TO_TICKS(retry_delay_s * 1000));
         retry_delay_s = (retry_delay_s * 2 > BACKOFF_MAX_S) ? BACKOFF_MAX_S : retry_delay_s * 2;
     }
@@ -373,20 +378,24 @@ esp_err_t stratum_client_submit_share(const char *job_id, const char *extranonce
                                       const char *ntime, const char *nonce,
                                       const char *version_bits)
 {
-    if (!s_conn || s_state != STRATUM_STATE_MINING)
+    if (xSemaphoreTake(s_conn_mutex, pdMS_TO_TICKS(100)) != pdTRUE)
+        return ESP_ERR_TIMEOUT;
+
+    if (!s_conn || s_state != STRATUM_STATE_MINING) {
+        xSemaphoreGive(s_conn_mutex);
         return ESP_ERR_INVALID_STATE;
+    }
 
     char buf[MSG_BUF_SIZE];
 
-    /* ERRATA FIX: use current_pool->pool_user, not always primary */
     int len = stratum_build_submit(buf, sizeof(buf),
                                    s_current_pool->pool_user,
                                    job_id, extranonce2, ntime, nonce, version_bits);
-    if (len < 0)
+    if (len < 0) {
+        xSemaphoreGive(s_conn_mutex);
         return ESP_ERR_NO_MEM;
+    }
 
-    /* Extract the id from the message we just built so we can track accept/reject.
-     * The id is the value after "id": at the start of the JSON. */
     cJSON *root = cJSON_Parse(buf);
     if (root) {
         cJSON *id_item = cJSON_GetObjectItemCaseSensitive(root, "id");
@@ -395,10 +404,9 @@ esp_err_t stratum_client_submit_share(const char *job_id, const char *extranonce
         cJSON_Delete(root);
     }
 
-    if (stratum_send(s_conn, buf, (size_t)len) < 0)
-        return ESP_FAIL;
-
-    return ESP_OK;
+    esp_err_t ret = (stratum_send(s_conn, buf, (size_t)len) < 0) ? ESP_FAIL : ESP_OK;
+    xSemaphoreGive(s_conn_mutex);
+    return ret;
 }
 
 float stratum_client_get_rtt_ms(void)

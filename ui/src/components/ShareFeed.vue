@@ -6,6 +6,7 @@ const props = defineProps<{
   allShares: ShareEntry[]
   submittedShares: ShareEntry[]
   bestDiff: number
+  poolDiff: number
 }>()
 
 const filter = ref<'all' | 'submitted'>('all')
@@ -15,21 +16,19 @@ const visible = computed(() => {
   return src.slice(0, 30)
 })
 
-const maxDiff = computed(() => {
-  if (visible.value.length === 0) return 1
-  return Math.max(...visible.value.map(s => s.diff), 1)
-})
-
 function formatTime(ts: number): string {
   const d = new Date(ts)
   return d.toTimeString().slice(0, 8)
 }
 
 function barWidth(diff: number): string {
-  // Log10 scale: diff of 10 -> ~20%, 100 -> ~40%, 1K -> ~60%, 10K -> ~80%, 100K+ -> ~100%
-  const logMax = Math.log10(Math.max(maxDiff.value, 10))
+  /* Bar = share difficulty as % of pool difficulty (log scale).
+   * 100% = meets pool diff, >100% capped at 100%.
+   * Uses log scale so low-diff shares are still visible. */
+  const target = Math.max(props.poolDiff, 1)
+  const logTarget = Math.log10(target)
   const logVal = Math.log10(Math.max(diff, 1))
-  const pct = Math.max(4, (logVal / logMax) * 100)
+  const pct = Math.max(3, (logVal / logTarget) * 100)
   return Math.min(100, pct) + '%'
 }
 </script>

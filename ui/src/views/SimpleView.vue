@@ -171,6 +171,7 @@ const timeToBlock = computed(() => {
         :all-shares="mining.allShares"
         :submitted-shares="mining.submittedShares"
         :best-diff="bestDiff"
+        :pool-diff="mining.info?.pool_diff ?? 256"
       />
     </div>
 

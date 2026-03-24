@@ -329,6 +329,7 @@ async function restart() {
           :all-shares="mining.allShares"
           :submitted-shares="mining.submittedShares"
           :best-diff="mining.info?.best_diff ?? 0"
+          :pool-diff="mining.info?.pool_diff ?? 256"
         />
       </div>
     </div>

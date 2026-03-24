@@ -43,14 +43,13 @@ export const useSystemStore = defineStore('system', () => {
     if (arr.length > HISTORY_SIZE) arr.shift()
   }
 
+  let polling = false
   async function poll() {
+    if (polling) return
+    polling = true
     try {
       const data = await get<SystemInfo>('/api/system/info')
-      if (info.value) {
-        Object.assign(info.value, data)
-      } else {
-        info.value = data
-      }
+      info.value = data
       error.value = null
 
       if (info.value) {
@@ -65,6 +64,8 @@ export const useSystemStore = defineStore('system', () => {
       }
     } catch (e: any) {
       error.value = e.message
+    } finally {
+      polling = false
     }
   }
 
