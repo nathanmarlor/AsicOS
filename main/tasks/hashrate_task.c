@@ -1,6 +1,8 @@
 #include "hashrate_task.h"
+#include "api_history.h"
 #include "asic.h"
 #include "board.h"
+#include "power_task.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -105,6 +107,18 @@ static void hashrate_task_fn(void *param)
                     (s_info.total_hashrate_ghs * (EMA_ALPHA - 1) + total_ghs) / EMA_ALPHA;
             }
         }
+
+        /* Record history for charts */
+        const power_status_t *pw = power_task_get_status();
+        float eff_jth = (s_info.total_hashrate_ghs > 0 && pw && pw->power_w > 0)
+            ? pw->power_w / (s_info.total_hashrate_ghs / 1000.0f) : 0.0f;
+        history_record(
+            s_info.total_hashrate_ghs,
+            pw ? pw->chip_temp : 0.0f,
+            pw ? pw->vr_temp : 0.0f,
+            pw ? pw->power_w : 0.0f,
+            eff_jth
+        );
 
         ESP_LOGI(TAG, "Hashrate: %.2f GH/s (%d chips)",
                  s_info.total_hashrate_ghs, s_info.chip_count);

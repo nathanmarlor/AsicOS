@@ -7,6 +7,7 @@
 #include "esp_log.h"
 #include "esp_spiffs.h"
 
+#include "api_history.h"
 #include "api_mining.h"
 #include "api_remote.h"
 #include "api_system.h"
@@ -244,6 +245,14 @@ static void register_routes(httpd_handle_t server)
         .handler  = api_system_ota_www_handler,
     };
     httpd_register_uri_handler(server, &ota_www);
+
+    /* History API (chart data) */
+    httpd_uri_t history = {
+        .uri      = "/api/system/history",
+        .method   = HTTP_GET,
+        .handler  = api_history_handler,
+    };
+    httpd_register_uri_handler(server, &history);
 
     /* Mining API */
     httpd_uri_t mining_info = {

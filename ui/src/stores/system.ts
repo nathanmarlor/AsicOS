@@ -69,8 +69,25 @@ export const useSystemStore = defineStore('system', () => {
     }
   }
 
+  async function loadHistory() {
+    try {
+      const data = await get<{
+        hashrate: number[], chip_temp: number[], vr_temp: number[],
+        power: number[], efficiency: number[]
+      }>('/api/system/history')
+      if (data) {
+        hashrateHistory.value = data.hashrate ?? []
+        chipTempHistory.value = data.chip_temp ?? []
+        vrTempHistory.value = data.vr_temp ?? []
+        powerHistory.value = data.power ?? []
+        efficiencyHistory.value = data.efficiency ?? []
+      }
+    } catch { /* ignore - charts will build up from polling */ }
+  }
+
   function start() {
     if (timer) return
+    loadHistory()
     poll()
     timer = setInterval(poll, 3000)
   }
