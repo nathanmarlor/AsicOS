@@ -257,9 +257,10 @@ static void result_task_fn(void *param)
         double share_diff = 0.0;
         mining_test_nonce(header, &share_diff);
 
-        if (share_diff <= 0.0) {
+        if (!isfinite(share_diff) || share_diff <= 0.0) {
             if (chip_nr >= 0 && chip_nr < 16) s_per_chip_hw_errors[chip_nr]++;
             s_total_hw_errors++;
+            share_diff = 0.0;
         } else {
             s_last_valid_diff = share_diff;
         }
@@ -268,10 +269,10 @@ static void result_task_fn(void *param)
         s_nonces_since_summary++;
         int64_t now = esp_timer_get_time();
         if (now - s_last_summary_time >= 10000000LL) { /* 10 seconds */
-            ESP_LOGI(TAG, "Nonces: %lu in 10s (this=%.4e last=%.4e pool=%.0f err=%llu isnan=%d)",
-                     (unsigned long)s_nonces_since_summary, share_diff, s_last_valid_diff,
-                     job->pool_diff, (unsigned long long)s_total_hw_errors,
-                     (share_diff != share_diff) ? 1 : 0);
+            ESP_LOGI(TAG, "Nonces: %lu in 10s (diff=%.1f pool=%.0f err=%llu)",
+                     (unsigned long)s_nonces_since_summary,
+                     s_last_valid_diff > 0 ? s_last_valid_diff : share_diff,
+                     job->pool_diff, (unsigned long long)s_total_hw_errors);
             s_nonces_since_summary = 0;
             s_last_summary_time = now;
         }
