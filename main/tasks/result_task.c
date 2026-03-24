@@ -37,6 +37,7 @@ static volatile uint64_t s_total_hw_errors = 0;
 static int64_t s_last_summary_time = 0;
 static uint32_t s_nonces_since_summary = 0;
 static double s_last_valid_diff = 0.0;
+static volatile double s_last_share_diff = 0.0;  /* last submitted share difficulty */
 
 /* Rolling per-chip nonce counts: two alternating 30-minute buckets.
  * Report current + previous for a ~30-60 min sliding window.
@@ -83,6 +84,11 @@ uint64_t result_task_get_chip_hw_errors(int chip)
 uint64_t result_task_get_total_hw_errors(void)
 {
     return s_total_hw_errors;
+}
+
+double result_task_get_last_share_diff(void)
+{
+    return s_last_share_diff;
 }
 
 float result_task_get_hw_error_rate(void)
@@ -282,6 +288,7 @@ static void result_task_fn(void *param)
 
             if (err == ESP_OK) {
                 s_stats.total_shares_submitted++;
+                s_last_share_diff = share_diff;
                 record_share_timestamp();
                 led_flash();  /* Brief LED flash on share submission */
                 ESP_LOGI(TAG, "Share submitted: diff=%.4f pool_diff=%.4f nonce=0x%s",

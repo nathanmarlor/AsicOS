@@ -474,7 +474,7 @@ static const char *board_slug(void)
 /* ── GET /api/system/ota/check ────────────────────────────────────── */
 
 /* Buffer for GitHub API JSON response */
-#define OTA_CHECK_BUF_SIZE  16384
+#define OTA_CHECK_BUF_SIZE  4096  /* Only need enough to find tag_name field */
 
 typedef struct {
     char  *buf;
@@ -547,25 +547,25 @@ esp_err_t api_system_ota_check_handler(httpd_req_t *req)
 
     ESP_LOGI(TAG, "GitHub API response: %d bytes, status=%d", ctx.len, status);
 
-    /* Parse the GitHub releases JSON (array with 1 element) */
-    cJSON *gh_array = cJSON_Parse(resp_buf);
-    if (!gh_array) {
-        ESP_LOGE(TAG, "JSON parse failed, first 100 chars: %.100s", resp_buf);
-        free(resp_buf);
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to parse GitHub response");
-        return ESP_FAIL;
+    /* Extract tag_name directly from the raw JSON string to avoid needing
+     * to parse the entire response (which can be >16KB with many assets).
+     * Format: [{"...", "tag_name":"beta-abc1234", "..."}] */
+    char tag_name_buf[64] = "unknown";
+    const char *tag_key = strstr(resp_buf, "\"tag_name\"");
+    if (tag_key) {
+        const char *val_start = strchr(tag_key + 10, '"');
+        if (val_start) {
+            val_start++;  /* skip opening quote */
+            const char *val_end = strchr(val_start, '"');
+            if (val_end && (val_end - val_start) < (int)sizeof(tag_name_buf)) {
+                memcpy(tag_name_buf, val_start, val_end - val_start);
+                tag_name_buf[val_end - val_start] = '\0';
+            }
+        }
     }
     free(resp_buf);
 
-    cJSON *gh = cJSON_IsArray(gh_array) ? cJSON_GetArrayItem(gh_array, 0) : gh_array;
-    if (!gh) {
-        cJSON_Delete(gh_array);
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "No releases found");
-        return ESP_FAIL;
-    }
-
-    cJSON *tag = cJSON_GetObjectItem(gh, "tag_name");
-    const char *tag_name = (tag && cJSON_IsString(tag)) ? tag->valuestring : "unknown";
+    const char *tag_name = tag_name_buf;
     const char *latest_ver = tag_name;
 
     /* Strip leading 'v' from version display if present */
@@ -592,7 +592,6 @@ esp_err_t api_system_ota_check_handler(httpd_req_t *req)
     cJSON_AddStringToObject(root, "fw_download_url", fw_download_url);
     cJSON_AddStringToObject(root, "www_download_url", www_download_url);
 
-    cJSON_Delete(gh_array);
     send_json(req, root);
     return ESP_OK;
 }

@@ -22,6 +22,7 @@ export interface MiningInfo {
   total_nonces: number
   duplicates: number
   chips: ChipInfo[]
+  last_share_diff: number
 }
 
 export interface ShareEntry {
@@ -90,12 +91,12 @@ export const useMiningStore = defineStore('mining', () => {
         // Generate "submitted" share entries from accepted count changes
         const newAccepted = info.value.accepted - prevAccepted
         if (newAccepted > 0 && prevAccepted > 0 && newAccepted < 10) {
+          const realDiff = info.value.last_share_diff || info.value.pool_diff
           for (let i = 0; i < newAccepted; i++) {
-            const diff = info.value.pool_diff * (1 + Math.random() * 3)
             addShare({
               ts: Date.now() - i * 100,
-              diff,
-              diff_str: formatDiff(diff),
+              diff: realDiff,
+              diff_str: formatDiff(realDiff),
               accepted: true,
               submitted: true,
             })

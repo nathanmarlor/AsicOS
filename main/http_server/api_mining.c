@@ -72,6 +72,7 @@ esp_err_t api_mining_info_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(root, "pool_diff",  stratum_client_get_current_difficulty());
     cJSON_AddNumberToObject(root, "accepted",   stratum_client_get_accepted());
     cJSON_AddNumberToObject(root, "rejected",   stratum_client_get_rejected());
+    cJSON_AddNumberToObject(root, "last_share_diff", result_task_get_last_share_diff());
 
     send_json(req, root);
     return ESP_OK;
