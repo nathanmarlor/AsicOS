@@ -157,48 +157,6 @@ async function checkForUpdates() {
   }
 }
 
-async function updateFwFromGithub() {
-  if (!otaInfo.value?.fw_download_url) return
-  otaUpdating.value = true
-  otaProgress.value = 'Downloading and flashing firmware...'
-  otaError.value = ''
-  try {
-    await post('/api/system/ota/github', { download_url: otaInfo.value.fw_download_url })
-    otaProgress.value = 'Firmware updated! Device is restarting...'
-  } catch (e: any) {
-    otaError.value = 'Firmware OTA failed: ' + e.message
-    otaProgress.value = ''
-  } finally {
-    otaUpdating.value = false
-  }
-}
-
-async function updateWwwFromGithub() {
-  if (!otaInfo.value?.www_download_url) return
-  otaUpdating.value = true
-  otaProgress.value = 'Downloading and flashing web UI...'
-  otaError.value = ''
-  try {
-    /* Download the www file and re-upload to the device's www OTA endpoint */
-    const resp = await fetch(otaInfo.value.www_download_url)
-    if (!resp.ok) throw new Error(`Download failed: ${resp.status}`)
-    const blob = await resp.blob()
-    const { BASE_URL } = useApi()
-    const uploadResp = await fetch(`${BASE_URL}/api/system/ota/www`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/octet-stream' },
-      body: blob,
-    })
-    if (!uploadResp.ok) throw new Error(`Upload failed: ${uploadResp.status}`)
-    otaProgress.value = 'Web UI updated! Device is restarting...'
-  } catch (e: any) {
-    otaError.value = 'Web UI OTA failed: ' + e.message
-    otaProgress.value = ''
-  } finally {
-    otaUpdating.value = false
-  }
-}
-
 function onFileSelected(event: Event) {
   const input = event.target as HTMLInputElement
   otaFile.value = input.files?.[0] ?? null
@@ -481,21 +439,18 @@ async function uploadWww() {
           </span>
         </div>
         <div v-if="otaInfo.update_available" class="pt-2 border-t border-[var(--border)] space-y-2">
+          <div class="text-[10px] font-mono text-[var(--text-secondary)] mb-1">Download, then use Manual Upload below to flash:</div>
           <div class="flex gap-2">
-            <button
-              @click="updateFwFromGithub"
-              :disabled="otaUpdating"
-              class="btn btn-primary text-xs flex-1"
-            >
-              {{ otaUpdating ? 'Updating...' : 'Update Firmware' }}
-            </button>
-            <button
-              @click="updateWwwFromGithub"
-              :disabled="otaUpdating"
-              class="btn btn-secondary text-xs flex-1"
-            >
-              {{ otaUpdating ? 'Updating...' : 'Update Web UI' }}
-            </button>
+            <a
+              :href="otaInfo.fw_download_url"
+              target="_blank"
+              class="btn btn-primary text-xs flex-1 text-center"
+            >Download Firmware</a>
+            <a
+              :href="otaInfo.www_download_url"
+              target="_blank"
+              class="btn btn-secondary text-xs flex-1 text-center"
+            >Download Web UI</a>
           </div>
           <div class="text-[9px] font-mono text-[var(--text-muted)]">
             Firmware updates preserve your settings. Web UI updates only change the interface.
