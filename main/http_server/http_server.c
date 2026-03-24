@@ -82,16 +82,36 @@ static esp_err_t spiffs_handler(httpd_req_t *req)
         httpd_resp_set_hdr(req, "Cache-Control", "public, max-age=86400");
     }
 
-    char buf[512];
+    /* For small files (< 8KB like index.html), send in one shot.
+     * For larger files, use chunked transfer with heap buffer. */
+    if (st.st_size <= 8192) {
+        char *content = malloc(st.st_size);
+        if (content) {
+            fread(content, 1, st.st_size, f);
+            fclose(f);
+            httpd_resp_send(req, content, st.st_size);
+            free(content);
+            return ESP_OK;
+        }
+    }
+
+    char *buf = malloc(4096);
+    if (!buf) {
+        fclose(f);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "No memory");
+        return ESP_FAIL;
+    }
     size_t read_bytes;
-    while ((read_bytes = fread(buf, 1, sizeof(buf), f)) > 0) {
+    while ((read_bytes = fread(buf, 1, 4096, f)) > 0) {
         if (httpd_resp_send_chunk(req, buf, read_bytes) != ESP_OK) {
             fclose(f);
+            free(buf);
             httpd_resp_send_chunk(req, NULL, 0);
             return ESP_FAIL;
         }
     }
     fclose(f);
+    free(buf);
 
     /* End chunked response */
     httpd_resp_send_chunk(req, NULL, 0);
