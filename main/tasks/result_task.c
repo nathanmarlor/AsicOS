@@ -84,13 +84,6 @@ static void result_task_fn(void *param)
     for (;;) {
         int rc = asic_receive_result(&result, RESULT_TIMEOUT_MS);
         if (rc <= 0) {
-            /* Log periodically to aid debugging without spamming */
-            static int no_response_count = 0;
-            no_response_count++;
-            if (no_response_count % 20 == 0) {
-                ESP_LOGW(TAG, "No ASIC nonce in %d reads (%.0fs)",
-                         no_response_count, no_response_count * 60.0 / 20);
-            }
             continue;
         }
 

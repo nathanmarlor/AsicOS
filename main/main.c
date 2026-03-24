@@ -73,7 +73,7 @@ static void init_stratum(const board_config_t *board)
     cfg.on_difficulty = mining_on_difficulty;
 
     stratum_client_init(&cfg);
-    xTaskCreate(stratum_client_task, "stratum", 24576, NULL, 5, NULL);
+    xTaskCreate(stratum_client_task, "stratum", 32768, NULL, 5, NULL);
 }
 
 static void init_power(const board_config_t *board)
