@@ -629,14 +629,18 @@ esp_err_t api_system_ota_github_handler(httpd_req_t *req)
                  GITHUB_OTA_REPO, slug);
     }
 
-    ESP_LOGI(TAG, "GitHub OTA: downloading from %s", download_url);
+    ESP_LOGI(TAG, "GitHub OTA: downloading from %s (free heap: %lu)",
+             download_url, (unsigned long)esp_get_free_heap_size());
 
-    /* Use esp_https_ota which handles redirects, TLS, and streaming natively */
+    /* Use esp_https_ota which handles redirects, TLS, and streaming natively.
+     * Use small buffer to minimize internal RAM usage alongside TLS. */
     esp_http_client_config_t http_config = {
         .url               = download_url,
         .timeout_ms        = 30000,
         .crt_bundle_attach = esp_crt_bundle_attach,
         .keep_alive_enable = true,
+        .buffer_size       = 1024,    /* minimize internal RAM usage */
+        .buffer_size_tx    = 512,
     };
 
     esp_https_ota_config_t ota_config = {
