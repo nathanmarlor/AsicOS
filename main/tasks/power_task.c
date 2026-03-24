@@ -132,6 +132,7 @@ static void power_task(void *pvParameters)
                 s_status.vin     = ina_reading.voltage_mv / 1000.0f;
                 s_status.iin     = ina_reading.current_ma / 1000.0f;
                 s_status.power_w = ina_reading.power_mw / 1000.0f;
+                s_status.input_w = ina_reading.power_mw / 1000.0f;  /* INA260 is on input rail */
             }
         }
 
