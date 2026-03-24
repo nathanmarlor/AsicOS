@@ -221,23 +221,27 @@ static void result_task_fn(void *param)
         double share_diff = 0.0;
         mining_test_nonce(header, &share_diff);
 
-        /* Periodic nonce summary instead of per-nonce logging */
+        if (share_diff <= 0.0) {
+            if (chip_nr >= 0 && chip_nr < 16) s_per_chip_hw_errors[chip_nr]++;
+            s_total_hw_errors++;
+        } else {
+            s_last_valid_diff = share_diff;
+        }
+
+        /* Periodic nonce summary (after HW error counting for accuracy) */
         s_nonces_since_summary++;
         int64_t now = esp_timer_get_time();
         if (now - s_last_summary_time >= 10000000LL) { /* 10 seconds */
             ESP_LOGI(TAG, "Nonces: %lu in last 10s (diff=%.1f pool=%.0f err=%llu)",
-                     (unsigned long)s_nonces_since_summary, share_diff > 0 ? share_diff : s_last_valid_diff,
+                     (unsigned long)s_nonces_since_summary, s_last_valid_diff,
                      job->pool_diff, (unsigned long long)s_total_hw_errors);
             s_nonces_since_summary = 0;
             s_last_summary_time = now;
         }
 
         if (share_diff <= 0.0) {
-            if (chip_nr >= 0 && chip_nr < 16) s_per_chip_hw_errors[chip_nr]++;
-            s_total_hw_errors++;
             continue;
         }
-        s_last_valid_diff = share_diff;
 
         /* Update best difficulties */
         if (share_diff > s_stats.session_best_diff) {
