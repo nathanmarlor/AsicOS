@@ -106,8 +106,14 @@ float asic_get_chip_error_rate(int chip)
 
 void asic_request_error_counters(uint8_t chip_addr)
 {
-    uint8_t cmd[2] = { chip_addr, ASIC_REG_ERROR_COUNT };
-    asic_send_command(CMD_READ, cmd, sizeof(cmd));
+    uint8_t cmd_buf[16];
+    int cmd_len = asic_build_cmd(cmd_buf, sizeof(cmd_buf),
+                                 ASIC_CMD_READ, ASIC_GROUP_SINGLE,
+                                 chip_addr, ASIC_REG_ERROR_COUNT,
+                                 NULL, 0);
+    if (cmd_len > 0) {
+        serial_tx(cmd_buf, (size_t)cmd_len);
+    }
 }
 
 void asic_reset_hashrate_measurements(void)
