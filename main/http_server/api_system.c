@@ -269,14 +269,24 @@ esp_err_t api_system_patch_handler(httpd_req_t *req)
 
     cJSON *item;
 
-    if ((item = cJSON_GetObjectItem(json, "pool_url")) && cJSON_IsString(item))
-        nvs_config_set_string(NVS_KEY_POOL_URL, item->valuestring);
+    if ((item = cJSON_GetObjectItem(json, "pool_url")) && cJSON_IsString(item)) {
+        if (strlen(item->valuestring) <= 127) {
+            nvs_config_set_string(NVS_KEY_POOL_URL, item->valuestring);
+        } else {
+            ESP_LOGW(TAG, "pool_url too long (max 127)");
+        }
+    }
 
     if ((item = cJSON_GetObjectItem(json, "pool_port")) && cJSON_IsNumber(item))
         nvs_config_set_u16(NVS_KEY_POOL_PORT, (uint16_t)item->valuedouble);
 
-    if ((item = cJSON_GetObjectItem(json, "pool_user")) && cJSON_IsString(item))
-        nvs_config_set_string(NVS_KEY_POOL_USER, item->valuestring);
+    if ((item = cJSON_GetObjectItem(json, "pool_user")) && cJSON_IsString(item)) {
+        if (strlen(item->valuestring) <= 127) {
+            nvs_config_set_string(NVS_KEY_POOL_USER, item->valuestring);
+        } else {
+            ESP_LOGW(TAG, "pool_user too long (max 127)");
+        }
+    }
 
     if ((item = cJSON_GetObjectItem(json, "pool_pass")) && cJSON_IsString(item))
         nvs_config_set_string(NVS_KEY_POOL_PASS, item->valuestring);
@@ -303,11 +313,21 @@ esp_err_t api_system_patch_handler(httpd_req_t *req)
         }
     }
 
-    if ((item = cJSON_GetObjectItem(json, "wifi_ssid")) && cJSON_IsString(item))
-        nvs_config_set_string(NVS_KEY_WIFI_SSID, item->valuestring);
+    if ((item = cJSON_GetObjectItem(json, "wifi_ssid")) && cJSON_IsString(item)) {
+        if (strlen(item->valuestring) <= 31) {
+            nvs_config_set_string(NVS_KEY_WIFI_SSID, item->valuestring);
+        } else {
+            ESP_LOGW(TAG, "wifi_ssid too long (max 31)");
+        }
+    }
 
-    if ((item = cJSON_GetObjectItem(json, "wifi_pass")) && cJSON_IsString(item))
-        nvs_config_set_string(NVS_KEY_WIFI_PASS, item->valuestring);
+    if ((item = cJSON_GetObjectItem(json, "wifi_pass")) && cJSON_IsString(item)) {
+        if (strlen(item->valuestring) <= 63) {
+            nvs_config_set_string(NVS_KEY_WIFI_PASS, item->valuestring);
+        } else {
+            ESP_LOGW(TAG, "wifi_pass too long (max 63)");
+        }
+    }
 
     if ((item = cJSON_GetObjectItem(json, "ui_mode")) && cJSON_IsString(item))
         nvs_config_set_string(NVS_KEY_UI_MODE, item->valuestring);

@@ -50,6 +50,13 @@ stratum_conn_t *stratum_connect(const char *host, uint16_t port, bool tls)
             return NULL;
         }
 
+        /* Set SO_RCVTIMEO on the underlying socket for TLS connections */
+        int tls_sockfd = -1;
+        if (esp_tls_get_conn_sockfd(conn->tls, &tls_sockfd) == ESP_OK && tls_sockfd >= 0) {
+            struct timeval tv = { .tv_sec = 30, .tv_usec = 0 };
+            setsockopt(tls_sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+        }
+
         ESP_LOGI(TAG, "TLS connected to %s:%u", host, port);
     } else {
         struct addrinfo hints = {

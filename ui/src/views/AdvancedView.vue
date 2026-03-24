@@ -136,26 +136,27 @@ const bestDiffStr = computed(() => mining.formatDiff(mining.info?.best_diff ?? 0
 const shareRate = computed(() => system.info?.pool.share_rate ?? 0)
 
 // Power & Pool computed values
-const vin = computed(() => system.info?.power.vin.toFixed(2) ?? '--')
-const iin = computed(() => system.info?.power.iin?.toFixed(1) ?? '--')
-const vout = computed(() => (system.info ? (system.info.power.vout * 1000).toFixed(0) : '--'))
-const iout = computed(() => system.info?.power.iout.toFixed(1) ?? '--')
-const watts = computed(() => system.info?.power.watts.toFixed(1) ?? '--')
+const vin = computed(() => system.info?.power?.vin?.toFixed(2) ?? '--')
+const iin = computed(() => system.info?.power?.iin?.toFixed(1) ?? '--')
+const vout = computed(() => (system.info?.power?.vout != null ? (system.info.power.vout * 1000).toFixed(0) : '--'))
+const iout = computed(() => system.info?.power?.iout?.toFixed(1) ?? '--')
+const watts = computed(() => system.info?.power?.watts?.toFixed(1) ?? '--')
 const sessionBest = computed(() => mining.formatDiff(mining.info?.best_diff ?? 0))
 const alltimeBest = computed(() => mining.formatDiff(mining.info?.alltime_best_diff ?? 0))
 const hasAdcVcore = computed(() => system.info?.has_adc_vcore && (system.info?.power.vcore_adc_mv ?? 0) > 0)
-const vcoreAdc = computed(() => system.info?.power.vcore_adc_mv?.toFixed(0) ?? '--')
+const vcoreAdc = computed(() => system.info?.power?.vcore_adc_mv?.toFixed(0) ?? '--')
 
 // Device (Cooling + System) computed values
-const boardTemp = computed(() => system.info?.temps.board.toFixed(1) ?? '--')
+const boardTemp = computed(() => system.info?.temps?.board?.toFixed(1) ?? '--')
 const vrTempDetail = computed(() => {
   const s = system.info
   if (!s) return '--'
-  return (s.power.vr_temp ?? s.temps.vr).toFixed(1)
+  const val = s.power?.vr_temp ?? s.temps?.vr
+  return val?.toFixed(1) ?? '--'
 })
 const isAutoFan = computed(() => system.info ? system.info.power.fan_override < 0 : true)
-const fan0 = computed(() => system.info?.power.fan0_rpm.toLocaleString() ?? '--')
-const fan1 = computed(() => system.info?.power.fan1_rpm.toLocaleString() ?? '--')
+const fan0 = computed(() => system.info?.power?.fan0_rpm?.toLocaleString() ?? '--')
+const fan1 = computed(() => system.info?.power?.fan1_rpm?.toLocaleString() ?? '--')
 const fanMode = computed(() => {
   const s = system.info
   if (!s) return 'auto'
@@ -174,7 +175,7 @@ function formatUptime(s: number): string {
   return d > 0 ? `${d}d ${h}h ${m}m` : `${h}h ${m}m`
 }
 
-let confirmRestart = ref(false)
+const confirmRestart = ref(false)
 async function restart() {
   if (!confirmRestart.value) {
     confirmRestart.value = true

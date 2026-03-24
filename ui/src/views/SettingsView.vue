@@ -98,20 +98,20 @@ async function save() {
   try {
     // Only send fields that have non-empty values to avoid overwriting with blanks
     const payload: Record<string, any> = {}
-    if (wifiSsid.value) payload.wifi_ssid = wifiSsid.value
-    if (wifiPassword.value) payload.wifi_pass = wifiPassword.value
-    if (poolUrl.value) payload.pool_url = poolUrl.value
-    if (poolPort.value) payload.pool_port = poolPort.value
-    if (poolUser.value) payload.pool_user = poolUser.value
-    if (poolPassword.value) payload.pool_pass = poolPassword.value
-    if (frequency.value) payload.frequency = frequency.value
-    if (voltage.value) payload.voltage = voltage.value
-    if (fallbackUrl.value) payload.pool2_url = fallbackUrl.value
-    if (fallbackPort.value) payload.pool2_port = fallbackPort.value
-    if (fallbackUser.value) payload.pool2_user = fallbackUser.value
-    if (fanTargetTemp.value) payload.fan_target = fanTargetTemp.value
-    if (overheatTemp.value) payload.overheat_temp = overheatTemp.value
-    if (defaultMode.value) payload.ui_mode = defaultMode.value
+    if (wifiSsid.value != null) payload.wifi_ssid = wifiSsid.value
+    if (wifiPassword.value != null) payload.wifi_pass = wifiPassword.value
+    if (poolUrl.value != null) payload.pool_url = poolUrl.value
+    if (poolPort.value != null) payload.pool_port = poolPort.value
+    if (poolUser.value != null) payload.pool_user = poolUser.value
+    if (poolPassword.value != null) payload.pool_pass = poolPassword.value
+    if (frequency.value != null) payload.frequency = frequency.value
+    if (voltage.value != null) payload.voltage = voltage.value
+    if (fallbackUrl.value != null) payload.pool2_url = fallbackUrl.value
+    if (fallbackPort.value != null) payload.pool2_port = fallbackPort.value
+    if (fallbackUser.value != null) payload.pool2_user = fallbackUser.value
+    if (fanTargetTemp.value != null) payload.fan_target = fanTargetTemp.value
+    if (overheatTemp.value != null) payload.overheat_temp = overheatTemp.value
+    if (defaultMode.value != null) payload.ui_mode = defaultMode.value
     await post('/api/system', payload)
     saved.value = true
     restartRequired.value = true

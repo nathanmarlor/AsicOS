@@ -3,6 +3,8 @@
 #include <inttypes.h>
 
 #include "esp_log.h"
+#include "esp_system.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -34,7 +36,9 @@ static const char *TAG = "power";
 
 /* ── Thermal limits ───────────────────────────────────────────────── */
 
-#define VR_OVERHEAT_TEMP  90.0f
+#define VR_OVERHEAT_TEMP       90.0f
+#define RECOVERY_HYSTERESIS    10.0f    /* reboot when temp drops this much below limit */
+#define RECOVERY_COOLDOWN_MS   30000    /* minimum cooldown before recovery reboot */
 
 /* ── Static state ─────────────────────────────────────────────────── */
 
@@ -153,16 +157,40 @@ static void power_task(void *pvParameters)
         s_status.overheat = overheat;
 
         if (overheat || s_status.vr_fault) {
-            if (overheat) {
-                ESP_LOGE(TAG, "OVERHEAT: chip=%.1fC vr=%.1fC (limits: chip=%" PRIu16 " vr=%.0f)",
-                         s_status.chip_temp, s_status.vr_temp,
-                         overheat_temp, VR_OVERHEAT_TEMP);
+            static bool s_shutdown_active = false;
+            static int64_t s_shutdown_time_ms = 0;
+
+            if (!s_shutdown_active) {
+                if (overheat) {
+                    ESP_LOGE(TAG, "OVERHEAT: chip=%.1fC vr=%.1fC (limits: chip=%" PRIu16 " vr=%.0f)",
+                             s_status.chip_temp, s_status.vr_temp,
+                             overheat_temp, VR_OVERHEAT_TEMP);
+                }
+                if (s_status.vr_fault) {
+                    ESP_LOGE(TAG, "VR FAULT detected");
+                }
+                led_set_state(LED_STATE_ERROR);
+                emergency_shutdown();
+                s_shutdown_active = true;
+                s_shutdown_time_ms = (int64_t)(esp_timer_get_time() / 1000);
             }
-            if (s_status.vr_fault) {
-                ESP_LOGE(TAG, "VR FAULT detected");
+
+            /* Monitor for recovery: reboot when temp drops below safe threshold
+             * after minimum cooldown period */
+            int64_t now_ms = (int64_t)(esp_timer_get_time() / 1000);
+            int64_t elapsed_ms = now_ms - s_shutdown_time_ms;
+            float safe_chip_temp = (float)overheat_temp - RECOVERY_HYSTERESIS;
+            float safe_vr_temp   = VR_OVERHEAT_TEMP - RECOVERY_HYSTERESIS;
+
+            if (elapsed_ms >= RECOVERY_COOLDOWN_MS &&
+                s_status.chip_temp < safe_chip_temp &&
+                s_status.vr_temp < safe_vr_temp &&
+                !s_status.vr_fault) {
+                ESP_LOGI(TAG, "Temperature recovered (chip=%.1fC vr=%.1fC), rebooting...",
+                         s_status.chip_temp, s_status.vr_temp);
+                vTaskDelay(pdMS_TO_TICKS(1000));
+                esp_restart();
             }
-            led_set_state(LED_STATE_ERROR);
-            emergency_shutdown();
         } else {
             /* ── Software PID fan control (EMC2302 or EMC2101_MUX) ── */
             if (s_fan_override >= 0) {

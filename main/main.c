@@ -197,7 +197,16 @@ void app_main(void)
         .rx_pin = board->uart_rx_pin,
         .baud_rate = 115200,
     };
-    serial_init(&serial_cfg);
+    esp_err_t serial_err = serial_init(&serial_cfg);
+    if (serial_err != ESP_OK) {
+        ESP_LOGE(TAG, "Serial init failed: %s", esp_err_to_name(serial_err));
+        if (board->led1_gpio >= 0) {
+            led_set_state(LED_STATE_ERROR);
+        }
+        // Cannot communicate with ASIC - skip mining init but continue
+        // with network services so the device remains accessible.
+        goto skip_mining;
+    }
 
     // 6. Power subsystem init (VR MUST be initialized BEFORE ASIC reset)
     init_power(board);
@@ -235,7 +244,14 @@ void app_main(void)
 
     // 9. ASIC init (enumerate, configure registers)
     uint16_t freq = nvs_config_get_u16(NVS_KEY_ASIC_FREQ, board->freq_default);
-    bm1370_init(board->expected_chip_count);
+    esp_err_t asic_err = bm1370_init(board->expected_chip_count);
+    if (asic_err != ESP_OK) {
+        ESP_LOGE(TAG, "BM1370 init failed: %s", esp_err_to_name(asic_err));
+        if (board->led1_gpio >= 0) {
+            led_set_state(LED_STATE_ERROR);
+        }
+        goto skip_mining;
+    }
     bm1370_set_frequency(freq);
 
     // 10. Ramp UART to 1MHz for mining
@@ -275,6 +291,19 @@ void app_main(void)
 
     // 15. Power task
     power_task_start();
+
+    goto post_mining;
+
+skip_mining:
+    /* Serial or ASIC init failed - start network services only so the
+     * device remains accessible for diagnostics and OTA updates. */
+    ESP_LOGW(TAG, "Mining hardware init failed, starting in service-only mode");
+    init_power(board);
+    http_server_start();
+    ws_log_init();
+    power_task_start();
+
+post_mining:
 
     // 16. Tuner task (idle until triggered)
     tuner_task_start();

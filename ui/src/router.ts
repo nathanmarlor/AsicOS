@@ -8,7 +8,8 @@ const router = createRouter({
     { path: '/advanced', component: () => import('./views/AdvancedView.vue') },
     { path: '/tuner', component: () => import('./views/TunerView.vue') },
     { path: '/settings', component: () => import('./views/SettingsView.vue') },
-    { path: '/remote', component: () => import('./views/RemoteView.vue') }
+    { path: '/remote', component: () => import('./views/RemoteView.vue') },
+    { path: '/:pathMatch(.*)*', redirect: '/simple' }
   ]
 })
 

@@ -25,6 +25,7 @@
 static const char *TAG = "api_metrics";
 
 #define METRICS_BUF_SIZE 12288
+#define CLAMP_OFF() do { if (off >= METRICS_BUF_SIZE - 1) off = METRICS_BUF_SIZE - 1; } while (0)
 
 esp_err_t api_metrics_handler(httpd_req_t *req)
 {
@@ -57,6 +58,7 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
         "# TYPE asicos_hashrate_ghs gauge\n"
         "asicos_hashrate_ghs %.1f\n\n",
         hr ? hr->total_hashrate_ghs : 0.0f);
+    CLAMP_OFF();
 
     /* Expected hashrate */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
@@ -64,34 +66,41 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
         "# TYPE asicos_hashrate_expected_ghs gauge\n"
         "asicos_hashrate_expected_ghs %.1f\n\n",
         (float)freq * board->expected_chip_count * board->small_core_count / 1000.0f);
+    CLAMP_OFF();
 
     /* Per-chip hashrate */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
         "# HELP asicos_chip_hashrate_ghs Per-chip hashrate in GH/s\n"
         "# TYPE asicos_chip_hashrate_ghs gauge\n");
+    CLAMP_OFF();
     if (hr) {
         for (int i = 0; i < hr->chip_count; i++) {
             off += snprintf(buf + off, METRICS_BUF_SIZE - off,
                 "asicos_chip_hashrate_ghs{chip=\"%d\"} %.1f\n",
                 i, hr->per_chip_hashrate_ghs[i]);
+            CLAMP_OFF();
         }
     }
     off += snprintf(buf + off, METRICS_BUF_SIZE - off, "\n");
+    CLAMP_OFF();
 
     /* Per-domain hashrate */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
         "# HELP asicos_domain_hashrate_ghs Per-chip per-domain hashrate in GH/s\n"
         "# TYPE asicos_domain_hashrate_ghs gauge\n");
+    CLAMP_OFF();
     if (hr) {
         for (int i = 0; i < hr->chip_count; i++) {
             for (int d = 0; d < HASHRATE_NUM_DOMAINS; d++) {
                 off += snprintf(buf + off, METRICS_BUF_SIZE - off,
                     "asicos_domain_hashrate_ghs{chip=\"%d\",domain=\"%d\"} %.1f\n",
                     i, d, hr->per_domain_hashrate_ghs[i][d]);
+                CLAMP_OFF();
             }
         }
     }
     off += snprintf(buf + off, METRICS_BUF_SIZE - off, "\n");
+    CLAMP_OFF();
 
     /* Temperatures */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
@@ -107,6 +116,7 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
         pw ? pw->chip_temp : 0.0f,
         pw ? pw->vr_temp : 0.0f,
         pw ? pw->board_temp : 0.0f);
+    CLAMP_OFF();
 
     /* Power */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
@@ -134,6 +144,7 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
         pw ? pw->iin : 0.0f,
         pw ? pw->vout : 0.0f,
         pw ? pw->iout : 0.0f);
+    CLAMP_OFF();
 
     /* Voltage & frequency */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
@@ -144,6 +155,7 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
         "# TYPE asicos_frequency_mhz gauge\n"
         "asicos_frequency_mhz %u\n\n",
         (unsigned)voltage, (unsigned)freq);
+    CLAMP_OFF();
 
     /* Shares */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
@@ -163,6 +175,7 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
         (unsigned)accepted,
         (unsigned)rejected,
         stats ? (unsigned long long)stats->duplicate_nonces : 0ULL);
+    CLAMP_OFF();
 
     /* Error rate (rejected / (accepted + rejected)) */
     float error_pct = 0.0f;
@@ -174,6 +187,7 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
         "# TYPE asicos_error_percentage gauge\n"
         "asicos_error_percentage %.2f\n\n",
         error_pct);
+    CLAMP_OFF();
 
     /* Difficulty */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
@@ -189,6 +203,7 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
         stats ? stats->session_best_diff : 0.0,
         stats ? stats->alltime_best_diff : 0.0,
         pool_diff);
+    CLAMP_OFF();
 
     /* Fans */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
@@ -204,6 +219,7 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
         pw ? (unsigned)pw->fan1_rpm : 0,
         pw ? (unsigned)pw->fan0_pct : 0,
         pw ? (unsigned)pw->fan1_pct : 0);
+    CLAMP_OFF();
 
     /* Overheat & power fault */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
@@ -215,6 +231,7 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
         "asicos_power_fault %d\n\n",
         pw ? (int)pw->overheat : 0,
         pw ? (int)pw->vr_fault : 0);
+    CLAMP_OFF();
 
     /* Stratum connection state (numeric enum) */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
@@ -226,6 +243,7 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
         "asicos_pool_connected %d\n\n",
         (int)state,
         (state == STRATUM_STATE_MINING) ? 1 : 0);
+    CLAMP_OFF();
 
     /* WiFi RSSI */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
@@ -233,6 +251,7 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
         "# TYPE asicos_wifi_rssi_dbm gauge\n"
         "asicos_wifi_rssi_dbm %d\n\n",
         (int)wifi_get_rssi());
+    CLAMP_OFF();
 
     /* Uptime */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
@@ -240,6 +259,7 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
         "# TYPE asicos_uptime_seconds counter\n"
         "asicos_uptime_seconds %lld\n\n",
         (long long)(uptime_us / 1000000));
+    CLAMP_OFF();
 
     /* Heap breakdown */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
@@ -255,6 +275,7 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
         (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
         (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
         (unsigned)esp_get_minimum_free_heap_size());
+    CLAMP_OFF();
 
     /* Efficiency (J/TH) */
     float jth = 0.0f;
@@ -266,6 +287,7 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
         "# TYPE asicos_efficiency_jth gauge\n"
         "asicos_efficiency_jth %.1f\n\n",
         jth);
+    CLAMP_OFF();
 
     /* Stratum RTT */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
@@ -273,6 +295,7 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
         "# TYPE asicos_stratum_rtt_ms gauge\n"
         "asicos_stratum_rtt_ms %.1f\n\n",
         stratum_client_get_rtt_ms());
+    CLAMP_OFF();
 
     /* Block height & new blocks */
     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
@@ -284,6 +307,7 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
         "asicos_blocks_found_total %u\n\n",
         (unsigned)mining_get_block_height(),
         (unsigned)stratum_client_get_block_count());
+    CLAMP_OFF();
 
     /* Rejected shares by reason */
     const stratum_rejection_reasons_t *reasons = stratum_client_get_rejection_reasons();
@@ -300,18 +324,22 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
         (unsigned)reasons->low_difficulty,
         (unsigned)reasons->stale,
         (unsigned)reasons->other);
+    CLAMP_OFF();
 
     /* Per-chip HW errors */
     if (hr) {
         off += snprintf(buf + off, METRICS_BUF_SIZE - off,
             "# HELP asicos_chip_hw_errors_total Per-chip hardware errors\n"
             "# TYPE asicos_chip_hw_errors_total counter\n");
+        CLAMP_OFF();
         for (int i = 0; i < hr->chip_count; i++) {
             off += snprintf(buf + off, METRICS_BUF_SIZE - off,
                 "asicos_chip_hw_errors_total{chip=\"%d\"} %llu\n",
                 i, (unsigned long long)result_task_get_chip_hw_errors(i));
+            CLAMP_OFF();
         }
         off += snprintf(buf + off, METRICS_BUF_SIZE - off, "\n");
+        CLAMP_OFF();
     }
 
 #if CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS
@@ -327,13 +355,16 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
                 off += snprintf(buf + off, METRICS_BUF_SIZE - off,
                     "# HELP asicos_task_cpu_percent Per-task CPU usage\n"
                     "# TYPE asicos_task_cpu_percent gauge\n");
+                CLAMP_OFF();
                 for (UBaseType_t i = 0; i < task_count && off < METRICS_BUF_SIZE - 100; i++) {
                     float pct = (float)task_array[i].ulRunTimeCounter / (float)total_runtime * 100.0f;
                     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
                         "asicos_task_cpu_percent{task=\"%s\"} %.1f\n",
                         task_array[i].pcTaskName, pct);
+                    CLAMP_OFF();
                 }
                 off += snprintf(buf + off, METRICS_BUF_SIZE - off, "\n");
+                CLAMP_OFF();
             }
             free(task_array);
         }

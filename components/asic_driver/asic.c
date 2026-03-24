@@ -29,6 +29,8 @@ typedef struct {
     float    hashrate;
 } measurement_t;
 
+static portMUX_TYPE s_meas_spinlock = portMUX_INITIALIZER_UNLOCKED;
+
 static measurement_t s_total_meas[16] = {0};
 static measurement_t s_domain_meas[16][ASIC_NUM_DOMAINS] = {{{0}}};
 
@@ -44,6 +46,7 @@ void asic_on_hash_counter(int chip, uint32_t value)
 {
     if (chip < 0 || chip >= 16) return;
     int64_t now = esp_timer_get_time();
+    portENTER_CRITICAL(&s_meas_spinlock);
     measurement_t *m = &s_total_meas[chip];
     if (m->time_us != 0) {
         uint32_t delta = value - m->value;
@@ -51,12 +54,14 @@ void asic_on_hash_counter(int chip, uint32_t value)
     }
     m->value = value;
     m->time_us = now;
+    portEXIT_CRITICAL(&s_meas_spinlock);
 }
 
 void asic_on_domain_counter(int chip, int domain, uint32_t value)
 {
     if (chip < 0 || chip >= 16 || domain < 0 || domain >= ASIC_NUM_DOMAINS) return;
     int64_t now = esp_timer_get_time();
+    portENTER_CRITICAL(&s_meas_spinlock);
     measurement_t *m = &s_domain_meas[chip][domain];
     if (m->time_us != 0) {
         uint32_t delta = value - m->value;
@@ -64,18 +69,28 @@ void asic_on_domain_counter(int chip, int domain, uint32_t value)
     }
     m->value = value;
     m->time_us = now;
+    portEXIT_CRITICAL(&s_meas_spinlock);
 }
 
 float asic_get_chip_hashrate(int chip)
 {
-    if (chip >= 0 && chip < 16) return s_total_meas[chip].hashrate;
+    if (chip >= 0 && chip < 16) {
+        portENTER_CRITICAL(&s_meas_spinlock);
+        float hr = s_total_meas[chip].hashrate;
+        portEXIT_CRITICAL(&s_meas_spinlock);
+        return hr;
+    }
     return 0.0f;
 }
 
 float asic_get_domain_hashrate(int chip, int domain)
 {
-    if (chip >= 0 && chip < 16 && domain >= 0 && domain < ASIC_NUM_DOMAINS)
-        return s_domain_meas[chip][domain].hashrate;
+    if (chip >= 0 && chip < 16 && domain >= 0 && domain < ASIC_NUM_DOMAINS) {
+        portENTER_CRITICAL(&s_meas_spinlock);
+        float hr = s_domain_meas[chip][domain].hashrate;
+        portEXIT_CRITICAL(&s_meas_spinlock);
+        return hr;
+    }
     return 0.0f;
 }
 
@@ -86,6 +101,7 @@ void asic_on_error_counter(int chip, uint32_t value)
 {
     if (chip < 0 || chip >= 16) return;
     int64_t now = esp_timer_get_time();
+    portENTER_CRITICAL(&s_meas_spinlock);
     measurement_t *m = &s_error_meas[chip];
     if (m->time_us != 0) {
         uint32_t delta = value - m->value;
@@ -93,13 +109,16 @@ void asic_on_error_counter(int chip, uint32_t value)
     }
     m->value = value;
     m->time_us = now;
+    portEXIT_CRITICAL(&s_meas_spinlock);
 }
 
 float asic_get_chip_error_rate(int chip)
 {
     if (chip < 0 || chip >= 16) return 0.0f;
+    portENTER_CRITICAL(&s_meas_spinlock);
     float total = s_total_meas[chip].hashrate;
     float errors = s_error_meas[chip].hashrate;
+    portEXIT_CRITICAL(&s_meas_spinlock);
     if (total + errors <= 0.0f) return 0.0f;
     return errors / (total + errors) * 100.0f;
 }
@@ -118,9 +137,11 @@ void asic_request_error_counters(uint8_t chip_addr)
 
 void asic_reset_hashrate_measurements(void)
 {
+    portENTER_CRITICAL(&s_meas_spinlock);
     memset(s_total_meas, 0, sizeof(s_total_meas));
     memset(s_domain_meas, 0, sizeof(s_domain_meas));
     memset(s_error_meas, 0, sizeof(s_error_meas));
+    portEXIT_CRITICAL(&s_meas_spinlock);
 }
 
 void asic_request_domain_counters(uint8_t chip_addr)

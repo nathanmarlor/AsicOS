@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, onUnmounted } from 'vue'
+import { ref } from 'vue'
 import { useApi } from '../composables/useApi'
 
 export interface SystemInfo {
