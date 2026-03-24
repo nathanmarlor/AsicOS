@@ -36,6 +36,12 @@ static uint64_t s_per_chip_hw_errors[16] = {0};
 static int64_t s_last_summary_time = 0;
 static uint32_t s_nonces_since_summary = 0;
 
+/* Rolling share rate: ring buffer of share timestamps (last hour) */
+#define SHARE_TS_RING_SIZE 256
+static int64_t s_share_timestamps[SHARE_TS_RING_SIZE];
+static int s_share_ts_idx = 0;
+static int s_share_ts_count = 0;
+
 const mining_stats_t *result_task_get_stats(void)
 {
     return (const mining_stats_t *)&s_stats;
@@ -56,6 +62,33 @@ uint64_t result_task_get_chip_hw_errors(int chip)
 {
     if (chip >= 0 && chip < 16) return s_per_chip_hw_errors[chip];
     return 0;
+}
+
+static void record_share_timestamp(void)
+{
+    s_share_timestamps[s_share_ts_idx] = esp_timer_get_time();
+    s_share_ts_idx = (s_share_ts_idx + 1) % SHARE_TS_RING_SIZE;
+    if (s_share_ts_count < SHARE_TS_RING_SIZE) s_share_ts_count++;
+}
+
+float result_task_get_share_rate(void)
+{
+    if (s_share_ts_count < 2) return 0.0f;
+    int64_t now = esp_timer_get_time();
+    int64_t one_hour_ago = now - 3600000000LL;  /* 1 hour in microseconds */
+    int count = 0;
+    for (int i = 0; i < s_share_ts_count; i++) {
+        if (s_share_timestamps[i] >= one_hour_ago) count++;
+    }
+    /* Shares in the last hour / minutes elapsed (capped at 60 min) */
+    int64_t oldest_in_window = now;
+    for (int i = 0; i < s_share_ts_count; i++) {
+        if (s_share_timestamps[i] >= one_hour_ago && s_share_timestamps[i] < oldest_in_window)
+            oldest_in_window = s_share_timestamps[i];
+    }
+    float minutes = (float)(now - oldest_in_window) / 60000000.0f;
+    if (minutes < 0.5f) return 0.0f;
+    return (float)count / minutes;
 }
 
 static bool is_duplicate(uint32_t nonce, uint16_t version)
@@ -200,6 +233,7 @@ static void result_task_fn(void *param)
 
             if (err == ESP_OK) {
                 s_stats.total_shares_submitted++;
+                record_share_timestamp();
                 led_flash();  /* Brief LED flash on share submission */
                 ESP_LOGI(TAG, "Share submitted: diff=%.4f pool_diff=%.4f nonce=0x%s",
                          share_diff, job->pool_diff, nonce_hex);

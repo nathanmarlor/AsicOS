@@ -132,15 +132,8 @@ const poolConnected = computed(() => system.info?.pool.state === 'mining')
 const poolDiffStr = computed(() => mining.formatDiff(mining.info?.pool_diff ?? 0))
 const bestDiffStr = computed(() => mining.formatDiff(mining.info?.best_diff ?? 0))
 
-// Share rate estimate (shares per minute based on recent allShares timestamps)
-const shareRate = computed(() => {
-  const s = mining.allShares
-  if (s.length < 2) return 0
-  const recent = s.slice(0, Math.min(20, s.length))
-  const span = recent[0].ts - recent[recent.length - 1].ts
-  if (span <= 0) return 0
-  return (recent.length / span) * 60000
-})
+// Share rate from server (accepted shares / uptime minutes)
+const shareRate = computed(() => system.info?.pool.share_rate ?? 0)
 
 // Power & Pool computed values
 const vin = computed(() => system.info?.power.vin.toFixed(2) ?? '--')
@@ -216,6 +209,8 @@ async function restart() {
         <template v-if="system.info">
           <span class="text-[var(--text-muted)]">|</span>
           <span class="text-[var(--text-muted)]">{{ system.info.config.frequency }} MHz / {{ system.info.config.voltage }} mV</span>
+          <span class="text-[var(--text-muted)]">|</span>
+          <span class="text-[var(--text-muted)]">v{{ system.info.firmware_version }}</span>
         </template>
       </div>
       <div class="flex items-center gap-3 text-[var(--text-muted)]">
@@ -286,30 +281,20 @@ async function restart() {
           reference-label="expected"
         />
       </div>
-      <div class="lg:col-span-2 bg-[var(--surface)] border border-[var(--border)] rounded p-3 relative">
-        <div class="absolute inset-0 p-3" style="pointer-events: none;">
-          <HashChart
-            :data="system.vrTempHistory"
-            color="#3b82f6"
-            :height="200"
-            :show-grid="false"
-            :min-y="20"
-            :max-y="100"
-          />
-        </div>
-        <div class="relative" style="z-index: 1;">
-          <HashChart
-            :data="system.chipTempHistory"
-            color="#ef4444"
-            :height="200"
-            label="TEMPERATURE (C)"
-            show-grid
-            :min-y="20"
-            :max-y="100"
-            :reference-line="75"
-            reference-label="max"
-          />
-        </div>
+      <div class="lg:col-span-2 bg-[var(--surface)] border border-[var(--border)] rounded p-3">
+        <HashChart
+          :data="system.chipTempHistory"
+          color="#ef4444"
+          :height="200"
+          label="TEMPERATURE (C)"
+          show-grid
+          :min-y="20"
+          :max-y="100"
+          :reference-line="75"
+          reference-label="max"
+          :second-data="system.vrTempHistory"
+          second-color="#3b82f6"
+        />
         <div class="flex gap-4 mt-1 text-[10px] font-mono">
           <span class="text-[#ef4444]">&mdash; ASIC</span>
           <span class="text-[#3b82f6]">&mdash; VRM</span>

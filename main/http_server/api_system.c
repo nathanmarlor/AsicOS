@@ -152,6 +152,7 @@ esp_err_t api_system_info_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(pool, "rejected",   stratum_client_get_rejected());
     cJSON_AddNumberToObject(pool, "difficulty",  stratum_client_get_current_difficulty());
     cJSON_AddNumberToObject(pool, "rtt_ms",     stratum_client_get_rtt_ms());
+    cJSON_AddNumberToObject(pool, "share_rate", result_task_get_share_rate());
     cJSON_AddNumberToObject(pool, "block_height", mining_get_block_height());
     cJSON_AddNumberToObject(pool, "blocks_found", stratum_client_get_block_count());
 

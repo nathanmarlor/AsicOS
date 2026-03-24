@@ -11,10 +11,14 @@ const props = withDefaults(defineProps<{
   referenceLabel?: string
   minY?: number
   maxY?: number
+  secondData?: number[]
+  secondColor?: string
+  secondLabel?: string
 }>(), {
   color: '#f97316',
   height: 200,
   showGrid: true,
+  secondColor: '#3b82f6',
 })
 
 const W = 600
@@ -83,6 +87,27 @@ const smoothPath = computed(() => {
   return path
 })
 
+// Second data line (optional overlay, e.g. VRM temp on same chart as ASIC temp)
+const secondSmoothPath = computed(() => {
+  const d = props.secondData
+  if (!d || d.length < 2) return ''
+  const pts = d.map((v, i) => ({ x: toX(i), y: toY(v) }))
+  let path = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)]
+    const p1 = pts[i]
+    const p2 = pts[i + 1]
+    const p3 = pts[Math.min(pts.length - 1, i + 2)]
+    const tension = 0.3
+    const cp1x = p1.x + (p2.x - p0.x) * tension
+    const cp1y = p1.y + (p2.y - p0.y) * tension
+    const cp2x = p2.x - (p3.x - p1.x) * tension
+    const cp2y = p2.y - (p3.y - p1.y) * tension
+    path += ` C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`
+  }
+  return path
+})
+
 const areaPath = computed(() => {
   if (!smoothPath.value) return ''
   const bottomY = PAD.top + chartH.value
@@ -125,6 +150,11 @@ function onMouseLeave() {
 const hoverValue = computed(() => {
   if (hoverIndex.value < 0 || hoverIndex.value >= props.data.length) return null
   return props.data[hoverIndex.value]
+})
+
+const hoverSecondValue = computed(() => {
+  if (!props.secondData || hoverIndex.value < 0 || hoverIndex.value >= props.secondData.length) return null
+  return props.secondData[hoverIndex.value]
 })
 
 const hoverTimeAgo = computed(() => {
@@ -201,6 +231,17 @@ const gradientId = computed(() => `grad-${_uid}`)
         stroke-linecap="round"
       />
 
+      <!-- Second line (optional) -->
+      <path
+        v-if="secondSmoothPath"
+        :d="secondSmoothPath"
+        fill="none"
+        :stroke="secondColor"
+        stroke-width="2"
+        stroke-linejoin="round"
+        stroke-linecap="round"
+      />
+
       <!-- Current value dot -->
       <circle
         v-if="lastPoint"
@@ -267,32 +308,40 @@ const gradientId = computed(() => `grad-${_uid}`)
 
       <!-- Hover crosshair + tooltip -->
       <template v-if="hovering && hoverValue != null">
-        <!-- Vertical line at hover position -->
         <line
           :x1="hoverPos.x" :y1="PAD.top"
           :x2="hoverPos.x" :y2="PAD.top + chartH"
           stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"
         />
-        <!-- Dot at hover point -->
         <circle :cx="hoverPos.x" :cy="hoverPos.y" r="4" :fill="color" />
-        <!-- Tooltip background -->
+        <!-- Second dot if dual data -->
+        <circle v-if="hoverSecondValue != null" :cx="hoverPos.x" :cy="toY(hoverSecondValue)" r="4" :fill="secondColor" />
+        <!-- Tooltip box (taller if dual) -->
         <rect
-          :x="hoverPos.x + (hoverPos.x > W/2 ? -90 : 10)"
-          :y="hoverPos.y - 28"
-          width="80" height="22" rx="3"
+          :x="hoverPos.x + (hoverPos.x > W/2 ? -100 : 10)"
+          :y="hoverPos.y - 32"
+          :width="hoverSecondValue != null ? 90 : 80"
+          :height="hoverSecondValue != null ? 36 : 22" rx="3"
           fill="var(--surface)" stroke="var(--border)" stroke-width="1"
         />
-        <!-- Tooltip text -->
+        <!-- Primary value -->
         <text
-          :x="hoverPos.x + (hoverPos.x > W/2 ? -50 : 50)"
-          :y="hoverPos.y - 14"
+          :x="hoverPos.x + (hoverPos.x > W/2 ? -55 : 55)"
+          :y="hoverPos.y - 19"
           text-anchor="middle"
-          fill="var(--text)" font-size="11" font-family="monospace"
-        >{{ hoverValue.toFixed(1) }}</text>
-        <!-- Time label -->
+          :fill="color" font-size="11" font-family="monospace"
+        >{{ hoverValue.toFixed(1) }}{{ label?.includes('TEMP') ? '°' : '' }}</text>
+        <!-- Second value -->
+        <text v-if="hoverSecondValue != null"
+          :x="hoverPos.x + (hoverPos.x > W/2 ? -55 : 55)"
+          :y="hoverPos.y - 7"
+          text-anchor="middle"
+          :fill="secondColor" font-size="11" font-family="monospace"
+        >{{ hoverSecondValue.toFixed(1) }}{{ label?.includes('TEMP') ? '°' : '' }}</text>
+        <!-- Time -->
         <text
-          :x="hoverPos.x + (hoverPos.x > W/2 ? -50 : 50)"
-          :y="hoverPos.y - 2"
+          :x="hoverPos.x + (hoverPos.x > W/2 ? -55 : 55)"
+          :y="hoverPos.y + (hoverSecondValue != null ? 4 : -2)"
           text-anchor="middle"
           fill="var(--text-muted)" font-size="9" font-family="monospace"
         >{{ hoverTimeAgo }}</text>
