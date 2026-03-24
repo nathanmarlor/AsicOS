@@ -639,8 +639,7 @@ esp_err_t api_system_ota_github_handler(httpd_req_t *req)
         .timeout_ms        = 30000,
         .crt_bundle_attach = esp_crt_bundle_attach,
         .keep_alive_enable = true,
-        .buffer_size       = 1024,    /* minimize internal RAM usage */
-        .buffer_size_tx    = 512,
+        .buffer_size       = 4096,    /* must fit GitHub CDN redirect headers */
     };
 
     esp_https_ota_config_t ota_config = {
