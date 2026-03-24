@@ -649,6 +649,7 @@ esp_err_t api_system_ota_github_handler(httpd_req_t *req)
         .timeout_ms    = 30000,
         .buffer_size   = 4096,
         .crt_bundle_attach = esp_crt_bundle_attach,
+        .max_redirection_count = 5,
     };
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
@@ -664,7 +665,20 @@ esp_err_t api_system_ota_github_handler(httpd_req_t *req)
     }
 
     int content_length = esp_http_client_fetch_headers(client);
-    ESP_LOGI(TAG, "GitHub OTA: content_length=%d", content_length);
+    int http_status = esp_http_client_get_status_code(client);
+
+    /* Follow redirects (GitHub releases redirect to CDN) */
+    while (http_status >= 300 && http_status < 400) {
+        esp_http_client_set_redirection(client);
+        esp_http_client_close(client);
+        err = esp_http_client_open(client, 0);
+        if (err != ESP_OK) break;
+        content_length = esp_http_client_fetch_headers(client);
+        http_status = esp_http_client_get_status_code(client);
+        ESP_LOGI(TAG, "GitHub OTA: redirect -> status=%d len=%d", http_status, content_length);
+    }
+
+    ESP_LOGI(TAG, "GitHub OTA: content_length=%d status=%d", content_length, http_status);
 
     char *buf = malloc(4096);
     if (!buf) {
