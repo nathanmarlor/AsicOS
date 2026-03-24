@@ -218,7 +218,9 @@ esp_err_t api_system_info_handler(httpd_req_t *req)
                         idle_runtime += tasks[i].ulRunTimeCounter;
                     }
                 }
-                float cpu_pct = (1.0f - (float)idle_runtime / (float)total_runtime) * 100.0f;
+                /* total_runtime is per-core; ESP32-S3 has 2 cores, idle sums both */
+                float cpu_pct = (1.0f - (float)idle_runtime / ((float)total_runtime * 2.0f)) * 100.0f;
+                if (cpu_pct < 0.0f) cpu_pct = 0.0f;
                 cJSON_AddNumberToObject(root, "cpu_usage", cpu_pct);
             }
             free(tasks);

@@ -125,7 +125,8 @@ void asic_reset_hashrate_measurements(void)
 
 void asic_request_domain_counters(uint8_t chip_addr)
 {
-    /* Request registers 0x88..0x8B (4 domains) */
+    /* Request registers 0x88..0x8B (4 domains) with 1ms delay between
+     * each to avoid overwhelming the ASIC UART (matches ForgeOS). */
     static const uint8_t domain_regs[ASIC_NUM_DOMAINS] = {
         ASIC_REG_DOMAIN_0, ASIC_REG_DOMAIN_1,
         ASIC_REG_DOMAIN_2, ASIC_REG_DOMAIN_3
@@ -139,6 +140,7 @@ void asic_request_domain_counters(uint8_t chip_addr)
         if (cmd_len > 0) {
             serial_tx(cmd_buf, (size_t)cmd_len);
         }
+        vTaskDelay(1);  /* ~1ms between register reads */
     }
 }
 
