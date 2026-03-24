@@ -220,19 +220,6 @@ static void result_task_fn(void *param)
 
         int chip_nr = bm1370_nonce_to_chip(result.nonce, board_get_config()->expected_chip_count);
 
-        /* DEBUG: log nonce bit patterns for first 50 nonces to find chip encoding */
-        if (s_nonce_count <= 200) {
-            uint32_t nh = ntohl(result.nonce);
-            ESP_LOGI(TAG, "NONCE raw=0x%08lx ntohl=0x%08lx "
-                     "raw[15:10]=%d raw[11]=%d ntohl[24:17]=%d ntohl[17]/128=%d chip=%d",
-                     (unsigned long)result.nonce, (unsigned long)nh,
-                     (int)((result.nonce & 0xfc00) >> 10),
-                     (int)((result.nonce >> 11) & 1),
-                     (int)((nh >> 17) & 0xFF),
-                     (int)(((nh >> 17) & 0xFF) / 128),
-                     chip_nr);
-        }
-
         if (chip_nr >= 0 && chip_nr < 16) {
             s_per_chip_nonces[chip_nr]++;
             s_nonce_bucket_cur[chip_nr]++;

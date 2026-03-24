@@ -126,8 +126,8 @@ esp_err_t bm1370_init(int expected_chips)
         vTaskDelay(pdMS_TO_TICKS(5));
     }
 
-    /* 2b. Re-assign chip addresses: split 256-address space evenly */
-    int addr_interval = 256 / found;
+    /* 2b. Re-assign chip addresses (BM1370 uses interval=4) */
+    int addr_interval = 4;
     bm1370_set_address_interval(addr_interval);
     for (int i = 0; i < found; i++) {
         uint8_t addr = (uint8_t)(i * addr_interval);
