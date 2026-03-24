@@ -97,8 +97,34 @@ jobs:
           name: www
           path: build/www/
 
+  build-www-spiffs:
+    needs: [build-ui]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download www artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: www
+          path: build/www/
+
+      - name: Generate SPIFFS image
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: ${{ env.IDF_VERSION }}
+          target: esp32s3
+          command: |
+            python3 $IDF_PATH/components/spiffs/spiffsgen.py 0x300000 build/www/ AsicOS-www.bin
+
+      - name: Upload SPIFFS image
+        uses: actions/upload-artifact@v4
+        with:
+          name: www-spiffs
+          path: AsicOS-www.bin
+
   release-beta:
-    needs: [build-firmware, build-ui]
+    needs: [build-firmware, build-ui, build-www-spiffs]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
@@ -156,3 +182,4 @@ jobs:
             release-assets/fw-nerdqaxepp/*
             release-assets/fw-bitforge-nano/*
             release-assets/www/*
+            release-assets/www-spiffs/*
