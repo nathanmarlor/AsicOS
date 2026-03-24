@@ -35,15 +35,14 @@ uint8_t bm1370_asic_to_job_id(uint8_t asic_id)
 /* ------------------------------------------------------------------ */
 int bm1370_nonce_to_chip(uint32_t nonce, int chip_count)
 {
-    /* With address_interval=4 and 2 chips, the chip address in the nonce
-     * is either 0x00 or 0x04 in bits 17-24 (after ntohl). However, the
-     * BM1370 doesn't reliably encode this with narrow spacing.
-     *
-     * Use the ASIC's response byte [6] (chip address) for register reads,
-     * and for nonce responses use statistical distribution from nonce bits.
-     * Bit 11 of the raw nonce provides even ~50/50 distribution. */
+    /* BM1370 chip address is encoded in raw nonce bits 10-15.
+     * Matching ESP-Miner-NerdQAxePlus: (nonce & 0x0000fc00) >> 11
+     * This extracts a chip index directly from the nonce without
+     * byte-swapping (nonce is stored as raw UART bytes). */
     if (chip_count <= 1) return 0;
-    return (int)((nonce >> 11) & (uint32_t)(chip_count - 1));
+    int chip_nr = (int)((nonce & 0x0000fc00) >> 11);
+    if (chip_nr >= chip_count) chip_nr = chip_count - 1;
+    return chip_nr;
 }
 
 /* ------------------------------------------------------------------ */
