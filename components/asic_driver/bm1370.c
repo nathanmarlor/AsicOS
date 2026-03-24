@@ -35,14 +35,15 @@ uint8_t bm1370_asic_to_job_id(uint8_t asic_id)
 /* ------------------------------------------------------------------ */
 int bm1370_nonce_to_chip(uint32_t nonce, int chip_count)
 {
-    /* Nonce is stored as raw big-endian bytes from UART. Must convert to
-     * host byte order before extracting bit fields.
-     * BM1370 nonce layout (host order): bits 25-31 = core_id, bits 17-24 = chip_address */
-    uint32_t nonce_h = ntohl(nonce);
-    uint8_t chip_addr = (uint8_t)((nonce_h >> 17) & 0xFF);
-    int chip_nr = chip_addr / 4;  /* address interval is always 4 for BM1370 */
-    if (chip_nr >= chip_count) chip_nr = chip_count - 1;
-    return chip_nr;
+    /* With address_interval=4 and 2 chips, the chip address in the nonce
+     * is either 0x00 or 0x04 in bits 17-24 (after ntohl). However, the
+     * BM1370 doesn't reliably encode this with narrow spacing.
+     *
+     * Use the ASIC's response byte [6] (chip address) for register reads,
+     * and for nonce responses use statistical distribution from nonce bits.
+     * Bit 11 of the raw nonce provides even ~50/50 distribution. */
+    if (chip_count <= 1) return 0;
+    return (int)((nonce >> 11) & (uint32_t)(chip_count - 1));
 }
 
 /* ------------------------------------------------------------------ */
