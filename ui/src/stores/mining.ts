@@ -23,6 +23,7 @@ export interface MiningInfo {
   duplicates: number
   chips: ChipInfo[]
   last_share_diff: number
+  recent_nonces: { diff: number; submitted: boolean }[]
 }
 
 export interface ShareEntry {
@@ -71,39 +72,23 @@ export const useMiningStore = defineStore('mining', () => {
       info.value = data
       error.value = null
 
-      if (prev && info.value) {
-        // Generate "all" share entries from nonce count changes (every nonce the ASIC returns)
-        const newNonces = info.value.total_nonces - prevNonces
-        if (newNonces > 0 && prevNonces > 0 && newNonces < 50) {
-          for (let i = 0; i < newNonces; i++) {
-            // Each nonce meets ASIC difficulty (256) - assign random difficulty around that
-            const diff = 256 * (1 + Math.random() * 4)
-            addShare({
-              ts: Date.now() - i * (3000 / Math.max(newNonces, 1)),
-              diff,
-              diff_str: formatDiff(diff),
-              accepted: true,
-              submitted: false,  // Not submitted to pool (below pool diff)
-            })
-          }
-        }
-
-        // Generate "submitted" share entries from accepted count changes
+      if (info.value) {
+        // Add real submitted shares from recent_nonces (server-side ring buffer)
+        const recent = info.value.recent_nonces ?? []
         const newAccepted = info.value.accepted - prevAccepted
-        if (newAccepted > 0 && prevAccepted > 0 && newAccepted < 10) {
-          const realDiff = info.value.last_share_diff || info.value.pool_diff
-          for (let i = 0; i < newAccepted; i++) {
+        if (newAccepted > 0 && prevAccepted > 0) {
+          // Take the newest entries that are submitted
+          const submitted = recent.filter(n => n.submitted).slice(0, newAccepted)
+          for (let i = 0; i < submitted.length; i++) {
             addShare({
               ts: Date.now() - i * 100,
-              diff: realDiff,
-              diff_str: formatDiff(realDiff),
+              diff: submitted[i].diff,
+              diff_str: formatDiff(submitted[i].diff),
               accepted: true,
               submitted: true,
             })
           }
         }
-      }
-      if (info.value) {
         prevAccepted = info.value.accepted
         prevNonces = info.value.total_nonces
       }

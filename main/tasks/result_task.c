@@ -39,6 +39,16 @@ static uint32_t s_nonces_since_summary = 0;
 static double s_last_valid_diff = 0.0;
 static volatile double s_last_share_diff = 0.0;  /* last submitted share difficulty */
 
+/* Ring buffer of recent nonce difficulties for the share feed */
+#define RECENT_NONCES_SIZE 32
+typedef struct {
+    double diff;
+    bool   submitted;
+} recent_nonce_t;
+static recent_nonce_t s_recent_nonces[RECENT_NONCES_SIZE];
+static int s_recent_idx = 0;
+static volatile uint32_t s_recent_seq = 0;  /* sequence number for change detection */
+
 /* Rolling per-chip nonce counts: two alternating 30-minute buckets.
  * Report current + previous for a ~30-60 min sliding window.
  * Every 30 min, previous = current, current = zeroed. */
@@ -89,6 +99,24 @@ uint64_t result_task_get_total_hw_errors(void)
 double result_task_get_last_share_diff(void)
 {
     return s_last_share_diff;
+}
+
+uint32_t result_task_get_recent_nonces_seq(void)
+{
+    return s_recent_seq;
+}
+
+/* Copy recent nonces into caller's arrays, newest first. Returns count. */
+int result_task_get_recent_nonces(double *diffs, bool *submitted, int max_count)
+{
+    int count = (s_recent_seq < RECENT_NONCES_SIZE) ? (int)s_recent_seq : RECENT_NONCES_SIZE;
+    if (count > max_count) count = max_count;
+    for (int i = 0; i < count; i++) {
+        int idx = (s_recent_idx - 1 - i + RECENT_NONCES_SIZE) % RECENT_NONCES_SIZE;
+        diffs[i] = s_recent_nonces[idx].diff;
+        submitted[i] = s_recent_nonces[idx].submitted;
+    }
+    return count;
 }
 
 float result_task_get_hw_error_rate(void)
@@ -232,6 +260,11 @@ static void result_task_fn(void *param)
             s_total_hw_errors++;
         } else {
             s_last_valid_diff = share_diff;
+            /* Record in recent nonces ring buffer */
+            s_recent_nonces[s_recent_idx].diff = share_diff;
+            s_recent_nonces[s_recent_idx].submitted = (share_diff >= job->pool_diff);
+            s_recent_idx = (s_recent_idx + 1) % RECENT_NONCES_SIZE;
+            s_recent_seq++;
         }
 
         /* Periodic nonce summary (after HW error counting for accuracy) */

@@ -1,5 +1,6 @@
 #include "api_mining.h"
 
+#include <stdbool.h>
 #include "cJSON.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
@@ -73,6 +74,20 @@ esp_err_t api_mining_info_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(root, "accepted",   stratum_client_get_accepted());
     cJSON_AddNumberToObject(root, "rejected",   stratum_client_get_rejected());
     cJSON_AddNumberToObject(root, "last_share_diff", result_task_get_last_share_diff());
+
+    /* Recent nonces (newest first, for share feed) */
+    {
+        double diffs[32];
+        bool subs[32];
+        int count = result_task_get_recent_nonces(diffs, subs, 32);
+        cJSON *recent = cJSON_AddArrayToObject(root, "recent_nonces");
+        for (int i = 0; i < count; i++) {
+            cJSON *entry = cJSON_CreateObject();
+            cJSON_AddNumberToObject(entry, "diff", diffs[i]);
+            cJSON_AddBoolToObject(entry, "submitted", subs[i]);
+            cJSON_AddItemToArray(recent, entry);
+        }
+    }
 
     send_json(req, root);
     return ESP_OK;
