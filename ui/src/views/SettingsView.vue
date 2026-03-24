@@ -14,7 +14,7 @@ const restartRequired = ref(false)
 
 // OTA state
 const otaChecking = ref(false)
-const otaInfo = ref<{ current_version: string; latest_version: string; update_available: boolean; download_url: string } | null>(null)
+const otaInfo = ref<{ current_version: string; latest_version: string; update_available: boolean; fw_download_url: string; www_download_url: string } | null>(null)
 const otaUpdating = ref(false)
 const otaProgress = ref('')
 const otaError = ref('')
@@ -157,16 +157,42 @@ async function checkForUpdates() {
   }
 }
 
-async function updateFromGithub() {
-  if (!otaInfo.value?.download_url) return
+async function updateFwFromGithub() {
+  if (!otaInfo.value?.fw_download_url) return
   otaUpdating.value = true
   otaProgress.value = 'Downloading and flashing firmware...'
   otaError.value = ''
   try {
-    await post('/api/system/ota/github', { download_url: otaInfo.value.download_url })
-    otaProgress.value = 'Update complete! Device is restarting...'
+    await post('/api/system/ota/github', { download_url: otaInfo.value.fw_download_url })
+    otaProgress.value = 'Firmware updated! Device is restarting...'
   } catch (e: any) {
-    otaError.value = 'GitHub OTA failed: ' + e.message
+    otaError.value = 'Firmware OTA failed: ' + e.message
+    otaProgress.value = ''
+  } finally {
+    otaUpdating.value = false
+  }
+}
+
+async function updateWwwFromGithub() {
+  if (!otaInfo.value?.www_download_url) return
+  otaUpdating.value = true
+  otaProgress.value = 'Downloading and flashing web UI...'
+  otaError.value = ''
+  try {
+    /* Download the www file and re-upload to the device's www OTA endpoint */
+    const resp = await fetch(otaInfo.value.www_download_url)
+    if (!resp.ok) throw new Error(`Download failed: ${resp.status}`)
+    const blob = await resp.blob()
+    const { BASE_URL } = useApi()
+    const uploadResp = await fetch(`${BASE_URL}/api/system/ota/www`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: blob,
+    })
+    if (!uploadResp.ok) throw new Error(`Upload failed: ${uploadResp.status}`)
+    otaProgress.value = 'Web UI updated! Device is restarting...'
+  } catch (e: any) {
+    otaError.value = 'Web UI OTA failed: ' + e.message
     otaProgress.value = ''
   } finally {
     otaUpdating.value = false
@@ -191,10 +217,33 @@ async function uploadFirmware() {
       body: otaFile.value,
     })
     if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
-    otaProgress.value = 'Update complete! Device is restarting...'
+    otaProgress.value = 'Firmware updated! Device is restarting...'
     otaFile.value = null
   } catch (e: any) {
-    otaError.value = 'Upload OTA failed: ' + e.message
+    otaError.value = 'Firmware upload failed: ' + e.message
+    otaProgress.value = ''
+  } finally {
+    otaUploading.value = false
+  }
+}
+
+async function uploadWww() {
+  if (!otaFile.value) return
+  otaUploading.value = true
+  otaProgress.value = 'Uploading web UI...'
+  otaError.value = ''
+  try {
+    const { BASE_URL } = useApi()
+    const res = await fetch(`${BASE_URL}/api/system/ota/www`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: otaFile.value,
+    })
+    if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
+    otaProgress.value = 'Web UI updated! Device is restarting...'
+    otaFile.value = null
+  } catch (e: any) {
+    otaError.value = 'Web UI upload failed: ' + e.message
     otaProgress.value = ''
   } finally {
     otaUploading.value = false
@@ -431,14 +480,26 @@ async function uploadFirmware() {
             {{ otaInfo.latest_version }}
           </span>
         </div>
-        <div v-if="otaInfo.update_available" class="pt-2 border-t border-[var(--border)]">
-          <button
-            @click="updateFromGithub"
-            :disabled="otaUpdating"
-            class="btn btn-primary text-xs w-full"
-          >
-            {{ otaUpdating ? 'Updating...' : 'Update from GitHub' }}
-          </button>
+        <div v-if="otaInfo.update_available" class="pt-2 border-t border-[var(--border)] space-y-2">
+          <div class="flex gap-2">
+            <button
+              @click="updateFwFromGithub"
+              :disabled="otaUpdating"
+              class="btn btn-primary text-xs flex-1"
+            >
+              {{ otaUpdating ? 'Updating...' : 'Update Firmware' }}
+            </button>
+            <button
+              @click="updateWwwFromGithub"
+              :disabled="otaUpdating"
+              class="btn btn-secondary text-xs flex-1"
+            >
+              {{ otaUpdating ? 'Updating...' : 'Update Web UI' }}
+            </button>
+          </div>
+          <div class="text-[9px] font-mono text-[var(--text-muted)]">
+            Firmware updates preserve your settings. Web UI updates only change the interface.
+          </div>
         </div>
         <div v-else class="text-[10px] font-mono text-[#22c55e]">
           Firmware is up to date.
@@ -460,7 +521,14 @@ async function uploadFirmware() {
             :disabled="!otaFile || otaUploading"
             class="btn btn-secondary text-xs"
           >
-            {{ otaUploading ? 'Uploading...' : 'Flash' }}
+            {{ otaUploading ? 'Uploading...' : 'Flash FW' }}
+          </button>
+          <button
+            @click="uploadWww"
+            :disabled="!otaFile || otaUploading"
+            class="btn btn-secondary text-xs"
+          >
+            {{ otaUploading ? 'Uploading...' : 'Flash WWW' }}
           </button>
         </div>
       </div>

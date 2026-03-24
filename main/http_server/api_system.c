@@ -10,6 +10,7 @@
 #include "esp_http_server.h"
 #include "esp_log.h"
 #include "esp_ota_ops.h"
+#include "esp_partition.h"
 #include "esp_system.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -726,4 +727,71 @@ esp_err_t api_system_ota_github_handler(httpd_req_t *req)
     esp_restart();
 
     return ESP_OK; /* unreachable */
+}
+
+/* ── POST /api/system/ota/www ─── Write raw SPIFFS image to www partition ── */
+
+esp_err_t api_system_ota_www_handler(httpd_req_t *req)
+{
+    set_cors(req);
+
+    const esp_partition_t *www_part = esp_partition_find_first(
+        ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_SPIFFS, "www");
+    if (!www_part) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "No www partition");
+        return ESP_FAIL;
+    }
+
+    int total = req->content_len;
+    if (total <= 0 || total > (int)www_part->size) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid content length");
+        return ESP_FAIL;
+    }
+
+    ESP_LOGI(TAG, "WWW OTA: erasing %d bytes on partition '%s'", total, www_part->label);
+    esp_err_t err = esp_partition_erase_range(www_part, 0, www_part->size);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Partition erase failed: %s", esp_err_to_name(err));
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Erase failed");
+        return ESP_FAIL;
+    }
+
+    char *buf = malloc(4096);
+    if (!buf) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "No memory");
+        return ESP_FAIL;
+    }
+
+    int received = 0;
+    while (received < total) {
+        int to_read = (total - received < 4096) ? total - received : 4096;
+        int ret = httpd_req_recv(req, buf, to_read);
+        if (ret <= 0) {
+            if (ret == HTTPD_SOCK_ERR_TIMEOUT) continue;
+            ESP_LOGE(TAG, "WWW OTA recv error at offset %d", received);
+            free(buf);
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Receive error");
+            return ESP_FAIL;
+        }
+
+        err = esp_partition_write(www_part, received, buf, ret);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Partition write failed at offset %d: %s", received, esp_err_to_name(err));
+            free(buf);
+            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Write failed");
+            return ESP_FAIL;
+        }
+        received += ret;
+    }
+
+    free(buf);
+    ESP_LOGI(TAG, "WWW OTA: wrote %d bytes, restarting...", received);
+
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, "{\"status\":\"www_updated\",\"restarting\":true}");
+
+    vTaskDelay(pdMS_TO_TICKS(500));
+    esp_restart();
+
+    return ESP_OK;
 }

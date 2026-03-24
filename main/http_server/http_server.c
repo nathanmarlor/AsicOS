@@ -238,6 +238,13 @@ static void register_routes(httpd_handle_t server)
     };
     httpd_register_uri_handler(server, &ota_github);
 
+    httpd_uri_t ota_www = {
+        .uri      = "/api/system/ota/www",
+        .method   = HTTP_POST,
+        .handler  = api_system_ota_www_handler,
+    };
+    httpd_register_uri_handler(server, &ota_www);
+
     /* Mining API */
     httpd_uri_t mining_info = {
         .uri      = "/api/mining/info",
