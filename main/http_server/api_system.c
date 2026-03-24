@@ -10,6 +10,7 @@
 #include "esp_http_server.h"
 #include "esp_log.h"
 #include "esp_ota_ops.h"
+#include "esp_heap_caps.h"
 #include "esp_partition.h"
 #include "esp_system.h"
 #include "esp_timer.h"
@@ -510,7 +511,8 @@ esp_err_t api_system_ota_check_handler(httpd_req_t *req)
              "https://api.github.com/repos/%s/releases?per_page=1",
              GITHUB_OTA_REPO);
 
-    char *resp_buf = calloc(1, OTA_CHECK_BUF_SIZE);
+    /* Allocate from SPIRAM to avoid starving internal RAM needed for TLS */
+    char *resp_buf = heap_caps_calloc(1, OTA_CHECK_BUF_SIZE, MALLOC_CAP_SPIRAM);
     if (!resp_buf) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "No memory");
         return ESP_FAIL;
