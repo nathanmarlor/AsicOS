@@ -23,6 +23,7 @@ idf_component_register(
           "http_server/api_tuner.c"
           "http_server/api_remote.c"
           "http_server/api_metrics.c"
+          "http_server/api_history.c"
           "http_server/ws_handler.c"
           "display_screens.c"
     INCLUDE_DIRS "." "tasks" "http_server"
