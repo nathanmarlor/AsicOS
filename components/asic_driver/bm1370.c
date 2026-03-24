@@ -31,17 +31,35 @@ uint8_t bm1370_asic_to_job_id(uint8_t asic_id)
 }
 
 /* ------------------------------------------------------------------ */
+/* Chip address interval (set during init, used for nonce mapping)      */
+/* ------------------------------------------------------------------ */
+static int s_address_interval = 4;
+
+void bm1370_set_address_interval(int interval)
+{
+    s_address_interval = interval;
+}
+
+int bm1370_get_address_interval(void)
+{
+    return s_address_interval;
+}
+
+/* ------------------------------------------------------------------ */
 /* Nonce to chip                                                       */
 /* ------------------------------------------------------------------ */
 int bm1370_nonce_to_chip(uint32_t nonce, int chip_count)
 {
-    /* BM1370 chip address is encoded in raw nonce bits 10-15 (6 bits).
-     * Reference: ESP-Miner-NerdQAxePlus BM1370::nonceToAsicNr
-     * The 6-bit field gives values 0-31. Use modulo for even distribution
-     * across any chip count. */
+    /* BM1370 encodes chip address in nonce bits 17-24 (after ntohl).
+     * Reference: bitaxeorg/esp-miner BM1370_process_work:
+     *   nonce_h = ntohl(nonce);
+     *   asic_nr = ((nonce_h >> 17) & 0xff) / address_interval;
+     * address_interval = 256 / chip_count (set during init). */
     if (chip_count <= 1) return 0;
-    int raw_chip = (int)((nonce & 0x0000fc00) >> 11);
-    return raw_chip % chip_count;
+    uint32_t nonce_h = ntohl(nonce);
+    int chip_nr = (int)(((nonce_h >> 17) & 0xFF) / s_address_interval);
+    if (chip_nr >= chip_count) chip_nr = chip_count - 1;
+    return chip_nr;
 }
 
 /* ------------------------------------------------------------------ */
@@ -108,9 +126,13 @@ esp_err_t bm1370_init(int expected_chips)
         vTaskDelay(pdMS_TO_TICKS(5));
     }
 
-    /* 2b. Re-assign chip addresses (after chain_inactive) */
+    /* 2b. Re-assign chip addresses: split 256-address space evenly
+     * (matching bitaxeorg/esp-miner: address_interval = 256 / chip_counter) */
+    int addr_interval = 256 / found;
+    bm1370_set_address_interval(addr_interval);
+    ESP_LOGI(TAG, "Address interval: %d (chips=%d)", addr_interval, found);
     for (int i = 0; i < found; i++) {
-        uint8_t addr = (uint8_t)(i * 4);
+        uint8_t addr = (uint8_t)(i * addr_interval);
         asic_set_chip_address(i, addr);
     }
 
@@ -128,7 +150,7 @@ esp_err_t bm1370_init(int expected_chips)
 
     /* 7. Per-chip register writes */
     for (int i = 0; i < found; i++) {
-        uint8_t addr = (uint8_t)(i * 4);
+        uint8_t addr = (uint8_t)(i * addr_interval);
         write_reg_chip(addr, 0xA8, (uint8_t[]){0x00, 0x07, 0x01, 0xF0}, 4);
         write_reg_chip(addr, ASIC_REG_MISC_CTRL, (uint8_t[]){0xF0, 0x00, 0xC1, 0x00}, 4);
         write_reg_chip(addr, ASIC_REG_CORE_CTRL, (uint8_t[]){0x80, 0x00, 0x8B, 0x00}, 4);

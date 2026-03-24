@@ -436,7 +436,7 @@ int asic_receive_result(asic_result_t *result, uint32_t timeout_ms)
     uint32_t raw_value;
     memcpy(&raw_value, &resp[2], 4);
     uint32_t value = ntohl(raw_value);
-    int chip = resp[6] / 4;  /* asic_address / interval */
+    int chip = resp[6] / bm1370_get_address_interval();  /* asic_address / interval */
     uint8_t reg = resp[7];
     ESP_LOGD(TAG, "Reg read: chip=%d reg=0x%02x val=0x%08lx",
              chip, reg, (unsigned long)value);

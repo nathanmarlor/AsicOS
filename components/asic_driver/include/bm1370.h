@@ -10,6 +10,8 @@
 uint8_t bm1370_job_to_asic_id(uint8_t job_id);
 uint8_t bm1370_asic_to_job_id(uint8_t asic_id);
 int     bm1370_nonce_to_chip(uint32_t nonce, int chip_count);
+void    bm1370_set_address_interval(int interval);
+int     bm1370_get_address_interval(void);
 
 esp_err_t bm1370_init(int expected_chips);
 esp_err_t bm1370_set_frequency(uint16_t freq_mhz);
