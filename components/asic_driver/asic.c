@@ -1,5 +1,6 @@
 #include "asic.h"
 #include "asic_packet.h"
+#include "bm1370.h"
 #include "serial.h"
 
 #include <string.h>
