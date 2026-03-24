@@ -39,6 +39,25 @@ static const char *get_content_type(const char *path)
     return "application/octet-stream";
 }
 
+/* ── Cached index.html for fast first-load ────────────────────────── */
+
+static char *s_index_cache = NULL;
+static size_t s_index_cache_len = 0;
+
+static void cache_index_html(void)
+{
+    struct stat st;
+    if (stat("/www/index.html", &st) != 0) return;
+    FILE *f = fopen("/www/index.html", "r");
+    if (!f) return;
+    s_index_cache = malloc(st.st_size);
+    if (s_index_cache) {
+        s_index_cache_len = fread(s_index_cache, 1, st.st_size, f);
+    }
+    fclose(f);
+    ESP_LOGI(TAG, "Cached index.html (%d bytes)", (int)s_index_cache_len);
+}
+
 /* ── SPIFFS static-file handler (SPA fallback) ─────────────────────── */
 
 static esp_err_t spiffs_handler(httpd_req_t *req)
@@ -51,7 +70,8 @@ static esp_err_t spiffs_handler(httpd_req_t *req)
     size_t uri_len = query ? (size_t)(query - uri) : strlen(uri);
 
     /* Build file path */
-    if (uri_len == 1 && uri[0] == '/') {
+    bool is_index = (uri_len == 1 && uri[0] == '/');
+    if (is_index) {
         snprintf(filepath, sizeof(filepath), "/www/index.html");
     } else {
         snprintf(filepath, sizeof(filepath), "/www%.*s", (int)uri_len, uri);
@@ -60,11 +80,19 @@ static esp_err_t spiffs_handler(httpd_req_t *req)
     /* Check if file exists; SPA fallback to index.html */
     struct stat st;
     if (stat(filepath, &st) != 0) {
+        is_index = true;
         snprintf(filepath, sizeof(filepath), "/www/index.html");
         if (stat(filepath, &st) != 0) {
             httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "File not found");
             return ESP_FAIL;
         }
+    }
+
+    /* Serve cached index.html instantly */
+    if (is_index && s_index_cache && s_index_cache_len > 0) {
+        httpd_resp_set_type(req, "text/html");
+        httpd_resp_send(req, s_index_cache, s_index_cache_len);
+        return ESP_OK;
     }
 
     /* Open and serve */
@@ -305,6 +333,8 @@ esp_err_t http_server_start(void)
     esp_err_t ret = init_spiffs();
     if (ret != ESP_OK) {
         ESP_LOGW(TAG, "SPIFFS init failed, static files will not be served");
+    } else {
+        cache_index_html();
     }
 
     httpd_config_t config   = HTTPD_DEFAULT_CONFIG();
