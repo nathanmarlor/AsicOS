@@ -275,8 +275,8 @@ async function restart() {
     </div>
 
     <!-- Charts Row -->
-    <div class="grid grid-cols-1 lg:grid-cols-5 gap-3">
-      <div class="lg:col-span-3 bg-[var(--surface)] border border-[var(--border)] rounded p-3">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3">
         <HashChart
           :data="system.hashrateHistory"
           color="#f97316"
@@ -287,7 +287,7 @@ async function restart() {
           reference-label="expected"
         />
       </div>
-      <div class="lg:col-span-2 bg-[var(--surface)] border border-[var(--border)] rounded p-3">
+      <div class="bg-[var(--surface)] border border-[var(--border)] rounded p-3">
         <HashChart
           :data="system.chipTempHistory"
           color="#ef4444"
