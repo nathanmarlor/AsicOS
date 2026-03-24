@@ -470,7 +470,7 @@ static const char *board_slug(void)
 /* ── GET /api/system/ota/check ────────────────────────────────────── */
 
 /* Buffer for GitHub API JSON response */
-#define OTA_CHECK_BUF_SIZE  4096
+#define OTA_CHECK_BUF_SIZE  8192
 
 typedef struct {
     char  *buf;
@@ -521,6 +521,7 @@ esp_err_t api_system_ota_check_handler(httpd_req_t *req)
         .user_data      = &ctx,
         .timeout_ms     = 10000,
         .crt_bundle_attach = esp_crt_bundle_attach,
+        .disable_auto_redirect = false,
     };
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
@@ -532,19 +533,24 @@ esp_err_t api_system_ota_check_handler(httpd_req_t *req)
     esp_http_client_cleanup(client);
 
     if (err != ESP_OK || status != 200) {
-        ESP_LOGE(TAG, "GitHub API request failed: err=%s status=%d", esp_err_to_name(err), status);
+        ESP_LOGE(TAG, "GitHub API request failed: err=%s status=%d len=%d",
+                 esp_err_to_name(err), status, ctx.len);
         free(resp_buf);
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "GitHub API request failed");
         return ESP_FAIL;
     }
 
+    ESP_LOGI(TAG, "GitHub API response: %d bytes, status=%d", ctx.len, status);
+
     /* Parse the GitHub releases JSON (array with 1 element) */
     cJSON *gh_array = cJSON_Parse(resp_buf);
-    free(resp_buf);
     if (!gh_array) {
+        ESP_LOGE(TAG, "JSON parse failed, first 100 chars: %.100s", resp_buf);
+        free(resp_buf);
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to parse GitHub response");
         return ESP_FAIL;
     }
+    free(resp_buf);
 
     cJSON *gh = cJSON_IsArray(gh_array) ? cJSON_GetArrayItem(gh_array, 0) : gh_array;
     if (!gh) {
@@ -554,18 +560,23 @@ esp_err_t api_system_ota_check_handler(httpd_req_t *req)
     }
 
     cJSON *tag = cJSON_GetObjectItem(gh, "tag_name");
-    const char *latest_ver = (tag && cJSON_IsString(tag)) ? tag->valuestring : "unknown";
+    const char *tag_name = (tag && cJSON_IsString(tag)) ? tag->valuestring : "unknown";
+    const char *latest_ver = tag_name;
 
-    /* Strip leading 'v' from tag if present */
+    /* Strip leading 'v' from version display if present */
     if (latest_ver[0] == 'v' || latest_ver[0] == 'V') {
         latest_ver++;
     }
 
-    /* Build download URL for this board's firmware asset */
-    char download_url[512];
-    snprintf(download_url, sizeof(download_url),
-             "https://github.com/%s/releases/latest/download/AsicOS-%s-fw.bin",
-             GITHUB_OTA_REPO, slug);
+    /* Build download URLs using tag-specific path (works for pre-releases) */
+    char fw_download_url[512];
+    char www_download_url[512];
+    snprintf(fw_download_url, sizeof(fw_download_url),
+             "https://github.com/%s/releases/download/%s/AsicOS-%s-fw.bin",
+             GITHUB_OTA_REPO, tag_name, slug);
+    snprintf(www_download_url, sizeof(www_download_url),
+             "https://github.com/%s/releases/download/%s/index.html",
+             GITHUB_OTA_REPO, tag_name);
 
     bool update_available = (strcmp(app->version, latest_ver) != 0);
 
@@ -573,7 +584,8 @@ esp_err_t api_system_ota_check_handler(httpd_req_t *req)
     cJSON_AddStringToObject(root, "current_version", app->version);
     cJSON_AddStringToObject(root, "latest_version",  latest_ver);
     cJSON_AddBoolToObject(root, "update_available",  update_available);
-    cJSON_AddStringToObject(root, "download_url",    download_url);
+    cJSON_AddStringToObject(root, "fw_download_url", fw_download_url);
+    cJSON_AddStringToObject(root, "www_download_url", www_download_url);
 
     cJSON_Delete(gh_array);
     send_json(req, root);
