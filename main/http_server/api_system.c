@@ -9,6 +9,7 @@
 #include "esp_http_client.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
+#include "esp_https_ota.h"
 #include "esp_ota_ops.h"
 #include "esp_heap_caps.h"
 #include "esp_partition.h"
@@ -630,111 +631,42 @@ esp_err_t api_system_ota_github_handler(httpd_req_t *req)
 
     ESP_LOGI(TAG, "GitHub OTA: downloading from %s", download_url);
 
-    const esp_partition_t *update_partition = esp_ota_get_next_update_partition(NULL);
-    if (!update_partition) {
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "No OTA partition");
-        return ESP_FAIL;
-    }
+    /* Use esp_https_ota which handles redirects, TLS, and streaming natively */
+    esp_http_client_config_t http_config = {
+        .url               = download_url,
+        .timeout_ms        = 30000,
+        .crt_bundle_attach = esp_crt_bundle_attach,
+        .keep_alive_enable = true,
+    };
 
-    esp_ota_handle_t ota_handle;
-    esp_err_t err = esp_ota_begin(update_partition, OTA_WITH_SEQUENTIAL_WRITES, &ota_handle);
+    esp_https_ota_config_t ota_config = {
+        .http_config = &http_config,
+    };
+
+    esp_https_ota_handle_t ota_handle = NULL;
+    esp_err_t err = esp_https_ota_begin(&ota_config, &ota_handle);
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "esp_ota_begin failed: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "esp_https_ota_begin failed: %s", esp_err_to_name(err));
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA begin failed");
         return ESP_FAIL;
     }
 
-    esp_http_client_config_t config = {
-        .url           = download_url,
-        .timeout_ms    = 30000,
-        .buffer_size   = 8192,  /* large enough for redirect headers */
-        .crt_bundle_attach = esp_crt_bundle_attach,
-    };
-
-    esp_http_client_handle_t client = esp_http_client_init(&config);
-    esp_http_client_set_header(client, "User-Agent", "AsicOS");
-
-    err = esp_http_client_open(client, 0);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "HTTP open failed: %s", esp_err_to_name(err));
-        esp_http_client_cleanup(client);
-        esp_ota_abort(ota_handle);
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Download failed");
-        return ESP_FAIL;
-    }
-
-    int content_length = esp_http_client_fetch_headers(client);
-    int http_status = esp_http_client_get_status_code(client);
-    ESP_LOGI(TAG, "GitHub OTA: status=%d len=%d", http_status, content_length);
-
-    /* Follow redirects (GitHub CDN uses 302) */
-    int redirects = 0;
-    while (http_status >= 300 && http_status < 400 && redirects++ < 5) {
-        esp_http_client_set_redirection(client);
-        esp_http_client_close(client);
-        err = esp_http_client_open(client, 0);
-        if (err != ESP_OK) {
-            ESP_LOGE(TAG, "Redirect open failed: %s", esp_err_to_name(err));
-            break;
-        }
-        content_length = esp_http_client_fetch_headers(client);
-        http_status = esp_http_client_get_status_code(client);
-        ESP_LOGI(TAG, "GitHub OTA: redirect -> status=%d len=%d", http_status, content_length);
-    }
-
-    char *buf = malloc(4096);
-    if (!buf) {
-        esp_http_client_cleanup(client);
-        esp_ota_abort(ota_handle);
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "No memory");
-        return ESP_FAIL;
-    }
-
-    int total_read = 0;
     while (1) {
-        int read_len = esp_http_client_read(client, buf, 4096);
-        if (read_len < 0) {
-            ESP_LOGE(TAG, "HTTP read error");
-            break;
-        }
-        if (read_len == 0) {
-            /* Check if we're done or if it's a redirect */
-            if (esp_http_client_is_complete_data_received(client)) {
-                break;
-            }
-            continue;
-        }
-
-        err = esp_ota_write(ota_handle, buf, read_len);
-        if (err != ESP_OK) {
-            ESP_LOGE(TAG, "esp_ota_write failed: %s", esp_err_to_name(err));
-            break;
-        }
-        total_read += read_len;
+        err = esp_https_ota_perform(ota_handle);
+        if (err != ESP_ERR_HTTPS_OTA_IN_PROGRESS) break;
     }
 
-    free(buf);
-    esp_http_client_cleanup(client);
-
-    if (err != ESP_OK || total_read == 0) {
-        esp_ota_abort(ota_handle);
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA download/write failed");
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_https_ota_perform failed: %s", esp_err_to_name(err));
+        esp_https_ota_abort(ota_handle);
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA download failed");
         return ESP_FAIL;
     }
 
-    ESP_LOGI(TAG, "GitHub OTA: downloaded %d bytes", total_read);
-
-    err = esp_ota_end(ota_handle);
+    err = esp_https_ota_finish(ota_handle);
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "esp_ota_end failed: %s", esp_err_to_name(err));
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA end failed");
-        return ESP_FAIL;
-    }
-
-    err = esp_ota_set_boot_partition(update_partition);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "esp_ota_set_boot_partition failed: %s", esp_err_to_name(err));
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Set boot partition failed");
+        ESP_LOGE(TAG, "esp_https_ota_finish failed: %s", esp_err_to_name(err));
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "OTA finish failed");
         return ESP_FAIL;
     }
 
