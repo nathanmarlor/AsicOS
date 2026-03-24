@@ -14,6 +14,7 @@
 #define ASIC_REG_CORE_CTRL      0x3C
 #define ASIC_REG_ANALOG_MUX     0x54
 #define ASIC_REG_IO_DRIVE       0x58
+#define ASIC_REG_ERROR_COUNT    0x4C  /* Error counter */
 #define ASIC_REG_DOMAIN_0       0x88  /* Domain 0 hash count */
 #define ASIC_REG_DOMAIN_1       0x89  /* Domain 1 hash count */
 #define ASIC_REG_DOMAIN_2       0x8A  /* Domain 2 hash count */
@@ -67,8 +68,11 @@ void      asic_request_hash_counter(uint8_t chip_addr);
 void      asic_request_domain_counters(uint8_t chip_addr);
 void      asic_on_hash_counter(int chip, uint32_t value);
 void      asic_on_domain_counter(int chip, int domain, uint32_t value);
+void      asic_on_error_counter(int chip, uint32_t value);
 float     asic_get_chip_hashrate(int chip);
 float     asic_get_domain_hashrate(int chip, int domain);
+float     asic_get_chip_error_rate(int chip);
+void      asic_request_error_counters(uint8_t chip_addr);
 void      asic_reset_hashrate_measurements(void);
 
 // PLL helper

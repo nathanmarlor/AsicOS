@@ -72,6 +72,7 @@ static void hashrate_task_fn(void *param)
         for (int i = 0; i < s_info.chip_count; i++) {
             asic_request_hash_counter((uint8_t)(i * 4));
             asic_request_domain_counters((uint8_t)(i * 4));
+            asic_request_error_counters((uint8_t)(i * 4));
         }
 
         /* Small delay for responses, then aggregate */

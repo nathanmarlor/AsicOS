@@ -79,10 +79,42 @@ float asic_get_domain_hashrate(int chip, int domain)
     return 0.0f;
 }
 
+/* Error counter tracking (register 0x4C) */
+static measurement_t s_error_meas[16] = {0};
+
+void asic_on_error_counter(int chip, uint32_t value)
+{
+    if (chip < 0 || chip >= 16) return;
+    int64_t now = esp_timer_get_time();
+    measurement_t *m = &s_error_meas[chip];
+    if (m->time_us != 0) {
+        uint32_t delta = value - m->value;
+        m->hashrate = hash_counter_to_ghs(now - m->time_us, delta);
+    }
+    m->value = value;
+    m->time_us = now;
+}
+
+float asic_get_chip_error_rate(int chip)
+{
+    if (chip < 0 || chip >= 16) return 0.0f;
+    float total = s_total_meas[chip].hashrate;
+    float errors = s_error_meas[chip].hashrate;
+    if (total + errors <= 0.0f) return 0.0f;
+    return errors / (total + errors) * 100.0f;
+}
+
+void asic_request_error_counters(uint8_t chip_addr)
+{
+    uint8_t cmd[2] = { chip_addr, ASIC_REG_ERROR_COUNT };
+    asic_send_command(CMD_READ, cmd, sizeof(cmd));
+}
+
 void asic_reset_hashrate_measurements(void)
 {
     memset(s_total_meas, 0, sizeof(s_total_meas));
     memset(s_domain_meas, 0, sizeof(s_domain_meas));
+    memset(s_error_meas, 0, sizeof(s_error_meas));
 }
 
 void asic_request_domain_counters(uint8_t chip_addr)
@@ -380,11 +412,13 @@ int asic_receive_result(asic_result_t *result, uint32_t timeout_ms)
     ESP_LOGD(TAG, "Register read: chip=%d reg=0x%02x value=0x%08lx",
              chip, reg, (unsigned long)value);
 
-    /* Route to domain counters or total hash counter.
+    /* Route to appropriate callback based on register address.
      * Hashrate delta computed immediately with accurate timestamp. */
     if (reg >= ASIC_REG_DOMAIN_0 && reg <= ASIC_REG_DOMAIN_3) {
         int domain = reg - ASIC_REG_DOMAIN_0;
         asic_on_domain_counter(chip, domain, value);
+    } else if (reg == ASIC_REG_ERROR_COUNT) {
+        asic_on_error_counter(chip, value);
     } else {
         asic_on_hash_counter(chip, value);
     }

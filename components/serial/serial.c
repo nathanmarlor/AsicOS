@@ -9,7 +9,7 @@ static const char *TAG = "serial";
 static uart_port_t s_port;
 static SemaphoreHandle_t s_tx_mutex;
 
-#define SERIAL_RX_BUF_SIZE 1024
+#define SERIAL_RX_BUF_SIZE 2048
 #define SERIAL_TX_BUF_SIZE 0
 #define MUTEX_TIMEOUT_MS   1000
 
