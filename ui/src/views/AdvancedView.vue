@@ -211,14 +211,11 @@ async function restart() {
         <span class="text-[var(--text-secondary)]">{{ system.info?.asic_model ?? '--' }}</span>
         <template v-if="system.info">
           <span class="text-[var(--text-muted)]">|</span>
-          <span class="text-[var(--text-muted)]">{{ system.info.config.frequency }} MHz / {{ system.info.config.voltage }} mV</span>
-          <span class="text-[var(--text-muted)]">|</span>
           <span class="text-[var(--text-muted)]">v{{ system.info.firmware_version }}</span>
         </template>
       </div>
       <div class="flex items-center gap-3 text-[var(--text-muted)]">
         <span v-if="system.info">uptime: {{ formatUptime(Math.floor(system.info.uptime_ms / 1000)) }}</span>
-        <span v-if="system.info">heap: {{ (system.info.free_heap / 1024).toFixed(0) }}KB</span>
       </div>
     </div>
 
@@ -348,11 +345,11 @@ async function restart() {
         <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-2">Power</div>
         <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] font-mono">
           <div class="text-[var(--text-muted)]">Input</div>
-          <div class="text-right text-[var(--text)]">{{ vin }} V / {{ iin }} A</div>
+          <div class="text-right" :class="(system.info?.power?.vin ?? 12) < 11 || (system.info?.power?.vin ?? 12) > 13 ? 'text-[#f97316]' : 'text-[var(--text)]'">{{ vin }} V / {{ iin }} A</div>
           <div class="text-[var(--text-muted)]">ASIC</div>
-          <div class="text-right text-[var(--text)]">{{ vout }} mV / {{ iout }} A</div>
+          <div class="text-right" :class="(system.info?.power?.iout ?? 0) >= 40 ? 'text-[#ef4444]' : (system.info?.power?.iout ?? 0) >= 38 ? 'text-[#f97316]' : 'text-[var(--text)]'">{{ vout }} mV / {{ iout }} A</div>
           <div class="text-[var(--text-muted)]">Power</div>
-          <div class="text-right text-[var(--text)]">{{ watts }} W</div>
+          <div class="text-right" :class="(system.info?.power?.watts ?? 0) >= 55 ? 'text-[#ef4444]' : (system.info?.power?.watts ?? 0) >= 50 ? 'text-[#f97316]' : 'text-[var(--text)]'">{{ watts }} W</div>
           <template v-if="hasAdcVcore">
             <div class="text-[var(--text-muted)]">Core ADC</div>
             <div class="text-right text-[var(--text)]">{{ vcoreAdc }} mV</div>
@@ -365,7 +362,7 @@ async function restart() {
         <div class="text-[10px] font-mono text-[var(--text-secondary)] uppercase tracking-wider mb-2">Cooling</div>
         <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] font-mono">
           <div class="text-[var(--text-muted)]">VRM</div>
-          <div class="text-right text-[var(--text)]">{{ vrTempDetail }}&deg;C</div>
+          <div class="text-right" :class="(system.info?.temps?.vr ?? 0) >= 85 ? 'text-[#ef4444]' : (system.info?.temps?.vr ?? 0) >= 75 ? 'text-[#f97316]' : 'text-[var(--text)]'">{{ vrTempDetail }}&deg;C</div>
           <div class="text-[var(--text-muted)]">Board</div>
           <div class="text-right text-[var(--text)]">{{ boardTemp }}&deg;C</div>
           <div class="text-[var(--text-muted)]">Fan 1</div>

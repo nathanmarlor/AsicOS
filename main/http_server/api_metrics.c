@@ -357,7 +357,8 @@ esp_err_t api_metrics_handler(httpd_req_t *req)
                     "# TYPE asicos_task_cpu_percent gauge\n");
                 CLAMP_OFF();
                 for (UBaseType_t i = 0; i < task_count && off < METRICS_BUF_SIZE - 100; i++) {
-                    float pct = (float)task_array[i].ulRunTimeCounter / (float)total_runtime * 100.0f;
+                    /* Normalize to dual-core: total capacity = total_runtime * 2 */
+                    float pct = (float)task_array[i].ulRunTimeCounter / ((float)total_runtime * 2.0f) * 100.0f;
                     off += snprintf(buf + off, METRICS_BUF_SIZE - off,
                         "asicos_task_cpu_percent{task=\"%s\"} %.1f\n",
                         task_array[i].pcTaskName, pct);

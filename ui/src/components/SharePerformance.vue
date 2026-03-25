@@ -55,6 +55,13 @@ const rejectTooltip = computed(() => {
         <div class="h-full bg-[#22c55e] transition-all duration-500" :style="{ width: acceptPct + '%' }" />
         <div v-if="rejected > 0" class="h-full bg-[#ef4444] transition-all duration-500" :style="{ width: (100 - acceptPct) + '%' }" />
       </div>
+      <!-- Rejection breakdown (always visible when rejected > 0) -->
+      <div v-if="rejected > 0 && rejectReasons" class="text-[9px] font-mono text-[#ef4444] mt-1 flex gap-3">
+        <span v-if="rejectReasons.job_not_found">stale: {{ rejectReasons.job_not_found }}</span>
+        <span v-if="rejectReasons.duplicate">dup: {{ rejectReasons.duplicate }}</span>
+        <span v-if="rejectReasons.low_difficulty">low diff: {{ rejectReasons.low_difficulty }}</span>
+        <span v-if="rejectReasons.other">other: {{ rejectReasons.other }}</span>
+      </div>
     </div>
 
     <!-- Key stats in clean rows -->
