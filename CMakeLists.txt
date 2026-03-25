@@ -16,4 +16,4 @@ set(EXTRA_COMPONENT_DIRS
 set(PROJECT_VER "1.0.2")
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(AsicOS)
+project(AsicOS VERSION 1.0.2)
