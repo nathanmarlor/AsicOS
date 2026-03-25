@@ -13,7 +13,7 @@ set(EXTRA_COMPONENT_DIRS
     "components/display"
 )
 
-set(PROJECT_VER "1.0.1")
+set(PROJECT_VER "1.0.2")
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(AsicOS)
