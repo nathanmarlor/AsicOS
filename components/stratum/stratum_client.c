@@ -364,9 +364,9 @@ void stratum_client_task(void *param)
                 }
             }
 
-            int ret = stratum_recv_line(s_conn, line, sizeof(line), 60000);
+            int ret = stratum_recv_line(s_conn, line, sizeof(line), 180000);
             if (ret < 0) {
-                ESP_LOGW(TAG, "Recv error or timeout, disconnecting");
+                ESP_LOGW(TAG, "Recv error or timeout (180s), disconnecting");
                 break;
             }
             if (ret > 0) {
