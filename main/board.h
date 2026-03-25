@@ -29,6 +29,10 @@ typedef struct {
     uint16_t overheat_temp;
     uint16_t vr_target_temp;
 
+    uint16_t max_power_w;       // Max power budget (watts)
+    uint16_t max_current_a;     // Max VR output current (amps)
+    uint16_t nominal_voltage_v; // Nominal input voltage (volts)
+
     uint16_t job_interval_ms;
 
     uint8_t expected_chip_count;

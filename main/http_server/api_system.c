@@ -199,6 +199,10 @@ esp_err_t api_system_info_handler(httpd_req_t *req)
         nvs_config_get_u16(NVS_KEY_FAN_TARGET_TEMP, board->fan_target_temp));
     cJSON_AddNumberToObject(config, "overheat_temp",
         nvs_config_get_u16(NVS_KEY_OVERHEAT_TEMP, board->overheat_temp));
+    cJSON_AddNumberToObject(config, "max_power_w",      board->max_power_w);
+    cJSON_AddNumberToObject(config, "max_current_a",    board->max_current_a);
+    cJSON_AddNumberToObject(config, "nominal_voltage_v", board->nominal_voltage_v);
+    cJSON_AddNumberToObject(config, "vr_target_temp",   board->vr_target_temp);
 
     /* System */
     const esp_app_desc_t *app = esp_app_get_description();

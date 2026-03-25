@@ -28,8 +28,12 @@ static const board_config_t s_board = {
     .voltage_max = 1800,
 
     .fan_target_temp = 55,
-    .overheat_temp = 75,   // THROTTLE_TEMP from forge-os
-    .vr_target_temp = 85,  // VR auto-fan range tops at 85C
+    .overheat_temp = 75,
+    .vr_target_temp = 85,
+
+    .max_power_w = 60,
+    .max_current_a = 40,
+    .nominal_voltage_v = 12,
 
     .job_interval_ms = 500,
 

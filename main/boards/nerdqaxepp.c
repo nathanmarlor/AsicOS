@@ -29,6 +29,10 @@ static const board_config_t s_board = {
     .overheat_temp = 70,
     .vr_target_temp = 65,
 
+    .max_power_w = 120,
+    .max_current_a = 80,
+    .nominal_voltage_v = 12,
+
     .job_interval_ms = 500,
 
     .expected_chip_count = 4,

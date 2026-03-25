@@ -15,7 +15,7 @@ export interface SystemInfo {
   power: { vin: number; iin: number; vout: number; iout: number; watts: number; input_watts: number; efficiency_pct: number; fan0_rpm: number; fan1_rpm: number; fan0_pct: number; fan1_pct: number; fan_override: number; fan_mode: string; overheat: boolean; vr_fault: boolean; vr_temp: number; vcore_adc_mv: number }
   mining: { best_difficulty: number; total_shares_submitted: number; duplicate_nonces: number; hw_errors: number; hw_error_rate: number }
   pool: { state: string; accepted: number; rejected: number; difficulty: number; rtt_ms: number; block_height: number; blocks_found: number; share_rate: number; reject_reasons: { job_not_found: number; duplicate: number; low_difficulty: number; other: number } }
-  config: { pool_url: string; pool_port: number; pool_user: string; frequency: number; voltage: number; wifi_ssid: string; ui_mode: string }
+  config: { pool_url: string; pool_port: number; pool_user: string; frequency: number; voltage: number; wifi_ssid: string; ui_mode: string; max_power_w: number; max_current_a: number; nominal_voltage_v: number; vr_target_temp: number; overheat_temp: number }
   uptime_ms: number
   free_heap: number
   wifi_rssi: number
